@@ -27,13 +27,18 @@ function esc(value) {
  * Send order confirmation to customer + notification to store.
  */
 export async function sendOrderConfirmation({ order, user, cartLines, shippingAddress, shopifyOrderId }) {
-    const itemsHtml = cartLines.map(l =>
-        `<tr>
-            <td style="padding:6px 0;font-size:13px;">${esc(l.title)}</td>
+    // Include variant options (size/color) — essential for packing the right item
+    const itemsHtml = cartLines.map(l => {
+        const options = (l.selectedOptions || [])
+            .map(o => o.value)
+            .filter(v => v && v.toLowerCase() !== 'default title')
+            .join(' / ');
+        return `<tr>
+            <td style="padding:6px 0;font-size:13px;">${esc(l.title)}${options ? `<br><span style="color:#888;font-size:12px;">${esc(options)}</span>` : ''}</td>
             <td style="padding:6px 0;font-size:13px;text-align:center;">${l.quantity}</td>
             <td style="padding:6px 0;font-size:13px;text-align:right;">₹${(l.price * l.quantity).toFixed(2)}</td>
-        </tr>`
-    ).join('');
+        </tr>`;
+    }).join('');
 
     const totalAmount = (Number(order.total_amount) / 100).toFixed(2);
     const addr = shippingAddress;
@@ -80,8 +85,9 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
         <h2 style="font-size:16px;letter-spacing:0.2em;">NEW ORDER #${order.id}</h2>
         <p><strong>Customer:</strong> ${esc(user.first_name)} ${esc(user.last_name)} (${esc(user.email)})</p>
-        <p><strong>Amount:</strong> ₹${totalAmount}</p>
-        <p><strong>Shipping to:</strong> ${addressLine}</p>
+        <p><strong>Phone:</strong> ${esc(addr.phone || user.phone || 'not provided')}</p>
+        <p><strong>Amount:</strong> ₹${totalAmount} &nbsp;|&nbsp; <strong>Shipping:</strong> ${esc(order.shipping_method || 'standard')}</p>
+        <p><strong>Shipping to:</strong> ${esc(addr.firstName || user.first_name)} ${esc(addr.lastName || user.last_name)}, ${addressLine}</p>
         <table style="width:100%;border-collapse:collapse;margin-top:16px;">
             <thead><tr><th style="text-align:left;">Item</th><th>Qty</th><th style="text-align:right;">Price</th></tr></thead>
             <tbody>${itemsHtml}</tbody>
