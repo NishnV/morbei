@@ -1,0 +1,107 @@
+.privacy-page {
+    padding: 120px 2rem 6rem;
+    max-width: 800px;
+    margin: 0 auto;
+    color: var(--text);
+    background: var(--bg);
+    font-family: inherit;
+}
+
+.privacy-last-updated {
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    margin-bottom: 3rem;
+    text-transform: uppercase;
+}
+
+.privacy-intro {
+    font-size: 0.95rem;
+    /* ~12px */
+    line-height: 1.8;
+    margin-bottom: 4rem;
+    text-align: center;
+    /* The screenshot shows it centered, or justified block. Usually centered intro is common in these designs. */
+    padding: 0 2rem;
+}
+
+.privacy-section {
+    margin-bottom: 2.5rem;
+}
+
+.privacy-section h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+}
+
+.privacy-sub-section {
+    margin-bottom: 1.5rem;
+}
+
+.privacy-sub-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.8rem;
+    text-transform: uppercase;
+}
+
+.privacy-text {
+    font-size: 0.9rem;
+    line-height: 1.8;
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+    /* Assuming muted text for body */
+}
+
+.privacy-list {
+    list-style: none;
+    /* No bullets by default, or maybe custom bullets? Screenshot has bullets. */
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+}
+
+.privacy-list li {
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: var(--text-muted);
+    position: relative;
+    padding-left: 0.5rem;
+}
+
+.privacy-list li::before {
+    content: "•";
+    position: absolute;
+    left: -0.5rem;
+    color: var(--text);
+}
+
+.back-to-top {
+    display: block;
+    text-align: center;
+    margin-top: 6rem;
+    font-size: 0.9rem;
+    text-decoration: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+}
+
+.back-to-top:hover {
+    color: var(--text);
+}
+
+@media (max-width: 768px) {
+    .privacy-page {
+        padding: 100px 1.5rem 4rem;
+    }
+
+    .privacy-intro {
+        padding: 0;
+        text-align: left;
+    }
+}

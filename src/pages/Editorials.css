@@ -1,0 +1,389 @@
+.editorials-page-v3 {
+    background: #fff;
+    color: #000;
+    padding-top: 100px;
+}
+
+.editorial-section-crosswalk {
+    background: transparent;
+    padding: 2rem 4rem 4rem 4rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 4rem;
+    /* Reduced margin to account for text overlap */
+}
+
+.editorial-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.editorial-image-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 450px;
+    margin-bottom: 5rem;
+    /* Generous spacing below image */
+}
+
+.editorial-main-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    /* Don't stretch or crop */
+}
+
+.editorial-overlap-title {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -5%);
+    /* Shifted down an extra 20% from previous -25% */
+    width: 100%;
+    text-align: center;
+    margin: 0;
+    text-transform: uppercase;
+    font-size: 5rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #000;
+    pointer-events: none;
+    /* Let text be overlapped visually but not block interactions if any */
+    z-index: 10;
+}
+
+.editorial-description-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: 450px;
+    transform: translateY(60%);
+    /* Overlays up by 40% (100% - 60%) */
+    text-align: left;
+    z-index: 10;
+}
+
+.editorial-description {
+    font-size: 0.82rem;
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+    color: #333;
+    opacity: 0.9;
+}
+
+.editorial-feature-full {
+    width: 100%;
+    margin-bottom: 12rem;
+    overflow: hidden;
+}
+
+.feature-image-container {
+    position: relative;
+    width: 100%;
+    height: auto;
+    background: transparent;
+}
+
+.feature-image-full {
+    width: 100%;
+    height: auto;
+    display: block;
+    opacity: 1;
+}
+
+
+
+
+.editorial-story-v3 {
+    margin-bottom: 12rem;
+    padding: 0 4rem;
+}
+
+.editorial-story-v3.center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.editorial-story-v3.full-width-story {
+    padding: 0;
+}
+
+.editorial-story-v3.no-margin {
+    margin-bottom: 0;
+}
+
+/* Typography */
+.large-title {
+    font-size: 5rem;
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    margin-bottom: 4rem;
+    line-height: 1;
+}
+
+.stacked-title {
+    font-size: 3.5rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    margin-bottom: 2rem;
+}
+
+.medium-title {
+    font-size: 3rem;
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    margin-bottom: 3rem;
+    line-height: 1.1;
+}
+
+/* Image Containers */
+.story-hero-contained-v3 {
+    width: 65%;
+    margin-bottom: 3rem;
+}
+
+.story-hero-contained-v3 img {
+    width: 100%;
+    height: auto;
+}
+
+.story-hero-large-v3 {
+    width: 100%;
+}
+
+.story-hero-large-v3 img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.story-hero-small-v3 {
+    width: 45%;
+    margin-bottom: 3rem;
+}
+
+.story-hero-small-v3 img {
+    width: 100%;
+    height: auto;
+}
+
+/* Caption */
+.story-caption-v3 {
+    max-width: 500px;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    letter-spacing: 0.05em;
+    opacity: 0.7;
+}
+
+/* Run Late Split Section */
+.editorial-split-run-late {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6rem;
+    align-items: center;
+    margin-bottom: 12rem;
+    padding: 0 4rem;
+}
+
+.split-editorial-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+.split-text-content {
+    padding-right: 2rem;
+}
+
+.split-title-bold {
+    font-size: 4.5rem;
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+}
+
+.strike-through {
+    position: relative;
+    display: inline-block;
+}
+
+.strike-through::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 1px;
+    background: #000;
+    transform: translateY(-50%);
+}
+
+.split-paragraph {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    max-width: 450px;
+    color: #333;
+    opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+    .editorial-split-run-late {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+        padding: 0 1.5rem;
+    }
+
+    .split-title-bold {
+        font-size: 3rem;
+    }
+
+    .split-text-content {
+        padding-right: 0;
+    }
+}
+
+/* Merged Image Section */
+.story-hero-merged {
+    width: 100%;
+    margin: 0 auto;
+}
+
+.merged-editorial-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+.final-editorial-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+@media (max-width: 1024px) {
+    .story-hero-merged {
+        max-width: 100%;
+    }
+}
+
+/* Frugal Chic Section */
+.editorial-section-frugal {
+    background: transparent;
+    padding: 0rem 4rem 2rem 4rem;
+    margin-bottom: 4rem;
+    display: flex;
+    justify-content: center;
+}
+
+.frugal-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.frugal-title {
+    font-size: 3rem;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.frugal-image-wrapper {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto 3rem;
+}
+
+.frugal-main-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+.frugal-description-wrapper {
+    width: 100%;
+    max-width: 500px;
+    /* Matching the image max-width */
+    margin: 0 auto;
+    text-align: left;
+}
+
+.frugal-description {
+    font-size: 0.9rem;
+    line-height: 1.8;
+    letter-spacing: 0.05em;
+    color: #333;
+    opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+    .editorial-section-frugal {
+        padding: 4rem 1.5rem;
+    }
+
+    .frugal-title {
+        font-size: 2rem;
+    }
+}
+
+
+@media (max-width: 1024px) {
+    .large-title {
+        font-size: 3.5rem;
+    }
+
+    .editorial-overlap-title {
+        font-size: 2.8rem;
+        letter-spacing: 0.02em;
+    }
+
+    .stacked-title {
+        font-size: 2.5rem;
+    }
+
+    .medium-title {
+        font-size: 2rem;
+    }
+
+    .editorial-story-v3 {
+        padding: 0 2rem;
+        margin-bottom: 8rem;
+    }
+
+    .editorial-section-crosswalk {
+        padding: 2rem 1.5rem 4rem 1.5rem;
+    }
+
+    .split-story-v3 {
+        grid-template-columns: 1fr;
+        gap: 4rem;
+    }
+
+    .story-hero-contained-v3,
+    .story-hero-small-v3 {
+        width: 100%;
+    }
+
+    .story-text-v3 {
+        padding-right: 0;
+    }
+
+    .gallery-dual-v3 {
+        grid-template-columns: 1fr;
+    }
+}

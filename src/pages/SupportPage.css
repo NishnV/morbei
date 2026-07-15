@@ -1,0 +1,156 @@
+.support-page {
+    padding: 120px 0 100px;
+    min-height: 80vh;
+    background: var(--bg);
+}
+
+.support-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.support-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.support-header h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.support-header p {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+}
+
+.support-content {
+    animation: fadeIn 1s ease forwards;
+}
+
+.support-section {
+    margin-bottom: 2.5rem;
+}
+
+.support-section h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    display: inline-block;
+}
+
+.support-section p,
+.support-section li {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: var(--text);
+    margin-bottom: 1rem;
+    opacity: 0.8;
+}
+
+.support-section ul {
+    margin-top: 1rem;
+    padding-left: 0;
+}
+
+.support-section li {
+    margin-bottom: 0.8rem;
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.support-section li::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+}
+
+/* FAQ Accordion */
+.faq-item {
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 0;
+}
+
+.faq-question {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    font-weight: 500;
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 0;
+}
+
+.faq-answer {
+    padding: 1rem 0;
+    font-size: 1.0rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+/* Track Order Form */
+.track-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    font-weight: 600;
+}
+
+.form-group input,
+.form-group textarea {
+    padding: 1rem;
+    background: var(--bg-offset);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    transition: var(--transition);
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--text);
+}
+
+.submit-btn {
+    background: var(--text);
+    color: var(--bg);
+    padding: 1.2rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.2em;
+    font-weight: 600;
+    margin-top: 1rem;
+    transition: opacity 0.3s ease;
+}
+
+.submit-btn:hover {
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .support-header h1 {
+        font-size: 2rem;
+    }
+
+    .support-container {
+        padding: 0 1.5rem;
+    }
+}

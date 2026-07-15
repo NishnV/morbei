@@ -1,0 +1,46 @@
+.ls-overlay {
+    position: fixed;
+    inset: 0;
+    background: #0a0a0a;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: ls-fade-out 0.35s ease 1s forwards;
+}
+
+@keyframes ls-fade-out {
+    to {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+.ls-doors {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.ls-door {
+    width: 10px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    position: relative;
+    overflow: hidden;
+}
+
+.ls-door-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: #fff;
+    transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ls-door-fill--on {
+    height: 100%;
+}

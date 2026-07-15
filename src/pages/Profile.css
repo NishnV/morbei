@@ -1,0 +1,490 @@
+.profile-auth-page {
+  min-height: 100vh;
+  display: flex;
+  background: #0a0a0a;
+}
+
+/* LEFT IMAGE PANEL */
+.profile-auth-image {
+  width: 55%;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-auth-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+/* RIGHT FORM PANEL */
+.profile-auth-form-panel {
+  width: 45%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 60px 60px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.profile-auth-form-container {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-auth-title {
+    font-family: 'Castro Titling', Avenir, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.35em;
+  font-weight: 300;
+  color: #fff;
+  margin-bottom: 28px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* FORM */
+.profile-auth-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.profile-auth-input-group {
+  position: relative;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.profile-auth-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 13px 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.profile-auth-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+}
+
+/* PHONE INPUT ROW */
+.profile-auth-phone-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.profile-auth-country-code {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  padding: 13px 0;
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+.profile-auth-country-code svg {
+  width: 10px;
+  height: 10px;
+  opacity: 0.5;
+}
+
+.profile-auth-phone-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 13px 0 13px 12px;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.profile-auth-phone-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+}
+
+/* CHECKBOX */
+.profile-auth-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.profile-auth-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.profile-auth-checkbox:checked {
+  background: #fff;
+}
+
+.profile-auth-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #0a0a0a;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.profile-auth-checkbox-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+/* BUTTONS */
+.profile-auth-submit-btn {
+  width: 100%;
+  background: #fff;
+  color: #0a0a0a;
+  border: none;
+  padding: 16px;
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  text-transform: uppercase;
+  transition: opacity 0.2s;
+}
+
+.profile-auth-submit-btn:hover {
+  opacity: 0.9;
+}
+
+.profile-auth-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.profile-auth-google-btn {
+  width: 100%;
+  background: #fff;
+  color: #0a0a0a;
+  border: none;
+  padding: 16px;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+  transition: opacity 0.2s;
+}
+
+.profile-auth-google-btn:hover {
+  opacity: 0.9;
+}
+
+.profile-auth-google-btn img {
+  width: 18px;
+  height: 18px;
+}
+
+/* SWITCH LINK */
+.profile-auth-switch {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.profile-auth-switch-text {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.profile-auth-switch-link {
+  color: #fff;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+  margin-left: 2px;
+}
+
+/* COMING SOON */
+.profile-coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0 40px;
+  gap: 32px;
+}
+
+.profile-coming-soon-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-coming-soon-google {
+  width: 40px;
+  height: 40px;
+  opacity: 0.6;
+}
+
+.profile-coming-soon-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+  line-height: 1.8;
+  letter-spacing: 1px;
+}
+
+/* FOOTER LEGAL */
+.profile-auth-legal {
+  position: absolute;
+  bottom: 32px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 0 40px;
+}
+
+.profile-auth-legal-text {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+}
+
+.profile-auth-legal-link {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ERROR/MESSAGE */
+.profile-auth-error {
+  color: #e74c3c;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.profile-auth-message {
+  color: #2ecc71;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* FORGOT PASSWORD LINK */
+.profile-auth-forgot {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  margin-top: 20px;
+  padding: 0;
+  align-self: flex-start;
+}
+
+/* ====== LOGGED-IN PROFILE STYLES ====== */
+.profile-account-page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #fff;
+  padding-top: 120px;
+  padding-bottom: 80px;
+}
+
+.profile-account-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.profile-account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3rem;
+}
+
+.profile-account-title {
+  font-size: 1.5rem;
+  letter-spacing: 0.2em;
+  font-weight: 300;
+}
+
+.profile-account-logout {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.profile-account-section {
+  margin-bottom: 3rem;
+}
+
+.profile-account-section-title {
+  font-size: 0.85rem;
+  letter-spacing: 0.2em;
+  font-weight: 300;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  padding-bottom: 0.5rem;
+}
+
+.profile-account-text {
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+  margin: 0.25rem 0;
+}
+
+.profile-order-card {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.profile-order-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.profile-order-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.profile-address-card {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.profile-address-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.profile-address-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: inherit;
+  padding: 0;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .profile-auth-page {
+    flex-direction: column;
+  }
+
+  .profile-auth-image {
+    width: 100%;
+    min-height: 40vh;
+    max-height: 45vh;
+  }
+
+  .profile-auth-form-panel {
+    width: 100%;
+    min-height: auto;
+    padding: 40px 32px 100px;
+  }
+
+  .profile-auth-legal {
+    position: relative;
+    bottom: auto;
+    margin-top: 40px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-auth-form-panel {
+    padding: 32px 20px 80px;
+  }
+
+  .profile-auth-title {
+    font-size: 0.85rem;
+    margin-bottom: 32px;
+  }
+}

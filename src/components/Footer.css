@@ -1,0 +1,678 @@
+.footer-v2 {
+    background: #000;
+    color: white;
+    padding: clamp(4rem, 8vw, 8rem) 0 0;
+    font-family: inherit;
+    display: flex;
+    flex-direction: column;
+}
+
+.footer-v2 .container {
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0 2rem;
+    box-sizing: border-box;
+}
+
+.footer-top-v2 {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: clamp(2rem, 5vw, 8rem);
+    padding-bottom: clamp(1rem, 2vw, 2rem);
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.4);
+}
+
+.footer-member h3 {
+    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    font-weight: 400;
+    margin-bottom: 2.5rem;
+    line-height: 1.6;
+    color: #ffffff;
+}
+
+.signup-form {
+    display: flex;
+    align-items: stretch;
+    width: clamp(300px, 38vw, 600px);
+    gap: 0.75rem;
+}
+
+/* iPhone 11 (max-width: 430px) */
+@media (max-width: 430px) {
+    .footer-v2 {
+        padding-top: 3rem;
+    }
+
+    .footer-v2 .container {
+        padding: 0 1.5rem;
+    }
+
+    .footer-top-v2 {
+        flex-direction: column;
+        gap: 0;
+        border-bottom: none;
+    }
+
+    /* Hide only the third border line on homepage (when wordmark is shown) */
+    .footer-v2:has(.footer-wordmark-row) .footer-links-v2 {
+        border-bottom: none;
+    }
+
+    .footer-member {
+        width: 100%;
+        padding-bottom: 0.5rem;
+        margin-bottom: -1rem;
+        border-bottom: none;
+    }
+
+    .footer-member::after {
+        content: '';
+        display: none;
+    }
+
+    .footer-member h3 {
+        font-size: 1rem;
+        letter-spacing: 0.12em;
+        margin-bottom: 0 !important;
+        line-height: 1.5;
+        font-family: 'Castro Titling', Avenir, sans-serif;
+        font-weight: 400;
+    }
+
+    .signup-form {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex-direction: row;
+        gap: 0;
+        align-items: stretch;
+        margin-top: 1.5rem;
+    }
+
+    .signup-form input {
+        flex: 1;
+        padding: 0.65rem 1rem;
+        font-size: 0.55rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        font-family: 'Avenir', sans-serif;
+    }
+
+    .signup-form input::placeholder {
+        color: rgb(240, 240, 240);
+    }
+
+    .signup-form button {
+        flex: 0 0 auto;
+        padding: 0.65rem 1.2rem;
+        font-size: 0.55rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: white;
+        color: black;
+        border: none;
+        font-weight: 400;
+        font-family: 'Avenir', sans-serif;
+        cursor: pointer;
+    }
+
+    .footer-links-v2 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        width: 100%;
+        margin-top: 0;
+        margin-bottom: 0 !important;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 0.5px solid rgba(255, 255, 255, 0.4);
+        border-top: 0.5px solid rgba(255, 255, 255, 0.4);
+    }
+
+    .link-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .link-group h4 {
+        font-size: 0.6rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        font-family: 'Castro Titling', Avenir, sans-serif;
+        font-weight: 400;
+        color: #ffffff !important;
+        letter-spacing: 0.1em;
+    }
+
+    .link-group ul {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .link-group ul li {
+        margin: 0;
+        margin-bottom: 0.4rem;
+    }
+
+    .link-group ul li a {
+        font-size: 0.55rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #ffffff !important;
+        text-decoration: none;
+        font-family: 'Avenir', sans-serif;
+        transition: text-decoration 0.3s ease;
+        white-space: nowrap;
+        font-weight: 300;
+    }
+
+    .link-group ul li a:hover {
+        opacity: 1;
+        color: #fff;
+    }
+
+    .footer-wordmark-row {
+        padding: 0 0 0;
+        margin-top: 0;
+    }
+
+    .footer-copyright-standard {
+        font-size: 0.5rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.5);
+        text-align: center;
+        margin-top: -1.2rem !important;
+        margin-bottom: -0.7rem !important;
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.8rem;
+    }
+
+    .footer-copyright-bar {
+        padding: 0.2rem 1.5rem 0.5rem;
+        font-size: 0.5rem;
+        color: #ffffff !important;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 400;
+    }
+
+    .footer-divider {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .signup-form {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* iPad Portrait — email 70%, signup button 30% */
+@media (min-width: 601px) and (max-width: 1200px) and (orientation: portrait) {
+    .signup-form input {
+        flex: 0 1 70%;
+        max-width: 70%;
+    }
+
+    .signup-form button {
+        flex: 0 1 30%;
+        flex-shrink: 0;
+        padding: 0.9rem 1.2rem;
+    }
+}
+
+/* iPad Landscape — email 70%, signup button 30% */
+@media (min-width: 820px) and (max-width: 1194px) and (min-aspect-ratio: 1) {
+    .signup-form input {
+        flex: 0 1 70%;
+        max-width: 70%;
+    }
+
+    .signup-form button {
+        flex: 0 1 30%;
+        flex-shrink: 0;
+        padding: 0.9rem 1.5rem;
+    }
+}
+
+.signup-form input {
+    flex: 1;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 0.7rem 1.25rem;
+    color: white;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.11em;
+    outline: none;
+    min-width: 0;
+}
+
+.signup-form button {
+    background: white;
+    color: black;
+    padding: 0 2.5rem;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.11em;
+    flex-shrink: 0;
+}
+
+.footer-links-v2 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(2rem, 5vw, 8rem);
+}
+
+.link-group h4 {
+    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    margin-bottom: 2rem;
+    color: #ffffff !important;
+    text-transform: uppercase;
+}
+
+.link-group ul {
+    list-style: none;
+    padding: 0;
+}
+
+.link-group ul li {
+    margin-bottom: 1rem;
+}
+
+.link-group ul li a {
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 0.11em;
+    text-decoration: none;
+    color: #ffffff !important;
+    transition: text-decoration 0.3s ease;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.link-group ul li a:hover {
+    text-decoration: underline;
+    text-decoration-color: #ffffff;
+    text-underline-offset: 4px;
+}
+
+.footer-copyright-standard {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+    text-align: center;
+    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-weight: 400;
+    font-size: 9px;
+    line-height: 1.8;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.footer-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    color: #fff;
+    text-decoration: none;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.footer-icon-btn:hover {
+    opacity: 1;
+}
+
+.footer-icon-sup {
+    font-size: 0.55rem;
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    color: #fff;
+}
+
+
+
+/* ---- Full-bleed MORBEI wordmark ---- */
+.footer-wordmark-row {
+    margin-top: auto;
+    overflow: hidden;
+    padding: 1.5rem 0 0;
+    line-height: 1;
+}
+
+.footer-wordmark-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.footer-copyright-bar {
+    text-align: center;
+    padding: 0rem 2rem 1.5rem;
+    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-size: 1px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.9);
+    text-transform: uppercase;
+}
+
+.footer-divider {
+    border: none;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.4);
+    margin: 0 0 0;
+}
+
+/* ---- Desktop: force row layout (guards against Vite HMR injection-order issues) ---- */
+@media (min-width: 769px) {
+    .footer-top-v2 {
+        flex-direction: row;
+    }
+
+    .footer-links-v2 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 768px) {
+    .footer-v2 {
+        padding: 4rem 0 2rem;
+    }
+
+    .footer-v2 .container {
+        padding: 0 1.5rem;
+    }
+
+    .footer-top-v2 {
+        flex-direction: column;
+        gap: 2.5rem;
+        padding-bottom: 2.5rem;
+        align-items: stretch;
+    }
+
+    .footer-member h3 {
+        font-size: 0.85rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .signup-form {
+        min-width: 0;
+        width: 100% !important;
+        flex-direction: row;
+        border: none;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+
+    .signup-form input {
+        border: 1px solid rgba(255,255,255,0.3);
+        padding: 0.9rem 1rem;
+        min-width: 0;
+        flex: 0 0 70%;
+    }
+
+    .signup-form button {
+        padding: 0.9rem 1.2rem;
+        text-align: center;
+        flex: 1 0 auto;
+        white-space: nowrap;
+    }
+
+    .footer-links-v2 {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+    }
+
+    .link-group h4 {
+        font-size: 0.65rem;
+        margin-bottom: 1.2rem;
+        color: #ffffff !important;
+    }
+
+    .link-group ul li {
+        margin-bottom: 0.4rem;
+    }
+
+    .link-group ul li a {
+        font-size: 0.65rem;
+        white-space: nowrap;
+    }
+
+    .footer-copyright-standard {
+        margin-top: 0.5rem;
+        padding: 1rem 0 2rem;
+        font-size: 9px;
+    }
+
+    .social {
+        text-align: left;
+    }
+}
+
+/* ---- iPad Portrait (601px–1200px portrait) — must come after mobile rule to win at 768px ---- */
+@media (min-width: 601px) and (max-width: 1200px) and (orientation: portrait) {
+    .footer-v2 {
+        padding: 4rem 0 2rem;
+    }
+
+    .footer-v2 .container {
+        padding: 0 1.5rem;
+    }
+
+    .footer-top-v2 {
+        flex-direction: column;
+        gap: 2rem;
+        padding-bottom: 0;
+        align-items: stretch;
+        border-bottom: none;
+    }
+
+    .footer-member {
+        width: 100%;
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }
+
+    .footer-member h3 {
+        font-size: 1rem;
+        letter-spacing: 0.12em;
+        margin-bottom: 0 !important;
+        line-height: 1.5;
+    }
+
+    .signup-form {
+        min-width: 0;
+        width: 100% !important;
+        flex-direction: row;
+        border: none;
+        gap: 0.5rem;
+        align-items: stretch;
+        margin-top: 1.5rem;
+    }
+
+    .signup-form input {
+        flex: 0 0 calc(70% - 0.25rem);
+        width: calc(70% - 0.25rem);
+        max-width: calc(70% - 0.25rem);
+        padding: 0.65rem 1rem;
+        font-size: 0.55rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        min-width: 0;
+    }
+
+    .signup-form button {
+        flex: 0 0 calc(30% - 0.25rem);
+        width: calc(30% - 0.25rem);
+        max-width: calc(30% - 0.25rem);
+        padding: 0.65rem 1.2rem;
+        font-size: 0.55rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: white;
+        color: black;
+        border: none;
+        white-space: nowrap;
+    }
+
+    .footer-links-v2 {
+        display: grid;
+        grid-template-columns: repeat(3, max-content);
+        justify-content: space-between;
+        gap: 0;
+        width: 100%;
+        margin-top: 0;
+        margin-bottom: 0 !important;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-top: 0.5px solid rgba(255, 255, 255, 0.4);
+        border-bottom: 0.5px solid rgba(255, 255, 255, 0.4);
+    }
+
+    .link-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .link-group h4 {
+        font-size: 0.6rem;
+        margin-bottom: 1rem;
+        color: #ffffff !important;
+        letter-spacing: 0.1em;
+    }
+
+    .link-group ul li {
+        margin: 0;
+        margin-bottom: 0.4rem;
+    }
+
+    .link-group ul li a {
+        font-size: 0.55rem;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+    }
+
+    .footer-copyright-standard {
+        font-size: 0.5rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.5);
+        text-align: center;
+        margin-top: 1.5rem !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 1rem;
+    }
+
+    .footer-divider {
+        display: none;
+    }
+
+    .footer-copyright-bar {
+        font-size: 0.5rem;
+        letter-spacing: 0.08em;
+        padding: 0.2rem 1.5rem 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer-v2 {
+        padding: 3rem 0 1.5rem;
+    }
+
+    .footer-member h3 {
+        font-size: 0.85rem;
+    }
+
+    .footer-bottom-v2 {
+        gap: 0.75rem;
+    }
+
+    .copyright {
+        font-size: 0.9rem;
+    }
+}
+
+@media (min-width: 1440px) {
+    .signup-form input {
+        font-size: 11px;
+        padding: 1.4rem;
+    }
+
+    .signup-form button {
+        font-size: 11px;
+        padding: 0 3rem;
+    }
+
+    .link-group h4 {
+        font-size: 0.75rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .link-group ul li a {
+        font-size: 10px;
+    }
+
+    .footer-copyright-standard {
+        font-size: 9px;
+    }
+}
+
+@media (min-width: 1920px) {
+    .signup-form input {
+        font-size: 12px;
+        padding: 1.6rem 1.5rem;
+    }
+
+    .signup-form button {
+        font-size: 12px;
+        padding: 0 3.5rem;
+    }
+
+    .link-group h4 {
+        font-size: 0.75rem;
+        margin-bottom: 3rem;
+    }
+
+    .link-group ul li {
+        margin-bottom: 1.4rem;
+    }
+
+    .link-group ul li a {
+        font-size: 10px;
+    }
+
+    .copyright {
+        font-size: 13px;
+    }
+
+    .legal-links a,
+    .social a {
+        font-size: 10px;
+    }
+}

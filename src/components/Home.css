@@ -1,0 +1,418 @@
+.home-v2 {
+    background: var(--bg);
+    transition: background-color 0.8s ease;
+}
+
+/* Hero Section */
+.hero-section {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: #000;
+    color: #fff;
+}
+
+.hero-image-wrapper {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.hero-slideshow {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.75);
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: transform 1s ease-in-out, opacity 1s ease-in-out;
+}
+
+.hero-image.active {
+    opacity: 1;
+    transform: translateX(0);
+    z-index: 2;
+}
+
+.hero-image.prev {
+    opacity: 0;
+    transform: translateX(-100%);
+    z-index: 1;
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: transparent;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.hero-decorative-lines {
+    position: absolute;
+    left: 10%;
+    top: 28%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    opacity: 0.7;
+}
+
+.line-long {
+    width: 38px;
+    height: 1.5px;
+    background: #fff;
+}
+
+.line-short {
+    width: 22px;
+    height: 1.5px;
+    background: #fff;
+}
+
+.hero-logo-wrapper {
+    position: absolute;
+    bottom: 3%;
+    left: 3%;
+    width: clamp(280px, 50vw, 800px);
+    z-index: 20;
+    pointer-events: none;
+}
+
+.hero-large-logo {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+
+
+/* Upcoming Section */
+.upcoming-section {
+    padding: 8rem 0;
+    background: #000;
+    color: #fff;
+}
+
+.upcoming-header {
+    text-align: center;
+    margin-bottom: 5rem;
+}
+
+.upcoming-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    color: #999;
+    display: block;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.upcoming-title {
+    font-size: 1.2rem;
+    letter-spacing: 0.25em;
+    font-weight: 400;
+    margin: 0;
+}
+
+.upcoming-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: #111;
+    border-top: 1px solid #111;
+    border-bottom: 1px solid #111;
+}
+
+.upcoming-item {
+    background: #000;
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    transition: background 0.4s ease;
+}
+
+.upcoming-item:hover {
+    background: #0a0a0a;
+}
+
+.upcoming-img-wrapper {
+    width: 100%;
+    aspect-ratio: 3/4;
+    position: relative;
+    overflow: hidden;
+}
+
+.upcoming-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(1);
+    transition: filter 0.6s ease;
+}
+
+.upcoming-item:hover .upcoming-img-wrapper img {
+    filter: grayscale(0);
+}
+
+.upcoming-badge {
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    font-weight: 600;
+}
+
+.upcoming-name {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    font-weight: 500;
+    text-align: center;
+    margin: 0;
+}
+
+/* Campaign Section */
+.campaign-section {
+    position: relative;
+    width: 100%;
+    background: #000;
+}
+
+.campaign-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+
+.campaign-half {
+    aspect-ratio: 3/4;
+    overflow: hidden;
+    background: #f5f5f5;
+}
+
+.campaign-half img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.campaign-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+    color: #fff;
+    width: 100%;
+    pointer-events: none;
+    /* Allow clicks to pass through if needed, but link needs events */
+}
+
+.campaign-overlay.reveal.active {
+    transform: translate(-50%, -50%);
+}
+
+.campaign-overlay .campaign-link {
+    pointer-events: auto;
+}
+
+.campaign-title {
+    font-family: 'Castro Titling', 'Avenir', 'Avenir Next', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 80px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    margin-bottom: 2rem;
+    color: #ffffff;
+}
+
+.campaign-link {
+    font-family: 'Castro Titling', 'Avenir', 'Avenir Next', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    top: -25px;
+    letter-spacing: 0.05px;
+    color: #fff;
+    text-decoration: none;
+    border: none;
+    background: none;
+    padding: 0px;
+    backdrop-filter: none;
+    transition: text-decoration 0.3s ease;
+    display: inline-block;
+    text-transform: uppercase;
+    position: relative;
+}
+
+.campaign-link:hover {
+    position: relative;
+    text-decoration: none !important;
+}
+
+.campaign-link:hover::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 11.3ch;
+    height: 0.5px;
+    background: #fff;
+    display: block;
+}
+
+/* Category Showcase Section */
+.category-showcase-section {
+    background-color: #000;
+    color: #fff;
+    padding: 6rem 2rem 8rem 2rem;
+    text-align: center;
+}
+
+.showcase-brand-wrapper {
+    margin-bottom: 5rem;
+    display: flex;
+    justify-content: center;
+}
+
+.showcase-brand-logo {
+    width: clamp(200px, 40vw, 400px);
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.showcase-item {
+    text-decoration: none;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    transition: transform 0.4s ease;
+}
+
+.showcase-item:hover {
+    transform: translateY(-5px);
+}
+
+.showcase-img-wrapper {
+    width: 100%;
+    aspect-ratio: 2/3;
+    overflow: hidden;
+    background: #111;
+}
+
+.showcase-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+}
+
+.showcase-item:hover .showcase-img-wrapper img {
+    transform: scale(1.05);
+}
+
+.showcase-link {
+    font-family: Avenir, sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+.notification {
+    position: fixed;
+    top: calc(50px + 1rem);
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: fit-content;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #000;
+    color: #fff;
+    padding: 1rem 2rem;
+    font-family: Avenir, sans-serif;
+    font-size: 0.875rem;
+    font-weight: 350;
+    z-index: 1000;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: slideIn 0.3s ease-out forwards, slideOut 0.3s ease-in forwards 1.7s;
+}
+
+@media (max-width: 768px) {
+    .campaign-split {
+        grid-template-columns: 1fr;
+    }
+
+    .campaign-half {
+        aspect-ratio: 4/5;
+    }
+
+    .showcase-grid {
+        grid-template-columns: 1fr;
+        gap: 4rem;
+    }
+
+    .hero-section {
+        height: 80vh;
+    }
+
+    .hero-overlay {
+        padding: 0;
+    }
+}

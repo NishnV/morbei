@@ -1,0 +1,228 @@
+/**
+ * Normalize raw Shopify Storefront API product responses into the
+ * flat shape expected by the MORBEI frontend components.
+ *
+ * The frontend expects:
+ * {
+ *   id: string,
+ *   shopifyId: string (full GID),
+ *   name: string,
+ *   handle: string,
+ *   description: string,
+ *   price: string (e.g., "RS. 5000"),
+ *   priceNum: number,
+ *   compareAtPrice: string | null,
+ *   compareAtPriceNum: number | null,
+ *   isOnSale: boolean,
+ *   currency: string,
+ *   category: string,
+ *   images: string[],
+ *   img: string,
+ *   sizes: string[],
+ *   colors: string[],
+ *   variants: Array<{ id, title, size, color, price, priceNum, compareAtPrice,
+ *                      available, quantityAvailable, image }>,
+ *   vendor: string,
+ *   productType: string,
+ *   tags: string[],
+ *   availableForSale: boolean,
+ *   metafields: { sizeGuide, material, careInstructions, fitType, badge },
+ *   seo: { title, description }
+ * }
+ */
+
+import { parseShopifyId } from './parseShopifyId';
+
+/**
+ * Extract edges from a Shopify connection (edges/node pattern).
+ *
+ * @param {Object} connection - A Shopify connection object with edges[].node
+ * @returns {Array} Array of node objects
+ */
+export function flattenEdges(connection) {
+  if (!connection?.edges) return [];
+  return connection.edges.map((edge) => edge.node);
+}
+
+/**
+ * Normalize a raw Shopify product into the frontend-compatible shape.
+ *
+ * @param {Object} product - Raw product from Shopify Storefront API
+ * @returns {Object} Normalized product object compatible with MORBEI components
+ */
+export function normalizeProduct(product) {
+  if (!product) return null;
+
+  const images = flattenEdges(product.images).map((img) => img.url);
+  const variants = flattenEdges(product.variants);
+  const metafieldsArray = (product.metafields || []).filter(Boolean);
+
+  // Build metafields map
+  const metafields = {};
+  for (const mf of metafieldsArray) {
+    switch (mf.key) {
+      case 'size_guide':
+        metafields.sizeGuide = mf.value;
+        break;
+      case 'material':
+        metafields.material = mf.value;
+        break;
+      case 'care_instructions':
+        metafields.careInstructions = mf.value;
+        break;
+      case 'fit_type':
+        metafields.fitType = mf.value;
+        break;
+      case 'badge':
+        metafields.badge = mf.value;
+        break;
+    }
+  }
+
+  // Extract unique sizes and colors from variants
+  const sizes = [];
+  const colors = [];
+  for (const v of variants) {
+    for (const opt of v.selectedOptions || []) {
+      if (opt.name.toLowerCase() === 'size' && !sizes.includes(opt.value)) {
+        sizes.push(opt.value);
+      }
+      if (opt.name.toLowerCase() === 'color' && !colors.includes(opt.value)) {
+        colors.push(opt.value);
+      }
+    }
+  }
+
+  // Price info from the first variant or priceRange
+  const minPrice = product.priceRange?.minVariantPrice;
+  const compareAtMin = product.compareAtPriceRange?.minVariantPrice;
+  const priceNum = minPrice ? parseFloat(minPrice.amount) : 0;
+  const compareAtPriceNum =
+    compareAtMin && parseFloat(compareAtMin.amount) > priceNum
+      ? parseFloat(compareAtMin.amount)
+      : null;
+  const currency = minPrice?.currencyCode || 'INR';
+
+  // Format price in MORBEI style
+  const formatRS = (num) => {
+    if (currency === 'INR') return `RS. ${Math.round(num).toLocaleString('en-IN')}`;
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(num);
+  };
+
+  // Map category from productType or tags
+  const categoryMap = {
+    dresses: 'DRESSES',
+    dress: 'DRESSES',
+    tops: 'TOPS',
+    top: 'TOPS',
+    bottoms: 'BOTTOMS',
+    bottom: 'BOTTOMS',
+    pants: 'BOTTOMS',
+    trousers: 'BOTTOMS',
+  };
+  const typeLower = (product.productType || '').toLowerCase();
+  const category = categoryMap[typeLower] || product.productType?.toUpperCase() || 'NEW IN';
+
+  return {
+    id: parseShopifyId(product.id),
+    shopifyId: product.id,
+    name: product.title,
+    handle: product.handle,
+    description: product.description || '',
+    descriptionHtml: product.descriptionHtml || '',
+    price: formatRS(priceNum),
+    priceNum,
+    compareAtPrice: compareAtPriceNum ? formatRS(compareAtPriceNum) : null,
+    compareAtPriceNum,
+    isOnSale: compareAtPriceNum !== null,
+    currency,
+    category,
+    images,
+    img: images[0] || '/placeholder.png',
+    sizes: sizes.length > 0 ? sizes : ['S', 'M', 'L'],
+    colors,
+    variants: variants.map((v) => ({
+      id: v.id,
+      title: v.title,
+      size: v.selectedOptions?.find((o) => o.name.toLowerCase() === 'size')?.value || '',
+      color: v.selectedOptions?.find((o) => o.name.toLowerCase() === 'color')?.value || '',
+      price: formatRS(parseFloat(v.price?.amount || 0)),
+      priceNum: parseFloat(v.price?.amount || 0),
+      compareAtPrice:
+        v.compareAtPrice && parseFloat(v.compareAtPrice.amount) > parseFloat(v.price?.amount || 0)
+          ? formatRS(parseFloat(v.compareAtPrice.amount))
+          : null,
+      available: v.availableForSale,
+      quantityAvailable: v.quantityAvailable,
+      image: v.image?.url || images[0] || '/placeholder.png',
+    })),
+    vendor: product.vendor || '',
+    productType: product.productType || '',
+    tags: product.tags || [],
+    availableForSale: product.availableForSale,
+    metafields,
+    seo: product.seo || { title: '', description: '' },
+  };
+}
+
+/**
+ * Normalize a collection response from Shopify.
+ *
+ * @param {Object} collection - Raw collection from Shopify
+ * @returns {Object} Normalized collection object
+ */
+export function normalizeCollection(collection) {
+  if (!collection) return null;
+
+  const metafieldsArray = (collection.metafields || []).filter(Boolean);
+  const metafields = {};
+  for (const mf of metafieldsArray) {
+    if (mf.key === 'banner_image') metafields.bannerImage = mf.value;
+    if (mf.key === 'seo_description') metafields.seoDescription = mf.value;
+  }
+
+  return {
+    id: collection.id,
+    title: collection.title,
+    handle: collection.handle,
+    description: collection.description || '',
+    image: collection.image?.url || null,
+    imageAlt: collection.image?.altText || '',
+    seo: collection.seo || { title: '', description: '' },
+    metafields,
+  };
+}
+
+/**
+ * Normalize a cart line item into the shape expected by MORBEI's cart components.
+ *
+ * @param {Object} line - A cart line node from the Shopify cart query
+ * @returns {Object} Normalized cart item
+ */
+export function normalizeCartLine(line) {
+  const variant = line.merchandise;
+  const product = variant.product;
+  const productImages = flattenEdges(product?.images);
+
+  const size = variant.selectedOptions?.find((o) => o.name.toLowerCase() === 'size')?.value || '';
+  const color = variant.selectedOptions?.find((o) => o.name.toLowerCase() === 'color')?.value || '';
+  const priceNum = parseFloat(variant.price?.amount || 0);
+
+  return {
+    lineId: line.id,
+    id: parseShopifyId(product?.id || ''),
+    shopifyProductId: product?.id || '',
+    variantId: variant.id,
+    name: product?.title || variant.title || '',
+    handle: product?.handle || '',
+    size,
+    color,
+    quantity: line.quantity,
+    price: priceNum,
+    priceNum,
+    img: variant.image?.url || productImages[0]?.url || '/placeholder.png',
+    variantTitle: variant.title || '',
+    vendor: product?.vendor || '',
+    productType: product?.productType || '',
+  };
+}
