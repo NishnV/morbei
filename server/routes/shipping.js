@@ -1,15 +1,16 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { cancelOrder } from '../services/shopify-admin.js';
-import db from '../db/sqlite.js';
+import { get, run } from '../db/pg.js';
 
 const router = Router();
 
 // GET /api/shipping/track-order/:orderId — get order status from DB
 router.get('/track-order/:orderId', authenticate, async (req, res) => {
     try {
-        const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(
-            req.params.orderId, req.user.id
+        const order = await get(
+            'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
+            [req.params.orderId, req.user.id]
         );
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
@@ -29,8 +30,9 @@ router.get('/track-order/:orderId', authenticate, async (req, res) => {
 // POST /api/shipping/cancel/:orderId — cancel order
 router.post('/cancel/:orderId', authenticate, async (req, res) => {
     try {
-        const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(
-            req.params.orderId, req.user.id
+        const order = await get(
+            'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
+            [req.params.orderId, req.user.id]
         );
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.status === 'cancelled') return res.status(400).json({ error: 'Already cancelled' });
@@ -39,7 +41,7 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
             try { await cancelOrder(order.shopify_order_id); } catch {}
         }
 
-        db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('cancelled', order.id);
+        await run('UPDATE orders SET status = $1 WHERE id = $2', ['cancelled', order.id]);
         res.json({ success: true, message: 'Order cancelled' });
     } catch (err) {
         console.error(err);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import db from '../db/sqlite.js';
+import { get, run } from '../db/pg.js';
 import { signToken } from '../middleware/auth.js';
 import { getCustomerByToken } from '../services/shopify-storefront.js';
 
@@ -21,16 +21,19 @@ router.post('/shopify-login', async (req, res) => {
         }
 
         // Find or create the local user record keyed by email
-        let user = db.prepare('SELECT * FROM users WHERE email = ?').get(customer.email);
+        let user = await get('SELECT * FROM users WHERE email = $1', [customer.email]);
         if (!user) {
-            const result = db.prepare(
-                'INSERT INTO users (email, password, first_name, last_name, phone) VALUES (?, ?, ?, ?, ?)'
-            ).run(customer.email, '!shopify', customer.firstName || '', customer.lastName || '', customer.phone || '');
-            user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+            user = await get(
+                `INSERT INTO users (email, password, first_name, last_name, phone)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                [customer.email, '!shopify', customer.firstName || '', customer.lastName || '', customer.phone || '']
+            );
         } else {
             // Keep name/phone in sync with Shopify
-            db.prepare('UPDATE users SET first_name = ?, last_name = ?, phone = ? WHERE id = ?')
-                .run(customer.firstName || user.first_name, customer.lastName || user.last_name, customer.phone || user.phone, user.id);
+            await run(
+                'UPDATE users SET first_name = $1, last_name = $2, phone = $3 WHERE id = $4',
+                [customer.firstName || user.first_name, customer.lastName || user.last_name, customer.phone || user.phone, user.id]
+            );
         }
 
         const token = signToken(user.id, user.email);

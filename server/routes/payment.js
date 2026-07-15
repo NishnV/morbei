@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import { createRazorpayOrder, verifyPaymentSignature, fetchPayment } from '../services/razorpay.js';
 import { createDraftOrder, completeDraftOrder, getVariant, gidToNumeric } from '../services/shopify-admin.js';
 import { sendOrderConfirmation } from '../services/email.js';
-import db from '../db/sqlite.js';
+import { get, run } from '../db/pg.js';
 
 const router = Router();
 
@@ -48,25 +48,19 @@ router.post('/create-order', authenticate, async (req, res) => {
         const totalPaise = Math.round((itemsTotal + shippingCost) * 100);
 
         // Save pending order in DB with server-verified prices
-        const dbResult = db.prepare(
+        const inserted = await get(
             `INSERT INTO orders (user_id, total_amount, shipping_method, shipping_address, items, status)
-             VALUES (?, ?, ?, ?, ?, 'pending')`
-        ).run(
-            req.user.id,
-            totalPaise,
-            method,
-            JSON.stringify(shippingAddress),
-            JSON.stringify(pricedLines)
+             VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING id`,
+            [req.user.id, totalPaise, method, JSON.stringify(shippingAddress), JSON.stringify(pricedLines)]
         );
 
-        const receipt = `order_${dbResult.lastInsertRowid}`;
+        const receipt = `order_${inserted.id}`;
         const razorpayOrder = await createRazorpayOrder(totalPaise, 'INR', receipt);
 
-        db.prepare('UPDATE orders SET razorpay_order_id = ? WHERE id = ?')
-            .run(razorpayOrder.id, dbResult.lastInsertRowid);
+        await run('UPDATE orders SET razorpay_order_id = $1 WHERE id = $2', [razorpayOrder.id, inserted.id]);
 
         res.json({
-            orderId: dbResult.lastInsertRowid,
+            orderId: inserted.id,
             razorpayOrderId: razorpayOrder.id,
             amount: totalPaise,
             currency: 'INR',
@@ -86,17 +80,18 @@ router.post('/create-order', authenticate, async (req, res) => {
  * both call this without creating duplicate Shopify orders.
  */
 async function fulfillPaidOrder(order, razorpayPaymentId) {
-    const claimed = db.prepare(
-        `UPDATE orders SET status = 'processing', razorpay_payment_id = ? WHERE id = ? AND status = 'pending'`
-    ).run(razorpayPaymentId, order.id);
-    if (claimed.changes === 0) {
+    const claimed = await run(
+        `UPDATE orders SET status = 'processing', razorpay_payment_id = $1 WHERE id = $2 AND status = 'pending'`,
+        [razorpayPaymentId, order.id]
+    );
+    if (claimed.rowCount === 0) {
         return { alreadyProcessed: true, shopifyOrderId: order.shopify_order_id };
     }
 
     try {
         const cartLines = JSON.parse(order.items);
         const shippingAddress = JSON.parse(order.shipping_address);
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id);
+        const user = await get('SELECT * FROM users WHERE id = $1', [order.user_id]);
 
         const shopifyLineItems = cartLines.map(l => ({
             variant_id: gidToNumeric(l.variantId),
@@ -123,10 +118,10 @@ async function fulfillPaidOrder(order, razorpayPaymentId) {
         const completed = await completeDraftOrder(draft.draft_order.id);
         const shopifyOrderId = completed.draft_order.order_id;
 
-        db.prepare(`UPDATE orders SET shopify_order_id = ?, status = 'paid' WHERE id = ?`)
-            .run(String(shopifyOrderId), order.id);
+        await run(`UPDATE orders SET shopify_order_id = $1, status = 'paid' WHERE id = $2`,
+            [String(shopifyOrderId), order.id]);
 
-        const updatedOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(order.id);
+        const updatedOrder = await get('SELECT * FROM orders WHERE id = $1', [order.id]);
         sendOrderConfirmation({
             order: updatedOrder,
             user,
@@ -139,7 +134,7 @@ async function fulfillPaidOrder(order, razorpayPaymentId) {
     } catch (err) {
         // Payment is captured but Shopify order creation failed — flag for manual follow-up,
         // and let the webhook retry by not leaving it stuck in 'processing'.
-        db.prepare(`UPDATE orders SET status = 'pending' WHERE id = ? AND status = 'processing'`).run(order.id);
+        await run(`UPDATE orders SET status = 'pending' WHERE id = $1 AND status = 'processing'`, [order.id]);
         throw err;
     }
 }
@@ -156,7 +151,7 @@ router.post('/verify', authenticate, async (req, res) => {
         });
         if (!valid) return res.status(400).json({ error: 'Invalid payment signature' });
 
-        const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(orderId, req.user.id);
+        const order = await get('SELECT * FROM orders WHERE id = $1 AND user_id = $2', [orderId, req.user.id]);
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.razorpay_order_id !== razorpayOrderId) {
             return res.status(400).json({ error: 'Order mismatch' });
@@ -167,7 +162,7 @@ router.post('/verify', authenticate, async (req, res) => {
             return res.status(400).json({ error: `Payment status: ${payment.status}` });
         }
         // The payment must belong to this Razorpay order and cover the full amount
-        if (payment.order_id !== order.razorpay_order_id || payment.amount !== order.total_amount) {
+        if (payment.order_id !== order.razorpay_order_id || payment.amount !== Number(order.total_amount)) {
             return res.status(400).json({ error: 'Payment does not match order' });
         }
 
@@ -203,10 +198,10 @@ router.post('/webhook', async (req, res) => {
         if (event.event === 'payment.captured') {
             const payment = event.payload?.payment?.entity;
             const order = payment?.order_id
-                ? db.prepare('SELECT * FROM orders WHERE razorpay_order_id = ?').get(payment.order_id)
+                ? await get('SELECT * FROM orders WHERE razorpay_order_id = $1', [payment.order_id])
                 : null;
 
-            if (order && order.status === 'pending' && payment.amount === order.total_amount) {
+            if (order && order.status === 'pending' && payment.amount === Number(order.total_amount)) {
                 await fulfillPaidOrder(order, payment.id);
                 console.log(`Webhook fulfilled order ${order.id} (payment ${payment.id})`);
             }

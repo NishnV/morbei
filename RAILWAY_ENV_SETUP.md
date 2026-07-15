@@ -9,6 +9,7 @@ Go to: Railway Dashboard → Your Backend Service → Variables → Add New
 ```
 PORT=4000
 NODE_ENV=production
+DATABASE_URL=${{Postgres.DATABASE_URL}}
 CLIENT_URL=https://your-frontend-domain.com
 JWT_SECRET=your_secure_random_string_here
 SHOPIFY_STORE_DOMAIN=morbei.myshopify.com
@@ -25,6 +26,7 @@ SHOPIFY_STOREFRONT_TOKEN=your_storefront_token_here
 RAZORPAY_WEBHOOK_SECRET=your_webhook_secret_here
 ```
 
+- `DATABASE_URL` — first add a Postgres database to the Railway project (New → Database → PostgreSQL), then set this to the reference `${{Postgres.DATABASE_URL}}` so it always points at it. Tables are created automatically on first boot. Enable daily backups on the Postgres service.
 - `SHOPIFY_STOREFRONT_TOKEN` — same value as the frontend's `VITE_SHOPIFY_STOREFRONT_TOKEN`; the server uses it to validate customer sessions.
 - `RAZORPAY_WEBHOOK_SECRET` — create in Razorpay Dashboard → Settings → Webhooks. Webhook URL: `https://your-backend.up.railway.app/api/payment/webhook`, event: `payment.captured`. This is the safety net that fulfills orders when a customer pays but closes the tab before verification.
 

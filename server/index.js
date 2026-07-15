@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { initDB } from './db/sqlite.js';
+import { initDB } from './db/pg.js';
 import authRoutes from './routes/auth.js';
 import paymentRoutes from './routes/payment.js';
 import orderRoutes from './routes/orders.js';
@@ -48,9 +48,6 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/contact', contactLimiter);
 
-// Init database
-initDB();
-
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/payment', paymentRoutes);
@@ -71,4 +68,12 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Something went wrong' });
 });
 
-app.listen(PORT, () => console.log(`MORBEI server running on port ${PORT}`));
+// Ensure tables exist before accepting traffic
+initDB()
+  .then(() => {
+    app.listen(PORT, () => console.log(`MORBEI server running on port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error('Database init failed:', err);
+    process.exit(1);
+  });

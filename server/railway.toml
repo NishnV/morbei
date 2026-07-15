@@ -1,14 +1,9 @@
 [build]
 builder = "nixpacks"
-# Required for better-sqlite3 native module compilation
-nixpacks.providers = ["nodejs", "python"]
 
 [deploy]
-# Persist SQLite database across restarts
-# Comment out if migrating to PostgreSQL
-volumes = ["/app/server/db"]
-
-startCommand = "node --env-file=.env index.js"
+# Env vars come from the Railway dashboard (reference DATABASE_URL from the Postgres service)
+startCommand = "node index.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 10
 restartPolicyType = "on_failure"
