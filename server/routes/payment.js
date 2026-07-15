@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { authenticate } from '../middleware/auth.js';
 import { createRazorpayOrder, verifyPaymentSignature, fetchPayment } from '../services/razorpay.js';
 import { createDraftOrder, completeDraftOrder, getVariant, gidToNumeric } from '../services/shopify-admin.js';
-import { sendOrderConfirmation } from '../services/email.js';
+import { sendOrderConfirmation, sendFulfillmentFailureAlert } from '../services/email.js';
 import { get, run } from '../db/pg.js';
 
 const router = Router();
@@ -22,6 +22,16 @@ router.post('/create-order', authenticate, async (req, res) => {
         }
         if (cartLines.length > MAX_CART_LINES) {
             return res.status(400).json({ error: 'Too many items in cart' });
+        }
+
+        // The address ends up on the Shopify order and shipping label — make
+        // sure the essentials are present and sane before taking money.
+        const addr = shippingAddress || {};
+        const requiredAddr = ['address', 'state', 'zip'];
+        for (const field of requiredAddr) {
+            if (typeof addr[field] !== 'string' || !addr[field].trim() || addr[field].length > 300) {
+                return res.status(400).json({ error: `Invalid shipping address: ${field}` });
+            }
         }
 
         // Validate and re-price every line against Shopify
@@ -135,6 +145,14 @@ async function fulfillPaidOrder(order, razorpayPaymentId) {
         // Payment is captured but Shopify order creation failed — flag for manual follow-up,
         // and let the webhook retry by not leaving it stuck in 'processing'.
         await run(`UPDATE orders SET status = 'pending' WHERE id = $1 AND status = 'processing'`, [order.id]);
+        const owner = await get('SELECT email FROM users WHERE id = $1', [order.user_id]).catch(() => null);
+        sendFulfillmentFailureAlert({
+            orderId: order.id,
+            razorpayPaymentId,
+            userEmail: owner?.email || 'unknown',
+            amountPaise: order.total_amount,
+            errorMessage: err.message,
+        }).catch(alertErr => console.error('Fulfillment alert email failed:', alertErr.message));
         throw err;
     }
 }

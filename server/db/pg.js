@@ -12,6 +12,12 @@ export const pool = new Pool({
     max: 10,
 });
 
+// Without this, an error on an idle client (e.g. the DB restarting)
+// is an unhandled 'error' event and crashes the whole process.
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle Postgres client:', err.message);
+});
+
 /** Return the first row, or undefined. */
 export async function get(text, params = []) {
     const result = await pool.query(text, params);

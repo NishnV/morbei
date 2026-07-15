@@ -13,21 +13,31 @@ const transporter = nodemailer.createTransport({
 const STORE_EMAIL = process.env.STORE_NOTIFICATION_EMAIL || process.env.SMTP_USER;
 const STORE_FROM = `"MORBEI" <${process.env.SMTP_USER}>`;
 
+// User-supplied strings go into HTML emails — escape them so a crafted
+// product title or contact message can't inject markup.
+function esc(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 /**
  * Send order confirmation to customer + notification to store.
  */
 export async function sendOrderConfirmation({ order, user, cartLines, shippingAddress, shopifyOrderId }) {
     const itemsHtml = cartLines.map(l =>
         `<tr>
-            <td style="padding:6px 0;font-size:13px;">${l.title}</td>
+            <td style="padding:6px 0;font-size:13px;">${esc(l.title)}</td>
             <td style="padding:6px 0;font-size:13px;text-align:center;">${l.quantity}</td>
             <td style="padding:6px 0;font-size:13px;text-align:right;">₹${(l.price * l.quantity).toFixed(2)}</td>
         </tr>`
     ).join('');
 
-    const totalAmount = (order.total_amount / 100).toFixed(2);
+    const totalAmount = (Number(order.total_amount) / 100).toFixed(2);
     const addr = shippingAddress;
-    const addressLine = `${addr.address || addr.address1}, ${addr.city}, ${addr.state || addr.province} ${addr.zip}, ${addr.country || 'India'}`;
+    const addressLine = esc(`${addr.address || addr.address1}, ${addr.city}, ${addr.state || addr.province} ${addr.zip}, ${addr.country || 'India'}`);
 
     const customerHtml = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
@@ -36,7 +46,7 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
         </div>
         <div style="padding:32px;">
             <h2 style="font-size:16px;letter-spacing:0.2em;font-weight:500;">ORDER CONFIRMED</h2>
-            <p style="font-size:14px;color:#555;">Thank you, ${user.first_name}. Your order has been placed successfully.</p>
+            <p style="font-size:14px;color:#555;">Thank you, ${esc(user.first_name)}. Your order has been placed successfully.</p>
             <p style="font-size:13px;"><strong>Order ID:</strong> #${order.id}${shopifyOrderId ? ` &nbsp;|&nbsp; <strong>Shopify:</strong> #${shopifyOrderId}` : ''}</p>
             <table style="width:100%;border-collapse:collapse;margin-top:16px;">
                 <thead>
@@ -56,7 +66,7 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
             </table>
             <div style="margin-top:24px;padding:16px;background:#f9f9f9;border-radius:4px;">
                 <p style="font-size:11px;letter-spacing:0.15em;color:#999;margin:0 0 8px 0;">SHIPPING TO</p>
-                <p style="font-size:13px;margin:0;">${addr.firstName || user.first_name} ${addr.lastName || user.last_name}</p>
+                <p style="font-size:13px;margin:0;">${esc(addr.firstName || user.first_name)} ${esc(addr.lastName || user.last_name)}</p>
                 <p style="font-size:13px;margin:4px 0 0 0;color:#555;">${addressLine}</p>
             </div>
             <p style="margin-top:32px;font-size:12px;color:#888;">We will notify you once your order ships. For any queries, reply to this email or contact care@morbei.com</p>
@@ -69,7 +79,7 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
     const storeHtml = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
         <h2 style="font-size:16px;letter-spacing:0.2em;">NEW ORDER #${order.id}</h2>
-        <p><strong>Customer:</strong> ${user.first_name} ${user.last_name} (${user.email})</p>
+        <p><strong>Customer:</strong> ${esc(user.first_name)} ${esc(user.last_name)} (${esc(user.email)})</p>
         <p><strong>Amount:</strong> ₹${totalAmount}</p>
         <p><strong>Shipping to:</strong> ${addressLine}</p>
         <table style="width:100%;border-collapse:collapse;margin-top:16px;">
@@ -121,11 +131,34 @@ export async function sendContactNotification({ name, email, subject, message })
         html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;">
             <h2 style="font-size:16px;letter-spacing:0.15em;">NEW CONTACT MESSAGE</h2>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
-            ${subject ? `<p><strong>Subject:</strong> ${subject}</p>` : ''}
+            <p><strong>Name:</strong> ${esc(name)}</p>
+            <p><strong>Email:</strong> <a href="mailto:${esc(email)}">${esc(email)}</a></p>
+            ${subject ? `<p><strong>Subject:</strong> ${esc(subject)}</p>` : ''}
             <p><strong>Message:</strong></p>
-            <p style="background:#f9f9f9;padding:16px;border-radius:4px;white-space:pre-line;">${message}</p>
+            <p style="background:#f9f9f9;padding:16px;border-radius:4px;white-space:pre-line;">${esc(message)}</p>
+        </div>`,
+    });
+}
+
+/**
+ * Alert the store when a payment was captured but Shopify order creation
+ * failed — money is in hand with no order behind it, act immediately.
+ */
+export async function sendFulfillmentFailureAlert({ orderId, razorpayPaymentId, userEmail, amountPaise, errorMessage }) {
+    if (!STORE_EMAIL) return;
+    await transporter.sendMail({
+        from: STORE_FROM,
+        to: STORE_EMAIL,
+        subject: `⚠️ ACTION NEEDED: payment captured, order #${orderId} not created`,
+        html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;">
+            <h2 style="color:#b00020;">Payment captured but Shopify order creation FAILED</h2>
+            <p>The customer has been charged, but no Shopify order exists yet. The webhook will retry automatically; if this order does not turn to 'paid' soon, create the order manually or refund.</p>
+            <p><strong>Local order ID:</strong> #${orderId}</p>
+            <p><strong>Razorpay payment:</strong> ${esc(razorpayPaymentId)}</p>
+            <p><strong>Customer:</strong> ${esc(userEmail)}</p>
+            <p><strong>Amount:</strong> ₹${(Number(amountPaise) / 100).toFixed(2)}</p>
+            <p><strong>Error:</strong> ${esc(errorMessage)}</p>
         </div>`,
     });
 }

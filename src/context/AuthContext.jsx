@@ -74,10 +74,14 @@ export function AuthProvider({ children }) {
 
     // Exchange the Shopify token for a backend JWT (needed for checkout,
     // orders and wishlist APIs). Non-blocking — Shopify auth is the source of truth.
-    authAPI
-      .shopifyLogin(accessToken)
-      .then((data) => setBackendToken(data.token))
-      .catch((err) => console.error('Backend session exchange failed:', err.message));
+    // Skip when one already exists: logout clears it, so a fresh login always
+    // re-exchanges, but routine token renewals on page load don't spam the API.
+    if (!localStorage.getItem('morbei_token')) {
+      authAPI
+        .shopifyLogin(accessToken)
+        .then((data) => setBackendToken(data.token))
+        .catch((err) => console.error('Backend session exchange failed:', err.message));
+    }
   }, []);
 
   /**

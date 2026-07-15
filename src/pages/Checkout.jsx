@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { useCustomer } from '../hooks/useCustomer';
 import { formatPrice } from '../utils/formatPrice';
-import { paymentAPI } from '../lib/api';
+import { paymentAPI, authAPI, setToken } from '../lib/api';
 import { COUNTRY_LIST, getStatesForCountry } from '../data/countries';
 import './Checkout.css';
 
@@ -101,6 +101,24 @@ const Checkout = () => {
     const handlePayment = async () => {
         setPaying(true);
         try {
+            // Payment requires a backend session. If the exchange failed earlier
+            // (e.g. flaky network), retry it here before giving up.
+            if (!localStorage.getItem('morbei_token')) {
+                const shopifyToken = localStorage.getItem('morbei_customer_token');
+                if (shopifyToken) {
+                    try {
+                        const session = await authAPI.shopifyLogin(shopifyToken);
+                        setToken(session.token);
+                    } catch { /* handled below */ }
+                }
+            }
+            if (!localStorage.getItem('morbei_token')) {
+                alert('Please log in to complete your purchase. Your cart is saved.');
+                setPaying(false);
+                navigate('/profile');
+                return;
+            }
+
             const loaded = await loadRazorpayScript();
             if (!loaded) throw new Error('Failed to load Razorpay');
 
