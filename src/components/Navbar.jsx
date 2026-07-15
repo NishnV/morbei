@@ -6,6 +6,7 @@ import { useCart } from '../hooks/useCart';
 import { useCustomer } from '../hooks/useCustomer';
 import { usePredictiveSearch } from '../hooks/useSearch';
 import { formatPrice } from '../utils/formatPrice';
+import { parseShopifyId } from '../utils/parseShopifyId';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -216,7 +217,9 @@ const Navbar = () => {
                                 const color = selectedOptions.find(o => o.name === 'Color')?.value || '';
                                 const size = selectedOptions.find(o => o.name === 'Size')?.value || '';
                                 const linePrice = formatPrice(line.cost?.totalAmount);
-                                const productId = merch.product?.id;
+                                // Use the same parsed numeric id as every other page (Shop/ProductDetail/Cart) —
+                                // using the raw GID here caused isInWishlist() mismatches and duplicate entries.
+                                const productId = parseShopifyId(merch.product?.id);
 
                                 return (
                                     <div key={line.id} className="cart-item">
@@ -237,7 +240,7 @@ const Navbar = () => {
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
-                                                        toggleWishlist({ id: productId, name: title, price: linePrice, img: imgUrl });
+                                                        toggleWishlist({ id: productId, handle: productHandle, name: title, price: linePrice, img: imgUrl, variantId: merch.id });
                                                     }}
                                                     aria-label={isInWishlist(productId) ? 'Remove from wishlist' : 'Add to wishlist'}
                                                 >

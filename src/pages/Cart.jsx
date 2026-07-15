@@ -54,10 +54,10 @@ const Cart = () => {
             <div className="cart-main">
                 <h1 className="cart-heading">SHOPPING BAG - {lines.reduce((s, l) => s + l.quantity, 0)} ITEMS</h1>
 
-                <div className={`cart-carousel-wrapper${canScrollLeft ? ' can-scroll-left' : ''}${canScrollRight ? ' can-scroll-right' : ''}`}>
-                    {canScrollLeft && (
+                <div className="cart-carousel-wrapper">
+                    {lines.length > 1 && (
                         <button
-                            className="cart-arrow-btn cart-arrow-btn--left"
+                            className={`cart-arrow-btn cart-arrow-btn--left${!canScrollLeft ? ' cart-arrow-btn--dim' : ''}`}
                             onClick={goLeft}
                             aria-label="Scroll left"
                         >
@@ -83,7 +83,7 @@ const Cart = () => {
                             <div className="cart-product-card" key={line.id}>
                                 <div className="cart-card-image">
                                     <Link to={`/product/${productHandle || merch.product?.id}`}>
-                                        <img loading="lazy" src={imgUrl} alt={title} />
+                                        <img src={imgUrl} alt={title} />
                                     </Link>
                                     <button
                                         className="cart-card-remove"
@@ -104,7 +104,7 @@ const Cart = () => {
                                         </div>
                                         <button
                                             className={`cart-card-bookmark ${isInWishlist(productId) ? 'active' : ''}`}
-                                            onClick={() => toggleWishlist({ id: productId, name: title, price: linePrice, img: imgUrl, variantId: merch.id })}
+                                            onClick={() => toggleWishlist({ id: productId, handle: productHandle, name: title, price: linePrice, img: imgUrl, variantId: merch.id })}
                                             aria-label={isInWishlist(productId) ? 'Remove from wishlist' : 'Add to wishlist'}
                                         >
                                             <svg
