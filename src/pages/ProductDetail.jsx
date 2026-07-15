@@ -25,6 +25,10 @@ const ProductDetail = () => {
         else stopLoading();
     }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    useEffect(() => {
+        if (product?.name) document.title = `${product.name.toUpperCase()} | MORBEI`;
+    }, [product?.name]);
+
     const [selectedSize, setSelectedSize] = useState(searchParams.get('size') || '');
     const [sizeError, setSizeError] = useState(false);
     const [hoveredSize, setHoveredSize] = useState(null);
@@ -253,7 +257,7 @@ const ProductDetail = () => {
                                 style={{ cursor: 'pointer', display: idx === mainImageIndex ? 'none' : 'block', pointerEvents: idx === mainImageIndex ? 'none' : 'auto' }}
                                 onClick={() => handleImageSelect(idx)}
                             >
-                                <img src={img} alt={`${product.name} view ${idx + 1}`} />
+                                <img loading="lazy" src={img} alt={`${product.name} view ${idx + 1}`} />
                             </div>
                         ))}
                     </div>
@@ -289,7 +293,7 @@ const ProductDetail = () => {
                         >
                             {product.images.map((img, idx) => (
                                 <div className="pd-mobile-slide" key={idx}>
-                                    <img src={img} alt={`${product.name} view ${idx + 1}`} />
+                                    <img loading="lazy" src={img} alt={`${product.name} view ${idx + 1}`} />
                                 </div>
                             ))}
                         </div>
@@ -487,7 +491,7 @@ const ProductDetail = () => {
                         {categoryRecs.map((prod, index) => (
                             <div className={`rec-product reveal reveal-up reveal-delay-${index + 1}`} key={prod.id}>
                                 <Link to={`/product/${prod.handle || prod.id}`} className="rec-image-wrapper">
-                                    <img src={prod.images?.[0] || prod.img} alt={prod.name} />
+                                    <img loading="lazy" src={prod.images?.[0] || prod.img} alt={prod.name} />
                                 </Link>
                                 <div className="rec-details-row">
                                     <Link to={`/product/${prod.handle || prod.id}`} className="rec-info-text">
@@ -534,7 +538,7 @@ const ProductDetail = () => {
                                     className={`pd-lightbox-thumb${idx === lightboxIndex ? ' active' : ''}`}
                                     onClick={() => { setLightboxIndex(idx); setLightboxZoom(0); setLbOrigin({ x: 50, y: 50 }); lbNatRect.current = null; setLbMouse(m => ({ ...m, visible: false })); }}
                                 >
-                                    <img src={img} alt={`${product.name} view ${idx + 1}`} />
+                                    <img loading="lazy" src={img} alt={`${product.name} view ${idx + 1}`} />
                                 </div>
                             ))}
                         </div>
@@ -549,7 +553,7 @@ const ProductDetail = () => {
                                 setLightboxZoom(newZoom);
                             }}
                         >
-                            <img
+                            <img loading="lazy"
                                 ref={lbImgRef}
                                 src={product.images[lightboxIndex]}
                                 alt={product.name}

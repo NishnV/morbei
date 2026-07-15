@@ -201,7 +201,7 @@
     position: absolute;
     bottom: 1.25rem;
     right: 1.5rem;
-    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-family: 'Castoro Titling', Avenir, sans-serif;
     font-size: 10px;
     letter-spacing: 0.12em;
     color: rgba(255, 255, 255, 0.5);
@@ -288,7 +288,7 @@
 
 /* Product name */
 .pd-header h1 {
-    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-family: 'Castoro Titling', Avenir, sans-serif;
     font-size: 1rem;
     margin-bottom: 0.8rem;
     letter-spacing: 0.15em;
@@ -304,7 +304,7 @@
     font-weight: 400;
     letter-spacing: 0.12em;
     color: var(--text);
-    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-family: 'Castoro Titling', Avenir, sans-serif;
 }
 
 .pd-tax-text {
@@ -533,7 +533,7 @@
 }
 
 .pd-description-heading {
-    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-family: 'Castoro Titling', Avenir, sans-serif;
     font-size: 0.65rem;
     font-weight: 500;
     letter-spacing: 0.1em;
@@ -574,7 +574,7 @@
 }
 
 .accordion-header {
-    font-family: 'Castro Titling', Avenir, sans-serif;
+    font-family: 'Castoro Titling', Avenir, sans-serif;
     width: 100%;
     text-align: left;
     background: none;
@@ -1551,7 +1551,7 @@
         font-size: 0.85rem;
         margin-bottom: 0.2rem;
         line-height: 1.2;
-        font-family: 'Castro Titling', Avenir, sans-serif;
+        font-family: 'Castoro Titling', Avenir, sans-serif;
         letter-spacing: 0.12em;
         font-weight: 400;
     }
@@ -1561,7 +1561,7 @@
         margin-top: 0;
         margin-bottom: 0.3rem;
         line-height: 1;
-        font-family: 'Castro Titling', Avenir, sans-serif;
+        font-family: 'Castoro Titling', Avenir, sans-serif;
         letter-spacing: 0.12em;
     }
 
@@ -1809,7 +1809,7 @@
         padding-left: 1rem;
         font-weight: 400;
         text-transform: uppercase;
-        font-family: 'Castro Titling', sans-serif;
+        font-family: 'Castoro Titling', sans-serif;
         color: #fff;
     }
 

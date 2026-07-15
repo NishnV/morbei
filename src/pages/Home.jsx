@@ -337,7 +337,7 @@ const Home = () => {
         >
             {/* Section 0 — Hero */}
             <section className="fp-section fp-hero" style={{ ...sectionStyle(0), zIndex: 1 }}>
-                <img src="/newhome/herosec.png" alt="Hero" className="fp-hero-img" />
+                <img src="/newhome/herosec.webp" alt="Hero" className="fp-hero-img" />
                 <div className="fp-hero-cta">
                     <Link to="/shop/all" className="fp-hero-shop-link">SHOP</Link>
                 </div>
@@ -347,10 +347,10 @@ const Home = () => {
             <section className="fp-section fp-editorial" style={{ ...sectionStyle(1), zIndex: 2 }}>
                 <div className="fp-editorial-split">
                     <div className="fp-editorial-half">
-                        <img src="/campaign-1.jpg" alt="Campaign" />
+                        <img loading="lazy" src="/campaign-1.webp" alt="Campaign" />
                     </div>
                     <div className="fp-editorial-half">
-                        <img src="/split-right.jpg" alt="Campaign" />
+                        <img loading="lazy" src="/split-right.webp" alt="Campaign" />
                     </div>
                 </div>
                 <div className="fp-editorial-overlay">
@@ -363,15 +363,15 @@ const Home = () => {
             <section className="fp-section fp-categories" style={{ ...sectionStyle(2), zIndex: 3 }}>
                 <div className="fp-categories-grid">
                     <Link to="/shop/dresses" className="fp-cat-item">
-                        <div className="fp-cat-img"><img src="/campaign-1.jpg" alt="Dresses" /></div>
+                        <div className="fp-cat-img"><img loading="lazy" src="/campaign-1.webp" alt="Dresses" /></div>
                         <span className="fp-cat-label">DRESSES</span>
                     </Link>
                     <Link to="/shop/tops" className="fp-cat-item">
-                        <div className="fp-cat-img"><img src="/campaign-2.jpg" alt="Tops" /></div>
+                        <div className="fp-cat-img"><img loading="lazy" src="/campaign-2.webp" alt="Tops" /></div>
                         <span className="fp-cat-label">TOPS</span>
                     </Link>
                     <Link to="/shop/bottoms" className="fp-cat-item">
-                        <div className="fp-cat-img"><img src="/edit5.jpg" alt="Bottoms" /></div>
+                        <div className="fp-cat-img"><img loading="lazy" src="/edit5.webp" alt="Bottoms" /></div>
                         <span className="fp-cat-label">BOTTOMS</span>
                     </Link>
                 </div>

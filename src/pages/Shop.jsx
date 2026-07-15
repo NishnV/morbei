@@ -19,7 +19,7 @@ const SORT_KEY_MAP = {
     '': 'featured',
 };
 
-const Shop = ({ category = "DRESSES" }) => {
+const Shop = ({ category = "ALL" }) => {
     const navigate = useNavigate();
     const { toggleWishlist, isInWishlist, setIsCartOpen } = useShop();
     const { addToCart } = useCart();
@@ -419,7 +419,7 @@ const Shop = ({ category = "DRESSES" }) => {
                                         onTouchStart={handleTouchStart}
                                         onTouchEnd={(e) => handleTouchEnd(e, product, idx)}
                                     >
-                                        <img
+                                        <img loading="lazy"
                                             className="img-primary"
                                             src={product.images && product.images.length > 0
                                                 ? product.images[swipeIndices[product.id || idx] || 0]
@@ -427,7 +427,7 @@ const Shop = ({ category = "DRESSES" }) => {
                                             alt={product.name}
                                         />
                                         {product.images && product.images.length > 1 && (
-                                            <img className="img-hover" src={product.images[product.images.length - 1]} alt={product.name} />
+                                            <img loading="lazy" className="img-hover" src={product.images[product.images.length - 1]} alt={product.name} />
                                         )}
                                         {product.isOnSale && (
                                             <div className="sale-badge-overlay">SALE</div>

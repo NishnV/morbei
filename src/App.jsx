@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useParams, useLocation, Navigate } from 'react-router-dom';
 import { ShopProvider } from './context/ShopContext';
 import { CartProvider } from './context/CartContext';
@@ -30,8 +30,40 @@ import Terms from './pages/Terms';
 import CookiePolicy from './pages/CookiePolicy';
 import OrderDetails from './pages/OrderDetails';
 import Profile from './pages/Profile';
+import NotFound from './pages/NotFound';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useCustomer } from './hooks/useCustomer';
 import { useCart } from './hooks/useCart';
+
+// Per-route document titles — ProductDetail overrides with the product name once loaded
+const ROUTE_TITLES = [
+  [/^\/$/, 'MORBEI | Minimalist Fashion'],
+  [/^\/shop\/?([a-z-]*)/, (m) => m[1] && m[1] !== 'all' ? `${m[1].replace(/-/g, ' ').toUpperCase()} | MORBEI` : 'SHOP | MORBEI'],
+  [/^\/product\//, 'MORBEI'],
+  [/^\/editorials/, 'EDITORIALS | MORBEI'],
+  [/^\/about/, 'ABOUT | MORBEI'],
+  [/^\/cart/, 'CART | MORBEI'],
+  [/^\/checkout/, 'CHECKOUT | MORBEI'],
+  [/^\/profile/, 'ACCOUNT | MORBEI'],
+  [/^\/wishlist/, 'WISHLIST | MORBEI'],
+  [/^\/faqs/, 'FAQ | MORBEI'],
+  [/^\/contact/, 'CONTACT | MORBEI'],
+  [/^\/track/, 'TRACK ORDER | MORBEI'],
+  [/^\/order-/, 'YOUR ORDER | MORBEI'],
+  [/^\/shipping/, 'SHIPPING | MORBEI'],
+  [/^\/returns/, 'RETURNS | MORBEI'],
+  [/^\/privacy/, 'PRIVACY POLICY | MORBEI'],
+  [/^\/terms/, 'TERMS | MORBEI'],
+  [/^\/cookies/, 'COOKIE POLICY | MORBEI'],
+];
+
+function titleForPath(pathname) {
+  for (const [pattern, title] of ROUTE_TITLES) {
+    const match = pathname.match(pattern);
+    if (match) return typeof title === 'function' ? title(match) : title;
+  }
+  return 'MORBEI | Minimalist Fashion';
+}
 
 const ShopWrapper = () => {
   const { category } = useParams();
@@ -56,6 +88,10 @@ const RequireCart = ({ children }) => {
 const AppContent = () => {
   const location = useLocation();
   const { loading } = useGlobalLoading();
+
+  useEffect(() => {
+    document.title = titleForPath(location.pathname);
+  }, [location.pathname]);
 
   // Scroll to top on route change
   // Loading screen is controlled by data-fetching pages (Shop, ProductDetail) only
@@ -119,6 +155,7 @@ const AppContent = () => {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<CookiePolicy />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       {location.pathname !== '/profile' && location.pathname !== '/' && location.pathname !== '/checkout' && location.pathname !== '/cart' && location.pathname !== '/wishlist' && <Footer />}
@@ -135,7 +172,9 @@ function App() {
           <LoadingProvider>
             <Router>
               <ScrollToTop />
-              <AppContent />
+              <ErrorBoundary>
+                <AppContent />
+              </ErrorBoundary>
             </Router>
           </LoadingProvider>
         </ShopProvider>

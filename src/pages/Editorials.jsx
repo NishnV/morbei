@@ -10,7 +10,7 @@ const Editorials = () => {
                     <div className="editorial-image-wrapper">
                         <h1 className="editorial-overlap-title">CROSSWALK</h1>
                         <img
-                            src="/edit1.jpg"
+                            src="/edit1.webp"
                             alt="Editorial Crosswalk"
                             className="editorial-main-image"
                         />
@@ -26,14 +26,14 @@ const Editorials = () => {
             {/* Story 2: Large Feature (Trench) */}
             <div className="editorial-feature-full reveal reveal-up">
                 <div className="feature-image-container">
-                    <img src="/hero-slide-3.jpg" alt="Editorial Feature" className="feature-image-full" />
+                    <img loading="lazy" src="/hero-slide-3.webp" alt="Editorial Feature" className="feature-image-full" />
                 </div>
             </div>
 
             {/* Story 3: Run Late Editorial */}
             <div className="editorial-split-run-late container reveal reveal-up">
                 <div className="split-left-column">
-                    <img src="/edit3.jpg" alt="Run Late Editorial" className="split-editorial-image" />
+                    <img loading="lazy" src="/edit3.webp" alt="Run Late Editorial" className="split-editorial-image" />
                 </div>
                 <div className="split-right-column">
                     <div className="split-text-content">
@@ -52,7 +52,7 @@ const Editorials = () => {
             {/* Story 4: Merged Editorial Image */}
             <div className="editorial-story-v3 center full-width-story reveal reveal-up">
                 <div className="story-hero-merged">
-                    <img src="/edit4.1.jpg" alt="Merged Editorial Gallery" className="merged-editorial-image" />
+                    <img loading="lazy" src="/edit4.1.webp" alt="Merged Editorial Gallery" className="merged-editorial-image" />
                 </div>
             </div>
 
@@ -66,8 +66,8 @@ const Editorials = () => {
                         </h2>
                     </header>
                     <div className="frugal-image-wrapper reveal reveal-up">
-                        <img
-                            src="/edit5.jpg"
+                        <img loading="lazy"
+                            src="/edit5.webp"
                             alt="Frugal Chic Editorial"
                             className="frugal-main-image"
                         />
@@ -83,7 +83,7 @@ const Editorials = () => {
             {/* Story 6: Final Feature */}
             <div className="editorial-story-v3 full-width-story no-margin reveal reveal-up">
                 <div className="story-hero-large-v3">
-                    <img src="/edit5.jpg" alt="Final Feature" className="final-editorial-image" />
+                    <img loading="lazy" src="/edit5.webp" alt="Final Feature" className="final-editorial-image" />
                 </div>
             </div>
         </div>

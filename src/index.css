@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Nunito:wght@300;400;500&display=swap');
 
 @font-face {
   font-family: 'Avenir';
@@ -6,7 +5,7 @@
 }
 
 @font-face {
-  font-family: 'Castro Titling';
+  font-family: 'Castoro Titling';
   src: url('/fonts/CastoroTitling-Regular.ttf') format('truetype');
 }
 

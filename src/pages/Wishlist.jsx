@@ -146,7 +146,7 @@ const Wishlist = () => {
                         <div key={item.id} className="wishlist-item">
                             <div className="wishlist-img-wrapper">
                                 <Link to={`/product/${item.handle || item.id}`}>
-                                    <img src={item.img} alt={item.name} />
+                                    <img loading="lazy" src={item.img} alt={item.name} />
                                 </Link>
                                 <button
                                     className="wishlist-remove-icon"

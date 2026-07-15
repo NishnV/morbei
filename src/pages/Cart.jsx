@@ -83,7 +83,7 @@ const Cart = () => {
                             <div className="cart-product-card" key={line.id}>
                                 <div className="cart-card-image">
                                     <Link to={`/product/${productHandle || merch.product?.id}`}>
-                                        <img src={imgUrl} alt={title} />
+                                        <img loading="lazy" src={imgUrl} alt={title} />
                                     </Link>
                                     <button
                                         className="cart-card-remove"

@@ -238,7 +238,7 @@ const Profile = () => {
         <div className="profile-auth-page">
             {/* Left image panel */}
             <div className="profile-auth-image">
-                <img src="/login-side.jpg" alt="MORBEI Fashion" />
+                <img src="/login-side.webp" alt="MORBEI Fashion" />
             </div>
 
             {/* Right form panel */}
@@ -448,7 +448,7 @@ const Profile = () => {
                 <div className="profile-auth-legal">
                     <p className="profile-auth-legal-text">
                         By signing in or creating an account, you agree to our{' '}
-                        <Link to="/privacy-policy" className="profile-auth-legal-link">Privacy Policy</Link>
+                        <Link to="/privacy" className="profile-auth-legal-link">Privacy Policy</Link>
                         {' '}and{' '}
                         <Link to="/terms" className="profile-auth-legal-link">Terms & Conditions</Link>.
                     </p>
