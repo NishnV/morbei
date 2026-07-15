@@ -51,6 +51,12 @@ export async function listOrders(email) {
     return adminFetch(`orders.json?email=${encodeURIComponent(email)}&status=any&limit=50`);
 }
 
+// Fetch a variant's real price from Shopify — never trust client-sent prices
+export async function getVariant(variantId) {
+    const data = await adminFetch(`variants/${variantId}.json`);
+    return data.variant; // { id, price: "1999.00", title, product_id, ... }
+}
+
 // Convert Shopify GID to numeric ID: "gid://shopify/ProductVariant/12345" → 12345
 export function gidToNumeric(gid) {
     if (!gid) return null;

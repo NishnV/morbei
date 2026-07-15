@@ -9,6 +9,7 @@
 
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import { shopifyFetch, handleUserErrors } from '../lib/shopify';
+import { authAPI, setToken as setBackendToken, clearToken as clearBackendToken } from '../lib/api';
 import {
   CUSTOMER_CREATE_MUTATION,
   CUSTOMER_ACCESS_TOKEN_CREATE_MUTATION,
@@ -70,6 +71,13 @@ export function AuthProvider({ children }) {
     localStorage.setItem(TOKEN_KEY, accessToken);
     localStorage.setItem(TOKEN_EXPIRY_KEY, expiresAt);
     tokenRef.current = accessToken;
+
+    // Exchange the Shopify token for a backend JWT (needed for checkout,
+    // orders and wishlist APIs). Non-blocking — Shopify auth is the source of truth.
+    authAPI
+      .shopifyLogin(accessToken)
+      .then((data) => setBackendToken(data.token))
+      .catch((err) => console.error('Backend session exchange failed:', err.message));
   }, []);
 
   /**
@@ -79,6 +87,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     tokenRef.current = null;
+    clearBackendToken();
     setCustomer(null);
   }, []);
 
@@ -128,6 +137,12 @@ export function AuthProvider({ children }) {
         const renewed = renewData.customerAccessTokenRenew?.customerAccessToken;
         if (renewed) {
           saveToken(renewed.accessToken, renewed.expiresAt);
+        } else if (!localStorage.getItem('morbei_token')) {
+          // Session still valid but not renewed — make sure the backend JWT exists
+          authAPI
+            .shopifyLogin(token)
+            .then((data) => setBackendToken(data.token))
+            .catch(() => {});
         }
 
         const cust = await fetchCustomer();

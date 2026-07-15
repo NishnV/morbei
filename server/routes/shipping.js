@@ -21,7 +21,8 @@ router.get('/track-order/:orderId', authenticate, async (req, res) => {
             createdAt: order.created_at,
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -41,7 +42,8 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
         db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('cancelled', order.id);
         res.json({ success: true, message: 'Order cancelled' });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 

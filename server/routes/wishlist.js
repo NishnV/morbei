@@ -19,7 +19,8 @@ router.get('/', authenticate, (req, res) => {
 
         res.json({ wishlist: parsed });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -36,7 +37,8 @@ router.post('/', authenticate, (req, res) => {
 
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -48,7 +50,8 @@ router.delete('/:productId', authenticate, (req, res) => {
         ).run(req.user.id, req.params.productId);
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -83,7 +86,8 @@ router.post('/sync', authenticate, (req, res) => {
 
         res.json({ wishlist: parsed });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 

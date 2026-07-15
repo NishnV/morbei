@@ -23,12 +23,10 @@ export async function apiFetch(endpoint, options = {}) {
     return data;
 }
 
-// Auth
+// Auth — exchanges the Shopify customer token for a backend JWT
 export const authAPI = {
-    signup: (body) => apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
-    login: (body) => apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
-    me: () => apiFetch('/auth/me'),
-    updateProfile: (body) => apiFetch('/auth/me', { method: 'PUT', body: JSON.stringify(body) }),
+    shopifyLogin: (customerAccessToken) =>
+        apiFetch('/auth/shopify-login', { method: 'POST', body: JSON.stringify({ customerAccessToken }) }),
 };
 
 // Payment

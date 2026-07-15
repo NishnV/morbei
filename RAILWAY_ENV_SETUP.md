@@ -21,7 +21,12 @@ SMTP_SECURE=false
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your_gmail_app_password
 STORE_NOTIFICATION_EMAIL=orders@morbei.com
+SHOPIFY_STOREFRONT_TOKEN=your_storefront_token_here
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret_here
 ```
+
+- `SHOPIFY_STOREFRONT_TOKEN` — same value as the frontend's `VITE_SHOPIFY_STOREFRONT_TOKEN`; the server uses it to validate customer sessions.
+- `RAZORPAY_WEBHOOK_SECRET` — create in Razorpay Dashboard → Settings → Webhooks. Webhook URL: `https://your-backend.up.railway.app/api/payment/webhook`, event: `payment.captured`. This is the safety net that fulfills orders when a customer pays but closes the tab before verification.
 
 ## Step 2: Set Frontend Environment Variables
 

@@ -23,7 +23,8 @@ router.post('/', async (req, res) => {
 
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -42,7 +43,8 @@ router.post('/newsletter', async (req, res) => {
 
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
