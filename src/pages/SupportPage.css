@@ -145,7 +145,7 @@
     opacity: 0.9;
 }
 
-@media (max-width: 768px) {
+@media (--mobile) {
     .support-header h1 {
         font-size: 2rem;
     }

@@ -2,6 +2,7 @@ import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
+import { isMobileViewport } from '../lib/viewport';
 import './Home.css';
 
 const TOTAL_SECTIONS = 4;
@@ -17,7 +18,7 @@ const LOGO_EASING = 'cubic-bezier(0.76, 0, 0.24, 1)';
 // Safari pixelates when scaling a small bitmap up; rendering large and scaling down stays sharp.
 const NAV_LOGO_H = 40;          // visual size at navbar position (px)
 // Use larger SVG on mobile for better visibility during animation
-const getSvgHeight = () => window.innerWidth <= 768 ? 600 : 400;
+const getSvgHeight = () => isMobileViewport() ? 600 : 400;
 const SVG_H = 400;              // actual CSS render height (will be overridden by getSvgHeight)
 const SVG_W = SVG_H * (871.75 / 250.29);
 const SVG_TOP = 4;              // .fp-floating-logo top: 4px
@@ -79,7 +80,7 @@ const Home = () => {
 
         // Find the visible navbar logo SVG element
         let navSvg = null;
-        if (window.innerWidth <= 768) {
+        if (isMobileViewport()) {
             // Mobile: look in .mobile-navbar-logo
             navSvg = document.querySelector('.mobile-navbar-logo svg');
         } else {
@@ -153,7 +154,7 @@ const Home = () => {
             floatingEl.style.transform = `translate(${start.tx}px,${start.ty}px) scale(${start.scale})`;
 
             // Detect mobile for extra delay (DevTools mobile emulator needs this)
-            const isMobile = window.innerWidth <= 768;
+            const isMobile = isMobileViewport();
             const startDelay = isMobile ? 50 : 0;
 
             setTimeout(() => {
@@ -214,7 +215,7 @@ const Home = () => {
             floatingEl.style.opacity = '1';
 
             // Detect mobile for extra delay (DevTools mobile emulator needs this)
-            const isMobile = window.innerWidth <= 768;
+            const isMobile = isMobileViewport();
             const startDelay = isMobile ? 50 : 0;
 
             setTimeout(() => {

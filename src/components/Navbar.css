@@ -456,7 +456,7 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     transition: none;
 }
 
-@media (max-width: 1024px) {
+@media (--narrow-desktop) {
     .nav-container {
         padding: 0 1rem;
     }
@@ -466,56 +466,11 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     }
 }
 
-/* iPad Mini & Standard (601px–820px) */
-@media (min-width: 601px) and (max-width: 820px) and (orientation: portrait) {
-    .go-to-bag-btn {
-        margin-top: 0;
-        padding: 0.7rem 2rem;
-        width: 100%;
-    }
-
-    /* Align with the shop controls bar (0.75rem 1.2rem padding): hamburger
-       starts where the view button's icon starts (+2px = .view-btn's own
-       left padding), cart icon ends where the SORT label ends */
-    .nav-container {
-        padding-left: calc(1.2rem + 2px);
-        padding-right: 1.2rem;
-    }
-}
-
-/* iPad Air 11 Portrait (821px-1024px) */
-@media (min-width: 821px) and (max-width: 1024px) {
-    .menu-overlay {
-        width: 350px;
-    }
-
-    .nav-container {
-        padding: 0 clamp(1rem, 2vw, 1.2rem);
-    }
-
-    .nav-left {
-        gap: clamp(1.5rem, 3vw, 2rem);
-    }
-
-    .nav-right {
-        gap: clamp(1.2rem, 2vw, 1.7rem);
-    }
-
-    .nav-icons {
-        gap: 1.3rem;
-    }
-}
-
-@media (min-width: 821px) and (max-width: 1024px) and (orientation: portrait) {
-    .go-to-bag-btn {
-        margin-top: 0;
-        padding: 0.7rem 2rem;
-        width: 100%;
-    }
-}
+/* Portrait-tablet nav tweaks live in the --tablet block AFTER the --mobile
+   block below, so they refine the mobile design instead of fighting it. */
 
 /* iPhone 11 (max-width: 430px) */
-@media (max-width: 430px) {
+@media (--phone-sm) {
     .nav-container {
         padding: 0 1.5rem;
     }
@@ -592,7 +547,7 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
    the icon row, the search opens as a full-width bar directly
    below the navbar — same underline/uppercase aesthetic.
    ============================================================ */
-@media (max-width: 1024px) {
+@media (--narrow-desktop) {
     /* Don't expand the container — the icon row stays put */
     .nav-search-container.active {
         width: auto;
@@ -1034,7 +989,8 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     color: #fff !important;
 }
 
-@media (max-width: 768px) {
+/* The mobile design: all portrait handhelds (phones + iPads upright) */
+@media (--mobile) {
     .nav-container {
         padding: 0 1.5rem;
     }
@@ -1098,6 +1054,23 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     .navbar.scrolled {
         height: 36px;
         --navbar-height: 36px;
+    }
+}
+
+/* Portrait tablets — scale refinements on top of the mobile design */
+@media (--tablet) {
+    .go-to-bag-btn {
+        margin-top: 0;
+        padding: 0.7rem 2rem;
+        width: 100%;
+    }
+
+    /* Align with the shop controls bar (0.75rem 1.2rem padding): hamburger
+       starts where the view button's icon starts (+2px = .view-btn's own
+       left padding), cart icon ends where the SORT label ends */
+    .nav-container {
+        padding-left: calc(1.2rem + 2px);
+        padding-right: 1.2rem;
     }
 }
 
@@ -1407,15 +1380,15 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     color: #000;
 }
 
-@media (max-width: 480px) {
+@media (--phone) {
     .cart-panel {
         width: 100%;
     }
 }
 
-/* Tablet portrait (iPad A16 etc.): the base clamp() bottoms out at its 360px
-   minimum here because 25vw of 820px is only ~205px — too narrow for a tablet */
-@media (min-width: 601px) and (max-width: 820px) {
+/* Portrait tablets: the base clamp() bottoms out at its 360px minimum here
+   because 25vw of 820px is only ~205px — too narrow for a tablet */
+@media (--tablet) {
     .cart-panel {
         width: clamp(400px, 55vw, 480px);
     }

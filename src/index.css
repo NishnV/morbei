@@ -63,7 +63,7 @@ html {
   overflow-x: hidden;
 }
 
-@media (max-width: 768px) {
+@media (--mobile) {
   html {
     scrollbar-gutter: auto;
     overflow-x: hidden;
@@ -211,13 +211,13 @@ button:hover:not(.dropdown-trigger):not(.play-pause-btn):not(.pd-add-bag-btn) {
   gap: 1.5rem;
 }
 
-@media (max-width: 1024px) {
+@media (--narrow-desktop) {
   .grid-4 {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (max-width: 768px) {
+@media (--mobile) {
 
   .grid-4,
   .grid-3 {

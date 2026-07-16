@@ -238,7 +238,7 @@
     opacity: 0.8;
 }
 
-@media (max-width: 768px) {
+@media (--mobile) {
     .editorial-split-run-late {
         grid-template-columns: 1fr;
         gap: 3rem;
@@ -274,7 +274,7 @@
     object-fit: contain;
 }
 
-@media (max-width: 1024px) {
+@media (--narrow-desktop) {
     .story-hero-merged {
         max-width: 100%;
     }
@@ -331,7 +331,7 @@
     opacity: 0.8;
 }
 
-@media (max-width: 768px) {
+@media (--mobile) {
     .editorial-section-frugal {
         padding: 4rem 1.5rem;
     }
@@ -342,7 +342,7 @@
 }
 
 
-@media (max-width: 1024px) {
+@media (--narrow-desktop) {
     .large-title {
         font-size: 3.5rem;
     }

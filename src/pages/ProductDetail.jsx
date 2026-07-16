@@ -7,6 +7,7 @@ import { useCart } from '../hooks/useCart';
 import { useGlobalLoading } from '../context/LoadingContext';
 import { useCustomer } from '../hooks/useCustomer';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { isMobileViewport } from '../lib/viewport';
 import './ProductDetail.css';
 
 const ProductDetail = () => {
@@ -158,9 +159,8 @@ const ProductDetail = () => {
     };
 
     const handleAddToCart = async (e) => {
-        // On mobile and iPad portrait, show size overlay instead
-        const isIpadPortrait = window.matchMedia('(min-width: 601px) and (max-width: 1200px) and (max-aspect-ratio: 4/5)').matches;
-        if (window.innerWidth <= 430 || isIpadPortrait) {
+        // On the mobile design (portrait phones + iPads), show size overlay instead
+        if (isMobileViewport()) {
             setShowMobileSizeOverlay(true);
             return;
         }

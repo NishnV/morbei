@@ -229,7 +229,7 @@
     opacity: 0.9;
 }
 
-@media (max-width: 1024px) {
+@media (--narrow-desktop) {
     .order-row-v3 {
         grid-template-columns: 1fr;
         gap: 3rem;

@@ -95,7 +95,7 @@
     color: var(--text);
 }
 
-@media (max-width: 768px) {
+@media (--mobile) {
     .privacy-page {
         padding: 100px 1.5rem 4rem;
     }

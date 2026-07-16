@@ -1,0 +1,46 @@
+/* ============================================================
+   Canonical responsive breakpoints — single source of truth.
+
+   Design model (two designs, orientation is the primary switch):
+   - PORTRAIT  (phones + any iPad held upright)  → mobile design
+   - LANDSCAPE (iPads sideways, phones sideways, laptops, desktops)
+                                                 → desktop design
+
+   These @custom-media tokens are injected into every CSS file at
+   build time by @csstools/postcss-global-data (see postcss.config.js)
+   and compiled away by postcss-custom-media. Never write raw
+   orientation/width queries in page CSS — use these tokens, and
+   keep src/lib/viewport.js in sync when changing them.
+   ============================================================ */
+
+/* The mobile design switch: all portrait handhelds (largest tablet,
+   iPad Pro 12.9 portrait, is 1024px wide — the 1200px cap only keeps
+   rotated desktop monitors out), plus any very narrow viewport as a
+   safety net for resized desktop windows. */
+@custom-media --mobile (orientation: portrait) and (max-width: 1200px), (max-width: 600px);
+
+/* Scale tiers WITHIN the mobile design (same layout, tuned sizing) */
+@custom-media --phone (max-width: 600px);
+@custom-media --phone-sm (max-width: 430px); /* Figma frames are 393px */
+@custom-media --tablet-sm (orientation: portrait) and (min-width: 601px) and (max-width: 820px);  /* iPad Mini, iPad 10.9 */
+@custom-media --tablet-lg (orientation: portrait) and (min-width: 821px) and (max-width: 1200px); /* iPad Air 11, iPad Pro */
+@custom-media --tablet (orientation: portrait) and (min-width: 601px) and (max-width: 1200px);    /* any portrait tablet */
+
+/* Refinements WITHIN the desktop design */
+/* iPads sideways only — the min-height keeps landscape phones (≤430px tall)
+   out of blocks that were designed for 768px-tall tablet viewports */
+@custom-media --touch-landscape (orientation: landscape) and (pointer: coarse) and (min-height: 501px);
+@custom-media --any-touch-landscape (orientation: landscape) and (pointer: coarse); /* iPads AND phones sideways */
+@custom-media --landscape-short (orientation: landscape) and (max-height: 500px); /* phones sideways */
+
+/* Narrow-desktop scale tiers: width-driven tweaks for small desktop windows
+   and portrait devices. The (not …) keeps them OFF landscape touch devices —
+   iPads/phones held sideways must render the full laptop design, uniformly,
+   regardless of their width. */
+@custom-media --narrow-desktop-sm (max-width: 820px) and (not ((orientation: landscape) and (pointer: coarse)));
+@custom-media --narrow-desktop-md (max-width: 900px) and (not ((orientation: landscape) and (pointer: coarse)));
+@custom-media --narrow-desktop (max-width: 1024px) and (not ((orientation: landscape) and (pointer: coarse)));
+@custom-media --narrow-desktop-lg (max-width: 1100px) and (not ((orientation: landscape) and (pointer: coarse)));
+@custom-media --narrow-desktop-xl (max-width: 1200px) and (not ((orientation: landscape) and (pointer: coarse)));
+@custom-media --wide (min-width: 1440px);
+@custom-media --ultrawide (min-width: 1920px);

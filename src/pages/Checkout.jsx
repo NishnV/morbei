@@ -302,7 +302,7 @@ const Checkout = () => {
                         <div className="checkout-layout-v3">
                             {/* Progress Sidebar */}
                             <div className="checkout-progress-v3">
-                        <div className="progress-steps-v3" style={{ '--progress-fill': currentStep === 2 ? '30rem' : '15rem' }}>
+                        <div className="progress-steps-v3" style={{ '--progress': currentStep / (STEPS.length - 1) }}>
                                     {STEPS.map((label, idx) => (
                                         <div
                                             key={label}

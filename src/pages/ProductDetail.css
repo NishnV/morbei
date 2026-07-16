@@ -9,7 +9,7 @@
     color: var(--text);
 }
 
-@media (max-width: 600px) {
+@media (--phone) {
     .product-detail-page {
         padding-bottom: max(4rem, env(safe-area-inset-bottom));
     }
@@ -95,6 +95,7 @@
     width: 90vw;
     max-width: 1200px;
     height: 85vh;
+    height: 85dvh;
     background: #111;
     animation: pd-lightbox-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -276,7 +277,9 @@
     flex-direction: column;
     position: sticky;
     top: 48px;
+    /* dvh tracks the browser toolbar so the column bottom is never hidden behind it */
     height: calc(100vh - 48px);
+    height: calc(100dvh - 48px);
     overflow-y: auto;
     scrollbar-width: none;
     box-sizing: border-box;
@@ -628,7 +631,7 @@
     color: #fff;
 }
 
-@media (min-width: 769px) {
+@media (min-width: 769px), (--any-touch-landscape) {
     .pd-recommendations {
         display: none;
     }
@@ -790,7 +793,7 @@
 }
 
 /* ---- Responsive (tablets smaller than iPad Air) ---- */
-@media (max-width: 820px) {
+@media (--narrow-desktop-sm) {
     .pd-container {
         grid-template-columns: 1fr 1fr;
         column-gap: 2px;
@@ -815,7 +818,7 @@
 }
 
 /* iPad in Portrait (601px–1200px portrait) — Mobile View */
-@media (min-width: 601px) and (max-width: 1200px) and (max-aspect-ratio: 4/5) {
+@media (--tablet) {
     .product-detail-page {
         padding-top: 0;
         padding-bottom: max(3rem, env(safe-area-inset-bottom));
@@ -1028,80 +1031,11 @@
 }
 
 /* iPad in Landscape (820px–1194px landscape) — Laptop View */
-@media (min-width: 820px) and (max-width: 1194px) and (min-aspect-ratio: 1) {
-    .product-detail-page {
-        padding-top: 0;
-        padding-bottom: max(4rem, env(safe-area-inset-bottom));
-    }
+/* Landscape iPads/phones render the laptop layout — no special block needed.
+   The (min-width: 1025px), (--any-touch-landscape) block below carries the
+   laptop bottom-section arrangement to every landscape touch device. */
 
-    .pd-container {
-        grid-template-columns: 2fr 1fr 1fr;
-        column-gap: 1px;
-    }
-
-    .pd-main-image-col,
-    .pd-col2-wrapper {
-        display: block;
-    }
-
-    .pd-mobile-slider {
-        display: none;
-    }
-
-    .pd-secondary-images-col {
-        display: none;
-    }
-
-    .pd-info-section {
-        padding: 2rem;
-        position: sticky;
-        top: 60px;
-        height: calc(100vh - 60px);
-        overflow-y: auto;
-        order: unset;
-    }
-
-    .pd-header {
-        order: 1;
-    }
-
-    .pd-color-selector {
-        order: 2;
-    }
-
-    .pd-size-selector {
-        order: 3;
-    }
-
-    .pd-actions {
-        order: 4;
-    }
-
-    .pd-description-section {
-        order: 5;
-        margin-top: auto;
-        margin-bottom: 0;
-        padding-bottom: 0;
-    }
-
-    .pd-model-info {
-        order: 6;
-        margin-top: 0;
-        margin-bottom: 0;
-    }
-
-    .pd-accordion {
-        order: 7;
-        margin-top: 0;
-        padding-top: 0;
-    }
-
-    .rec-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-@media (max-width: 600px) {
+@media (--phone) {
     .pd-container {
         grid-template-columns: 1fr;
         row-gap: 0;
@@ -1330,7 +1264,7 @@
     max-height: 60vh;
 }
 
-@media (max-width: 430px) {
+@media (--phone-sm) {
     .pd-mobile-product-sizes {
         position: absolute;
         top: 50%;
@@ -1412,7 +1346,7 @@
 }
 
 /* iPhone 11 - hide desktop size selector, show mobile sizes overlay container */
-@media (max-width: 430px) {
+@media (--phone-sm) {
     .pd-size-selector-desktop {
         display: none;
     }
@@ -1430,7 +1364,7 @@
 }
 
 /* iPhone 11 (max-width: 430px) — MUST be last to override all base styles above */
-@media (max-width: 430px) {
+@media (--phone-sm) {
     .product-detail-page {
         padding-top: 30px;
         padding-bottom: max(3rem, env(safe-area-inset-bottom));
@@ -1910,7 +1844,7 @@
 
 
 /* Laptop: Description + Model Info + Accordion all at bottom together */
-@media (min-width: 1025px) {
+@media (min-width: 1025px), (--any-touch-landscape) {
 
     .pd-mobile-wishlist-icon {
         display: none !important;
@@ -1988,7 +1922,7 @@
     }
 }
 /* iPad Portrait — use mobile size overlay instead of desktop size box */
-@media (min-width: 601px) and (max-width: 1200px) and (max-aspect-ratio: 4/5) {
+@media (--tablet) {
     .pd-size-selector-desktop {
         display: none !important;
     }
