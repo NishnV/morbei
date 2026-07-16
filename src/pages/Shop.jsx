@@ -517,6 +517,11 @@ const Shop = ({ category = "ALL" }) => {
                 )}
             </div>
 
+            {/* Inline back-to-top (mobile, per Figma) */}
+            {!isLoading && sortedProducts.length > 0 && (
+                <button className="back-to-top-inline" onClick={scrollToTop}>BACK TO TOP</button>
+            )}
+
             {/* Space before footer */}
             <div className="shop-spacer"></div>
 

@@ -412,3 +412,34 @@
         font-size: 0.7rem;
     }
 }
+/* ---- Tablet portrait 601–820px (iPad A16, iPad Mini) — mobile-style heading ----
+   Placed at the END of the file on purpose: the base .wishlist-title rule above
+   sets margin-top: -2.5rem (tuned for the desktop navbar) and, being later in
+   the file, overrides any earlier media block at equal specificity. That negative
+   margin is what pulled the title under the navbar on iPad. */
+@media (min-width: 601px) and (max-width: 820px) {
+    .wishlist-page {
+        padding-top: 72px;
+        padding-bottom: 4rem;
+    }
+
+    .wishlist-title {
+        font-size: 0.85rem;
+        letter-spacing: 0.15em;
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        padding: 0 1rem;
+    }
+
+    /* Slider flush to the left edge (cancels the 1.5rem margin from the
+       750–1024px block above) and smaller cards — ~2.5 visible per screen */
+    .wishlist-slider {
+        margin-left: 0;
+        padding-right: 0;
+    }
+
+    .wishlist-item {
+        flex: 0 0 40vw;
+        min-width: 0;
+    }
+}

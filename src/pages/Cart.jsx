@@ -163,7 +163,7 @@ const Cart = () => {
                             <span>SHIPPING  (Standard)</span>
                             <span>FREE</span>
                         </div>
-                        <div className="cart-summary-row">
+                        <div className="cart-summary-row cart-summary-row--tax">
                             <span>TAX</span>
                             <span>{cost?.totalTaxAmount ? formatPrice(cost.totalTaxAmount) : 'Calculated at checkout'}</span>
                         </div>

@@ -6,6 +6,10 @@ import './Home.css';
 
 const TOTAL_SECTIONS = 4;
 const TRANSITION_MS = 900;
+// svh matches .fp-section height: the small viewport (browser UI expanded). This
+// page never scrolls, so on iPad the browser bar never collapses — vh/dvh would
+// include the strip hidden behind it.
+const SVH_SUPPORTED = typeof CSS !== 'undefined' && CSS.supports('height', '100svh');
 const LOGO_EASING = 'cubic-bezier(0.76, 0, 0.24, 1)';
 
 // Floating logo intrinsic size — rendered LARGE so Safari rasterizes at high resolution.
@@ -116,24 +120,28 @@ const Home = () => {
             logoAnimRef.current = null;
         }
 
-        if (activeSection === 3 && prev !== 3) {
-            // ── Entering footer section ──
-            // useLayoutEffect fires before paint, so the CSS transition is still at its
-            // before-change state (translateY(100vh)). getBoundingClientRect() therefore
-            // returns the OFF-SCREEN position: raw.top = finalTop + window.innerHeight.
-            // Subtract innerHeight to recover the actual on-screen settled position.
-            const el = document.querySelector('.fp-footer-section .footer-wordmark-svg');
-            if (!el) return;
+        // Measure the wordmark RELATIVE to its section. The section settles at
+        // (0,0), so (wordmarkRect − sectionRect) IS the settled viewport position —
+        // valid whether the section is off-screen, mid-transition, or settled.
+        // This avoids correcting by window.innerHeight, which goes stale on mobile
+        // when the browser address bar collapses/expands between swipes.
+        const measureWordmark = () => {
+            const sectionEl = document.querySelector('.fp-footer-section');
+            const el = sectionEl && sectionEl.querySelector('.footer-wordmark-svg');
+            if (!el) return null;
+            const sRect = sectionEl.getBoundingClientRect();
             const raw = el.getBoundingClientRect();
-            const wRect = {
-                top:    raw.top    - window.innerHeight,
-                bottom: raw.bottom - window.innerHeight,
-                left:   raw.left,
-                right:  raw.right,
+            return {
+                top:    raw.top  - sRect.top,
+                left:   raw.left - sRect.left,
                 width:  raw.width,
                 height: raw.height,
             };
-            const end = buildEndTransform(wRect);
+        };
+
+        if (activeSection === 3 && prev !== 3) {
+            // ── Entering footer section ──
+            if (!measureWordmark()) return;
             const start = buildStartTransform();
 
             document.body.classList.add('fp-nav-logo-hidden');
@@ -152,6 +160,11 @@ const Home = () => {
                 // Double RAF on mobile to ensure compositor is ready (critical for mobile)
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
+                        // Re-measure here (fresh viewport state) — relative measurement
+                        // stays correct even though the section is mid-transition now.
+                        const wRect = measureWordmark();
+                        if (!wRect) return;
+                        const end = buildEndTransform(wRect);
                         // Calculate intermediate keyframes for smoother mobile animation
                         const midTx = start.tx + (end.tx - start.tx) * 0.5;
                         const midTy = start.ty + (end.ty - start.ty) * 0.5;
@@ -182,16 +195,12 @@ const Home = () => {
 
         } else if (activeSection !== 3 && prev === 3) {
             // ── Leaving footer section ──
-            // useLayoutEffect fires before paint, so the CSS transition is still at its
-            // before-change state (translateY(0)). getBoundingClientRect() therefore
-            // returns the ON-SCREEN position directly — no adjustment needed.
-            const el = document.querySelector('.fp-footer-section .footer-wordmark-svg');
-            if (!el) {
+            const wRect = measureWordmark();
+            if (!wRect) {
                 document.body.classList.remove('fp-nav-logo-hidden');
                 document.body.classList.remove('fp-wordmark-hidden');
                 return;
             }
-            const wRect = el.getBoundingClientRect();
             const end = buildEndTransform(wRect);
             const start = buildStartTransform();
 
@@ -302,11 +311,13 @@ const Home = () => {
         if (Math.abs(diff) > 50) { if (diff > 0) goNext(); else goPrev(); }
     };
 
-    // Section style: use window.innerHeight px (not 100vh) so JS correction in logo
-    // animation uses the same value — 100vh !== window.innerHeight on Safari/Chrome
-    // when the browser chrome (address bar) is visible.
+    // Off-screen sections park exactly one section-height (100svh) below, matching
+    // .fp-section height in CSS. The logo animation measures the wordmark relative
+    // to its section, so it doesn't need this value to match window.innerHeight.
     const sectionStyle = (idx) => ({
-        transform: idx <= activeSection ? 'translateY(0)' : `translateY(${window.innerHeight}px)`,
+        transform: idx <= activeSection
+            ? 'translateY(0)'
+            : `translateY(${SVH_SUPPORTED ? '100svh' : `${window.innerHeight}px`})`,
     });
 
     const floatingLogoEl = (
