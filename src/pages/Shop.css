@@ -1189,9 +1189,10 @@
         margin-bottom: 0;
     }
 
-    /* Figma info zone: 7px above text, 15px left inset, 25px below */
+    /* Figma info zone: 7px above text, 25px below; left inset matches the
+       navbar hamburger (nav-container's 1.5rem padding) */
     .product-footer {
-        padding: 7px 10px 25px 15px;
+        padding: 7px 10px 25px 1.5rem;
         gap: 0.3rem;
         align-items: flex-start;
     }
@@ -1301,9 +1302,10 @@
         aspect-ratio: 196/246; /* Figma tile */
     }
 
-    /* Figma info zone: 7px above text, 15px left inset, 25px below */
+    /* Figma info zone: 7px above text, 25px below; left inset matches the
+       navbar hamburger (nav-container's 1.5rem padding on phones) */
     .product-footer {
-        padding: 7px 10px 25px 15px;
+        padding: 7px 10px 25px 1.5rem;
         gap: 0.5rem;
         align-items: flex-start;
     }
@@ -1444,13 +1446,12 @@
     }
 
     /* Product name's left edge lines up with the navbar hamburger, which
-       sits at 1.2rem + 2px on portrait tablets (the --mobile block's 15px
+       sits at 1.2rem + 2px on portrait tablets (the --mobile block's value
        is phone-tuned and wins there otherwise) */
     .product-footer {
         padding-left: calc(1.2rem + 2px);
     }
 }
-
 .no-products-found {
     padding: 10rem 2rem;
     text-align: center;
