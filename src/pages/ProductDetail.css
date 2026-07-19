@@ -522,6 +522,15 @@
     opacity: 0.6;
 }
 
+/* Wishlisted state fills the bookmark (React sets fill="currentColor") — a
+   solid fill reads bigger than the hairline outline, so compensate */
+.pd-wishlist-icon-btn svg[fill="currentColor"],
+.pd-mobile-wishlist-icon svg[fill="currentColor"],
+.rec-bookmark-btn svg[fill="currentColor"] {
+    transform: scale(0.88);
+    transform-origin: center;
+}
+
 /* ---- Description Section (styled like accordion item) ---- */
 .pd-description-section {
     margin-top: 4rem;

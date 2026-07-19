@@ -514,6 +514,9 @@
 .cart-card-bookmark.active svg {
     fill: currentColor;
     stroke: currentColor;
+    /* a solid fill reads bigger than the hairline outline — compensate */
+    transform: scale(0.88);
+    transform-origin: center;
 }
 
 .cart-card-price {

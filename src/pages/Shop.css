@@ -876,6 +876,8 @@
 .wishlist-btn.active svg {
     fill: #fff;
     stroke: #fff;
+    transform: scale(0.88);
+    transform-origin: center;
 }
 
 .wishlist-btn svg {
@@ -912,6 +914,9 @@
 .wishlist-black.active svg {
     fill: #fff;
     stroke: #fff;
+    /* a solid fill reads bigger than the hairline outline — compensate */
+    transform: scale(0.88);
+    transform-origin: center;
 }
 
 .wishlist-black svg {
