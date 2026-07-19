@@ -841,9 +841,10 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
 }
 
 .fp-footer-section .footer-member h3 {
-    font-size: clamp(1.3rem, 1.4vw, 1.2rem);
+    /* same size as the standard footer's BE A MEMBER heading */
+    font-size: 0.85rem;
     margin-bottom: 4vh;
-    line-height: 1.5;
+    line-height: 1.6;
 }
 
 .fp-footer-section .signup-form {

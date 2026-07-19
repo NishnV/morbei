@@ -242,7 +242,7 @@
     transition: opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
     pointer-events: none;
     z-index: 2;
-    border-bottom: 1px solid #fff;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.7);
     padding: 0 5px;
 }
 
@@ -585,8 +585,8 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
         left: 1.5rem;
         right: 1.5rem;
         bottom: 6px;
-        height: 1px;
-        background: rgba(255, 255, 255, 0.9);
+        height: 0.5px;
+        background: rgba(255, 255, 255, 0.7);
     }
 
     .nav-search-input {

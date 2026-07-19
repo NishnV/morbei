@@ -26,12 +26,6 @@
 
     .wishlist-slider {
         margin-bottom: 4rem;
-        margin-left: 1.5rem;
-        padding-right: 1.5rem;
-    }
-
-    .wishlist-item {
-        flex: 0 0 50vw;
     }
 }
 
@@ -56,28 +50,21 @@
     width: 100%;
 }
 
-/* Portrait handhelds keep the horizontal drag-slider */
+/* Portrait handhelds (phones + iPads): grid, no sliding —
+   matches the shop grid's full-bleed 1px-gutter look */
 @media (--mobile) {
     .wishlist-slider {
-        display: flex;
-        flex-direction: row;
-        row-gap: 0;
-        overflow-x: auto;
-        overflow-y: hidden;
-        scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        cursor: grab;
-        user-select: none;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        column-gap: 1px;
+        row-gap: 10px;
     }
+}
 
-    .wishlist-slider::-webkit-scrollbar {
-        display: none;
-    }
-
-    .wishlist-slider.is-dragging {
-        cursor: grabbing;
-        scroll-behavior: auto;
+/* Phones: one full-width product per row */
+@media (--phone) {
+    .wishlist-slider {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -363,11 +350,6 @@
 
 /* ---- iPad Portrait ---- */
 @media (--tablet) {
-    .wishlist-item {
-        flex: 0 0 60vw;
-        min-width: 220px;
-    }
-
     .wishlist-empty {
         padding: 6rem 2rem;
     }
@@ -390,11 +372,6 @@
 
     .wishlist-slider {
         margin-bottom: 3rem;
-    }
-
-    .wishlist-item {
-        flex: 0 0 72vw;
-        min-width: 0;
     }
 
     .wishlist-item-footer {
@@ -439,15 +416,4 @@
         padding: 0 1rem;
     }
 
-    /* Slider flush to the left edge (cancels the 1.5rem margin from the
-       750–1024px block above) and smaller cards — ~2.5 visible per screen */
-    .wishlist-slider {
-        margin-left: 0;
-        padding-right: 0;
-    }
-
-    .wishlist-item {
-        flex: 0 0 40vw;
-        min-width: 0;
-    }
 }

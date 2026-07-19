@@ -9,6 +9,11 @@ import './Checkout.css';
 
 const STEPS = ['INFORMATION', 'DELIVERY', 'PAYMENT'];
 
+// Every field the information step requires — later steps are gated on these
+const REQUIRED_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'address', 'state', 'zip'];
+const isFormComplete = (f) =>
+    !!f && REQUIRED_FIELDS.every(k => typeof f[k] === 'string' && f[k].trim());
+
 function loadRazorpayScript() {
     return new Promise((resolve) => {
         if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
@@ -33,12 +38,19 @@ const Checkout = () => {
     const cartCount = lines.reduce((sum, l) => sum + l.quantity, 0);
 
     // /checkout/payment (used by the payment-failed page's TRY AGAIN) jumps
-    // straight to the payment step — only when a filled form was saved from
-    // the earlier attempt, otherwise start at the information step.
+    // straight to the payment step — only when the saved form from the earlier
+    // attempt is actually complete (the key alone proves nothing: an empty form
+    // is saved the moment checkout mounts), otherwise start at information.
     const { step: stepParam } = useParams();
-    const [currentStep, setCurrentStep] = useState(() =>
-        stepParam === 'payment' && sessionStorage.getItem('morbei_checkout_form') ? 2 : 0
-    );
+    const [currentStep, setCurrentStep] = useState(() => {
+        if (stepParam !== 'payment') return 0;
+        try {
+            const saved = JSON.parse(sessionStorage.getItem('morbei_checkout_form') || 'null');
+            return isFormComplete(saved) ? 2 : 0;
+        } catch {
+            return 0;
+        }
+    });
     const [deliveryMethod, setDeliveryMethod] = useState(() =>
         sessionStorage.getItem('morbei_checkout_delivery') || 'standard'
     );
@@ -122,6 +134,13 @@ const Checkout = () => {
     };
 
     const handlePayment = async () => {
+        // Last line of defense — the payment step can be deep-linked, so never
+        // take money against a form that was never actually filled in.
+        if (!isFormComplete(form)) {
+            setCurrentStep(0);
+            validateStep0();
+            return;
+        }
         setPaying(true);
         try {
             // Payment requires a backend session. If the exchange failed earlier
@@ -499,7 +518,7 @@ const Checkout = () => {
                     {currentStep === 0 && <Link to="/cart" className="go-back-link">Go to shopping bag</Link>}
                     {currentStep === 1 && <button className="go-back-link" onClick={() => setCurrentStep(0)}>Go back</button>}
                     {currentStep === 0 && <button className="checkout-next-btn" onClick={handleContinueStep0}>CONTINUE</button>}
-                    {currentStep === 1 && <button className="checkout-next-btn" onClick={() => setCurrentStep(2)}>CONTINUE</button>}
+                    {currentStep === 1 && <button className="checkout-next-btn" onClick={() => (validateStep0() ? setCurrentStep(2) : setCurrentStep(0))}>CONTINUE</button>}
                 </div>
             </div>
             )}

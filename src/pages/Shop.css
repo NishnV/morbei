@@ -1182,7 +1182,7 @@
     }
 
     .products-grid.col-4 {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
     }
 
     .product-item {
@@ -1415,7 +1415,7 @@
 
     .products-grid.col-4 {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         column-gap: 1.5px;
         row-gap: 1.5px;
     }
