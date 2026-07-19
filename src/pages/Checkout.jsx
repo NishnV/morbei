@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { useCustomer } from '../hooks/useCustomer';
 import { formatPrice } from '../utils/formatPrice';
@@ -23,7 +23,7 @@ function loadRazorpayScript() {
 }
 
 const Checkout = () => {
-    const { cart, clearCart, loading: cartLoading } = useCart();
+    const { cart, loading: cartLoading } = useCart();
     const { customer } = useCustomer();
     const navigate = useNavigate();
 
@@ -32,8 +32,16 @@ const Checkout = () => {
     const totalFormatted = cost?.totalAmount ? formatPrice(cost.totalAmount) : '—';
     const cartCount = lines.reduce((sum, l) => sum + l.quantity, 0);
 
-    const [currentStep, setCurrentStep] = useState(0);
-    const [deliveryMethod, setDeliveryMethod] = useState('standard');
+    // /checkout/payment (used by the payment-failed page's TRY AGAIN) jumps
+    // straight to the payment step — only when a filled form was saved from
+    // the earlier attempt, otherwise start at the information step.
+    const { step: stepParam } = useParams();
+    const [currentStep, setCurrentStep] = useState(() =>
+        stepParam === 'payment' && sessionStorage.getItem('morbei_checkout_form') ? 2 : 0
+    );
+    const [deliveryMethod, setDeliveryMethod] = useState(() =>
+        sessionStorage.getItem('morbei_checkout_delivery') || 'standard'
+    );
     const [paymentMethod, setPaymentMethod] = useState('card');
     const [paying, setPaying] = useState(false);
     const [validationError, setValidationError] = useState('');
@@ -41,16 +49,31 @@ const Checkout = () => {
 
     const defaultAddr = customer?.addresses?.[0] || customer?.defaultAddress;
 
-    const [form, setForm] = useState({
-        firstName: customer?.firstName || '',
-        lastName: customer?.lastName || '',
-        phone: customer?.phone || '',
-        email: customer?.email || '',
-        country: defaultAddr?.country || 'India',
-        state: defaultAddr?.province || '',
-        address: defaultAddr?.address1 || '',
-        zip: defaultAddr?.zip || '',
+    const [form, setForm] = useState(() => {
+        // A failed payment shouldn't cost the user their filled-in address —
+        // restore the form from this tab's session if present.
+        try {
+            const saved = JSON.parse(sessionStorage.getItem('morbei_checkout_form') || 'null');
+            if (saved && typeof saved === 'object' && saved.address) return saved;
+        } catch { /* corrupted — fall through to defaults */ }
+        return {
+            firstName: customer?.firstName || '',
+            lastName: customer?.lastName || '',
+            phone: customer?.phone || '',
+            email: customer?.email || '',
+            country: defaultAddr?.country || 'India',
+            state: defaultAddr?.province || '',
+            address: defaultAddr?.address1 || '',
+            zip: defaultAddr?.zip || '',
+        };
     });
+
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('morbei_checkout_form', JSON.stringify(form));
+            sessionStorage.setItem('morbei_checkout_delivery', deliveryMethod);
+        } catch { /* storage full/blocked — non-critical */ }
+    }, [form, deliveryMethod]);
 
     const [cardForm, setCardForm] = useState({
         number: '', name: '', expiry: '', cvv: '',
@@ -156,17 +179,44 @@ const Checkout = () => {
                 handler: async (response) => {
                     try {
                         // 3. Verify payment on backend → creates Shopify order + Shiprocket shipment
-                        await paymentAPI.verify({
+                        const result = await paymentAPI.verify({
                             razorpayOrderId: response.razorpay_order_id,
                             razorpayPaymentId: response.razorpay_payment_id,
                             razorpaySignature: response.razorpay_signature,
                             orderId: orderData.orderId,
                         });
-                        // 4. Clear cart and go to order details
-                        if (clearCart) clearCart();
-                        navigate('/order-details');
+                        // Snapshot the placed order for the confirmation page —
+                        // the cart is cleared right after, so capture it now.
+                        const shippingCost = deliveryMethod === 'priority' ? 200 : 0;
+                        const confirmation = {
+                            orderId: orderData.orderId,
+                            orderNumber: result?.orderNumber,
+                            shopifyOrderId: result?.shopifyOrderId,
+                            items: cartLines,
+                            shippingAddress: form,
+                            deliveryMethod,
+                            subtotal: Math.round(orderData.amount / 100) - shippingCost,
+                            shippingCost,
+                            total: Math.round(orderData.amount / 100),
+                        };
+                        // 4. Navigate to the confirmation page. The cart is
+                        // intentionally NOT cleared here — clearing it while
+                        // still on /checkout empties the cart and RequireCart
+                        // redirects to /cart before navigation lands. The
+                        // confirmation page clears the cart itself once mounted.
+                        navigate('/order-confirmed', { state: { order: confirmation } });
                     } catch (err) {
-                        alert('Payment verification failed: ' + err.message);
+                        // Payment may have been captured even though verification
+                        // failed — the webhook will settle it (paid or refunded).
+                        console.error('Payment verification failed:', err);
+                        navigate('/order-failed', {
+                            state: {
+                                failure: {
+                                    kind: 'verification',
+                                    orderId: orderData.orderId,
+                                },
+                            },
+                        });
                     } finally {
                         setPaying(false);
                     }
@@ -174,9 +224,26 @@ const Checkout = () => {
                 modal: {
                     ondismiss: () => setPaying(false),
                 },
+                // Don't let Razorpay loop its own retry UI — failures land on
+                // our /order-failed page, which offers TRY AGAIN.
+                retry: { enabled: false },
             };
 
             const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', (resp) => {
+                rzp.close();
+                setPaying(false);
+                navigate('/order-failed', {
+                    state: {
+                        failure: {
+                            kind: 'payment',
+                            reason: resp?.error?.description || '',
+                            orderId: orderData.orderId,
+                            amount: orderData.amount,
+                        },
+                    },
+                });
+            });
             rzp.open();
         } catch (err) {
             alert('Payment error: ' + err.message);
@@ -400,6 +467,13 @@ const Checkout = () => {
                                                         )}
                                                     </button>
                                                     <p className="razorpay-note">YOU WILL BE REDIRECTED TO RAZORPAY'S SECURE PAYMENT GATEWAY</p>
+                                                    <button
+                                                        type="button"
+                                                        className="go-back-link razorpay-back-btn"
+                                                        onClick={() => setCurrentStep(1)}
+                                                    >
+                                                        GO BACK
+                                                    </button>
                                                 </div>
                                             </div>
 

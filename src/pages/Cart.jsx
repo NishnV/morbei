@@ -128,9 +128,9 @@ const Cart = () => {
                                     <div className="cart-card-bottom-row">
                                         <span className="cart-card-meta">{color}{color && size ? ' | ' : ''}{size}</span>
                                         <div className="cart-card-qty">
-                                            <button onClick={() => updateQuantity(line.id, line.quantity + 1)} disabled={cartLoading}>+</button>
-                                            <span>{line.quantity}</span>
                                             <button onClick={() => updateQuantity(line.id, line.quantity - 1)} disabled={cartLoading}>-</button>
+                                            <span>{line.quantity}</span>
+                                            <button onClick={() => updateQuantity(line.id, line.quantity + 1)} disabled={cartLoading}>+</button>
                                         </div>
                                     </div>
                                 </div>

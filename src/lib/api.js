@@ -51,6 +51,7 @@ export const shippingAPI = {
 export const contactAPI = {
     submit: (body) => apiFetch('/contact', { method: 'POST', body: JSON.stringify(body) }),
     newsletter: (email) => apiFetch('/contact/newsletter', { method: 'POST', body: JSON.stringify({ email }) }),
+    notifyStock: (email, product) => apiFetch('/contact/notify-stock', { method: 'POST', body: JSON.stringify({ email, product }) }),
 };
 
 // Wishlist

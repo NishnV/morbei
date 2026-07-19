@@ -32,12 +32,31 @@ const TOKEN_KEY = 'morbei_customer_token';
 const TOKEN_EXPIRY_KEY = 'morbei_customer_token_expiry';
 
 /**
+ * Shopify saves every order's shipping address into the customer's address
+ * book, so repeat orders to a saved address accumulate duplicate entries.
+ * Checkout-created copies mangle city (state-as-city) and phone (+91 prefix),
+ * so the match key is only name + street + zip + country — enough that truly
+ * different addresses still show separately. The default address's entry is
+ * preferred so the DEFAULT badge and set-default actions keep working.
+ */
+function dedupeAddresses(addresses, defaultAddress) {
+  const seen = new Map();
+  for (const addr of addresses) {
+    const key = ['firstName', 'lastName', 'address1', 'address2', 'zip', 'country']
+      .map((f) => (addr[f] || '').trim().toLowerCase())
+      .join('|');
+    if (!seen.has(key) || addr.id === defaultAddress?.id) seen.set(key, addr);
+  }
+  return [...seen.values()];
+}
+
+/**
  * Normalize a raw Shopify customer into a clean shape.
  */
 function normalizeCustomer(customer) {
   if (!customer) return null;
 
-  const addresses = flattenEdges(customer.addresses);
+  const addresses = dedupeAddresses(flattenEdges(customer.addresses), customer.defaultAddress);
   const orders = flattenEdges(customer.orders).map((order) => ({
     ...order,
     lineItems: flattenEdges(order.lineItems),

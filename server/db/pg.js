@@ -81,6 +81,13 @@ export async function initDB() {
         CREATE INDEX IF NOT EXISTS idx_orders_user ON orders (user_id);
         CREATE INDEX IF NOT EXISTS idx_orders_razorpay ON orders (razorpay_order_id);
 
+        -- Records the Razorpay refund issued when an order is cancelled.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_id TEXT;
+
+        -- Shopify's sequential, customer-facing order number (#1001, #1002…).
+        -- shopify_order_id is the internal 13-digit id — never show that to customers.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS shopify_order_number BIGINT;
+
         CREATE TABLE IF NOT EXISTS contact_submissions (
             id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             name TEXT, email TEXT, subject TEXT, message TEXT,

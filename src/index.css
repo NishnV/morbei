@@ -121,7 +121,7 @@ button {
 }
 
 /* Global button hover effect - underline text */
-button:hover:not(.dropdown-trigger):not(.play-pause-btn):not(.pd-add-bag-btn) {
+button:hover:not(.dropdown-trigger):not(.play-pause-btn):not(.pd-add-bag-btn):not(.accordion-header):not(.faq-question) {
   text-decoration: underline;
 }
 

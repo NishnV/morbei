@@ -3,11 +3,14 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { useCart } from '../hooks/useCart';
+import { useCustomer } from '../hooks/useCustomer';
+import { contactAPI } from '../lib/api';
 import { useCollection } from '../hooks/useCollection';
 import { useSearch } from '../hooks/useSearch';
 import { useProducts } from '../hooks/useProducts';
 import { useGlobalLoading } from '../context/LoadingContext';
 import ErrorBoundary from '../components/ErrorBoundary';
+import Modal from '../components/ui/Modal';
 import './Shop.css';
 
 /** Map frontend sort keys to Shopify-compatible sort keys */
@@ -23,6 +26,31 @@ const Shop = ({ category = "ALL" }) => {
     const navigate = useNavigate();
     const { toggleWishlist, isInWishlist, setIsCartOpen } = useShop();
     const { addToCart } = useCart();
+    const { customer } = useCustomer();
+    // Product ids whose restock request was sent this session
+    const [notifiedIds, setNotifiedIds] = React.useState([]);
+    // Product awaiting an email in the notify modal (guests only)
+    const [notifyModalProduct, setNotifyModalProduct] = React.useState(null);
+
+    const submitNotify = async (product, email) => {
+        try {
+            await contactAPI.notifyStock(email.trim(), product.name);
+            setNotifiedIds(prev => [...prev, product.id]);
+        } catch (err) {
+            console.error('Notify request failed:', err);
+        }
+    };
+
+    const handleNotifyMe = (e, product) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (notifiedIds.includes(product.id)) return;
+        if (customer?.email) {
+            submitNotify(product, customer.email);
+        } else {
+            setNotifyModalProduct(product);
+        }
+    };
     const [viewMode, setViewMode] = React.useState(() => {
         const saved = localStorage.getItem('shop-view-mode');
         return saved ? parseInt(saved, 10) : 2;
@@ -432,17 +460,34 @@ const Shop = ({ category = "ALL" }) => {
                                         {product.isOnSale && (
                                             <div className="sale-badge-overlay">SALE</div>
                                         )}
+                                        {(product.availableForSale === false ||
+                                            (product.variants?.length > 0 && !product.variants.some(v => v.available))) ? (
+                                            <div className="product-sizes product-sizes--oos">
+                                                <span className="oos-label">OUT OF STOCK</span>
+                                                <span
+                                                    className="notify-me-link"
+                                                    onClick={(e) => handleNotifyMe(e, product)}
+                                                >
+                                                    {notifiedIds.includes(product.id) ? "WE'LL NOTIFY YOU" : 'NOTIFY ME'}
+                                                </span>
+                                            </div>
+                                        ) : (
                                         <div className="product-sizes">
                                             {[...(product.sizes || ['S', 'M', 'L'])].sort((a, b) => {
                                                 const order = ['XXS', 'XS', 'S', 'M', 'L', 'XL'];
                                                 return order.indexOf(a) - order.indexOf(b);
-                                            }).map(size => (
+                                            }).map(size => {
+                                                const sizeVariants = (product.variants || []).filter(v => v.size === size);
+                                                const sizeAvailable = sizeVariants.length === 0 || sizeVariants.some(v => v.available);
+                                                return (
                                                 <span
                                                     key={size}
+                                                    className={sizeAvailable ? '' : 'size-unavailable'}
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
-                                                        const variant = product.variants?.find(v => v.size === size);
+                                                        if (!sizeAvailable) return;
+                                                        const variant = product.variants?.find(v => v.size === size && v.available);
                                                         if (variant?.id) {
                                                             addToCart(variant.id, 1);
                                                             setIsCartOpen(true);
@@ -451,8 +496,10 @@ const Shop = ({ category = "ALL" }) => {
                                                         }
                                                     }}
                                                 >{size}</span>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
+                                        )}
                                     </div>
                                     <div className="product-footer">
                                         <div className="p-detail">
@@ -535,6 +582,24 @@ const Shop = ({ category = "ALL" }) => {
                     <path d="M7 12V2M7 2L2 7M7 2L12 7" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
             </button>
+
+            {/* Back-in-stock email prompt (guests — logged-in users skip this) */}
+            <Modal
+                open={!!notifyModalProduct}
+                title="NOTIFY ME"
+                message={notifyModalProduct ? `WE'LL EMAIL YOU WHEN ${notifyModalProduct.name} IS BACK IN STOCK.` : ''}
+                input
+                inputType="email"
+                inputPlaceholder="YOUR EMAIL"
+                validate={(v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : 'PLEASE ENTER A VALID EMAIL'}
+                confirmLabel="NOTIFY ME"
+                cancelLabel="CANCEL"
+                onConfirm={(email) => {
+                    submitNotify(notifyModalProduct, email);
+                    setNotifyModalProduct(null);
+                }}
+                onClose={() => setNotifyModalProduct(null)}
+            />
             </div>
         </>
     );

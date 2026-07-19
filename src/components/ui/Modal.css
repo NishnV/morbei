@@ -1,0 +1,111 @@
+.morbei-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* keep the dialog clear of browser taskbars / home indicator */
+    padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.morbei-modal {
+    background: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    width: min(400px, 100%);
+    padding: 2.2rem 2rem;
+    color: #fff;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.morbei-modal-title {
+    font-family: 'Castoro Titling', Avenir, sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.22em;
+    font-weight: 500;
+    margin: 0 0 1.1rem;
+}
+
+.morbei-modal-message {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    line-height: 1.9;
+    color: #999;
+    margin: 0 0 1.6rem;
+}
+
+.morbei-modal-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    padding: 0.6rem 0;
+    outline: none;
+    text-align: center;
+    text-transform: none;
+    margin-bottom: 1.6rem;
+    box-sizing: border-box;
+}
+
+.morbei-modal-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.15em;
+}
+
+.morbei-modal-error {
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    color: #ff6b6b;
+    margin: -0.9rem 0 1.2rem;
+}
+
+.morbei-modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    align-items: center;
+}
+
+.morbei-modal-confirm {
+    width: 100%;
+    background: #fff;
+    color: #000;
+    border: none;
+    padding: 0.85rem;
+    font-family: inherit;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    font-weight: 500;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: opacity 0.2s;
+}
+
+.morbei-modal-confirm:hover {
+    opacity: 0.9;
+}
+
+.morbei-modal-cancel {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.morbei-modal-cancel:hover {
+    color: #fff;
+}

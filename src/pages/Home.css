@@ -461,11 +461,11 @@
         gap: 2rem;
     }
 
+    /* Same bottom anchor as the laptop hero — keep the SHOP link consistent */
     .fp-hero-cta {
         top: auto;
-        bottom: auto;
-        top: 85%;
-        transform: translateY(-50%);
+        bottom: clamp(2rem, 5vh, 5rem);
+        transform: none;
         padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
     }
 
@@ -479,9 +479,8 @@
 @media (--tablet-sm) {
     .fp-hero-cta {
         top: auto;
-        bottom: auto;
-        top: 82%;
-        transform: translateY(-50%);
+        bottom: clamp(2rem, 5vh, 5rem);
+        transform: none;
     }
 }
 
@@ -498,9 +497,8 @@
 
     .fp-hero-cta {
         top: auto;
-        bottom: auto;
-        top: 80%;
-        transform: translateY(-50%);
+        bottom: clamp(2rem, 5vh, 5rem);
+        transform: none;
     }
 
     .campaign-split {
@@ -909,7 +907,7 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
 
 .fp-footer-section .footer-copyright-bar {
     color: gray;
-    padding: clamp(1.5rem, 3vh, 2.5rem) 1.25rem 1.5rem;
+    padding: clamp(2rem, 4vh, 3rem) 1.25rem 0.75rem;
     font-size: 10px;
     letter-spacing: 0.13em;
 }
@@ -1210,13 +1208,12 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
         padding-bottom: 0 !important;
     }
 
-    /* 1px (not 0.5px) so both hairlines rasterize identically — half-pixel
-       borders round differently depending on fractional position, making the
-       two lines render at different weights on iPad */
+    /* Same hairline spec as the phone footer (0.5px @ 40%) so iPad and
+       mobile render the links dividers identically */
     .fp-footer-section .footer-member {
         width: 100% !important;
         flex: unset !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.567) !important;
+        border-bottom: 0.5px solid rgba(255, 255, 255, 0.4) !important;
         padding-bottom: 2.5rem !important;
         margin-bottom: 0 !important;
     }
@@ -1256,7 +1253,7 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
         padding-top: 1.5rem !important;
         padding-bottom: 1.5rem !important;
         border-top: none !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.567) !important;
+        border-bottom: 0.5px solid rgba(255, 255, 255, 0.4) !important;
     }
 
     .fp-footer-section .footer-wordmark-row {

@@ -305,17 +305,19 @@
 
 .cart-main {
     max-width: 100%;
-    padding: 0 2.5rem 320px;
+    /* bottom padding clears the fixed summary footer (~310px tall) */
+    padding: 0 40px 340px;
 }
 
 /* ---- Title ---- */
+/* Figma 2394:1352 — Castoro 16px, tracking 1.6px, ~36px below the navbar */
 .cart-heading {
     font-family: 'Castoro Titling', Avenir, sans-serif;
-    font-size: 1.2rem;
-    letter-spacing: 0.18em;
-    font-weight: 500;
-    margin-top: -2.5rem;
-    margin-bottom: 2.5rem;
+    font-size: 16px;
+    letter-spacing: 1.6px;
+    font-weight: 400;
+    margin-top: -18px;
+    margin-bottom: 22px;
     text-transform: uppercase;
 }
 
@@ -330,7 +332,7 @@
     content: '';
     position: absolute;
     top: 0;
-    height: 350px;
+    height: 297px;
     width: 140px;
     z-index: 5;
     pointer-events: none;
@@ -365,7 +367,7 @@
 /* ---- Products Grid ---- */
 .cart-products-grid {
     display: flex;
-    gap: 1.5rem;
+    gap: 43px;
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -379,7 +381,7 @@
 /* ---- Arrow Buttons (overlaid on image edges) ---- */
 .cart-arrow-btn {
     position: absolute;
-    top: calc(280px * 5 / 4 / 2);
+    top: calc(237px * 5 / 4 / 2);
     transform: translateY(-50%);
     z-index: 10;
     appearance: none;
@@ -407,9 +409,10 @@
     pointer-events: none;
 }
 
+/* Figma: 237×297 image tiles, five across a 1440 frame */
 .cart-product-card {
     flex: 0 0 auto;
-    width: 280px;
+    width: 237px;
     display: flex;
     flex-direction: column;
 }
@@ -431,8 +434,8 @@
 
 .cart-card-remove {
     position: absolute;
-    top: 8px;
-    left: 8px;
+    top: 10px;
+    left: 10px;
     background: none;
     border: none;
     color: rgba(0, 0, 0, 0.7);
@@ -442,13 +445,20 @@
     z-index: 2;
 }
 
+.cart-card-remove svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
 .cart-card-remove:hover {
     color: #fff;
 }
 
 /* ---- Card Info ---- */
+/* Figma: name/price 26px below the image, Avenir Light 10px, 16px lines */
 .cart-card-info {
-    padding: 1rem 0.4rem 1rem 0;
+    padding: 24px 0 0;
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -456,7 +466,7 @@
 
 .cart-card-name-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 0.5rem;
 }
@@ -464,17 +474,17 @@
 .cart-card-name-price {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0;
     flex: 1;
     min-width: 0;
 }
 
 .cart-card-name {
-    font-size: 0.75rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    line-height: 1.4;
+    line-height: 16px;
     color: #fff;
 }
 
@@ -487,7 +497,14 @@
     flex-shrink: 0;
     opacity: 1;
     transition: opacity 0.2s;
-    align-self: center;
+    align-self: flex-start;
+}
+
+/* Same rendered size as the shop grid's bookmark (.wishlist-black) */
+.cart-card-bookmark svg {
+    width: 24px;
+    height: 32px;
+    display: block;
 }
 
 .cart-card-bookmark:hover {
@@ -500,20 +517,21 @@
 }
 
 .cart-card-price {
-    font-size: 0.75rem;
-    letter-spacing: 0.06em;
+    font-size: 10px;
+    letter-spacing: 1px;
+    line-height: 16px;
     color: #fff;
-    font-weight: 400;
+    font-weight: 300;
     flex-shrink: 0;
 }
 
 .cart-card-meta {
-    font-size: 0.75rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 1px;
     color: #fff;
     text-transform: uppercase;
-    margin-top: 0.1rem;
+    margin-top: 0;
 }
 
 /* ---- Bottom row: meta left, qty right ---- */
@@ -521,27 +539,28 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 1.5rem;
+    margin-top: 22px;
 }
 
 /* ---- Quantity Controls ---- */
+/* Figma: 76×21 box, 0.5px white border @70%, three ~25px segments */
 .cart-card-qty {
     display: flex;
     align-items: center;
-    border: 0.5px solid rgba(255,255,255,0.3);
+    border: 0.5px solid rgba(255,255,255,0.7);
     width: fit-content;
-    height: 20px;
+    height: 21px;
 }
 
 .cart-card-qty button {
     background: none;
     border: none;
     color: #fff;
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 400;
     cursor: pointer;
     padding: 0;
-    width: 30px;
+    width: 25px;
     height: 100%;
     display: flex;
     align-items: center;
@@ -559,12 +578,12 @@
 }
 
 .cart-card-qty span {
-    font-size: 0.75rem;
-    font-weight: 500;
-    width: 30px;
+    font-size: 12px;
+    font-weight: 400;
+    width: 26px;
     text-align: center;
-    border-left: 0.5px solid rgba(255,255,255,0.3);
-    border-right: 0.5px solid rgba(255,255,255,0.3);
+    border-left: 0.5px solid rgba(255,255,255,0.7);
+    border-right: 0.5px solid rgba(255,255,255,0.7);
     height: 100%;
     display: flex;
     align-items: center;
@@ -573,72 +592,82 @@
 }
 
 /* ============================================
-   SUMMARY — fixed overlay footer
+   SUMMARY — Figma 2394:1352 styling, pinned to the
+   viewport bottom as a fixed footer on laptop.
    ============================================ */
 .cart-summary-full {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: #000;
-    border-top: 1px solid rgba(255,255,255,0.12);
     z-index: 100;
-    padding: 1.5rem 2.5rem 2rem;
+    background: #000;
+    border-top: none;
+    padding: 24px 40px 32px;
 }
 
 .cart-summary-heading {
     font-family: 'Castoro Titling', Avenir, sans-serif;
-    font-size: 1rem;
-    letter-spacing: 0.16em;
-    font-weight: 500;
+    font-size: 16px;
+    letter-spacing: 1.6px;
+    font-weight: 400;
+    line-height: 26px;
     text-transform: uppercase;
-    margin-bottom: 0.75rem;
+    margin-bottom: 22px;
 }
 
 .cart-summary-lines {
-    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255,255,255,0.45);
+    padding-top: 21px;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0;
 }
 
 .cart-summary-row {
     display: flex;
     justify-content: space-between;
-    font-size: 0.8rem;
-    letter-spacing: 0.08em;
+    font-size: 10px;
+    letter-spacing: 1px;
     color: #fff;
     font-weight: 400;
-    line-height: 1.8;
+    line-height: 28px;
+    text-transform: uppercase;
 }
 
 .cart-summary-total {
     display: flex;
     justify-content: space-between;
-    margin-top: 0.6rem;
+    margin-top: 11px;
     padding-top: 0;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1.32px;
+    line-height: 26px;
     color: #fff;
 }
 
 .cart-checkout-row {
     display: flex;
     justify-content: flex-end;
-    margin-top: 1rem;
+    margin-top: 21px;
 }
 
 .cart-checkout-btn {
-    display: inline-block;
-    background: #fff;
+    display: block;
+    box-sizing: border-box;
+    width: 260px;
+    height: 40px;
+    line-height: 40px;
+    padding: 0;
+    background: #d9d9d9;
+    border: 0.4px solid #fff;
     color: #000;
     text-align: center;
-    padding: 0.85rem 6rem;
     text-decoration: none;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 500;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.22em;
     transition: background 0.3s;
     text-transform: uppercase;
 }
@@ -689,6 +718,7 @@
     .cart-heading {
         font-size: 12px;
         letter-spacing: 1.2px;
+        margin-top: -2.5rem; /* pre-redesign base value — keep mobile as it was */
         margin-bottom: 27px;
         padding: 0 18px;
     }
@@ -865,6 +895,8 @@
         font-size: 9px;
         font-weight: 500;
         letter-spacing: 0.9px;
+        background: #fff; /* desktop redesign turned the base gray */
+        border: none;
     }
 }
 /* ============================================================
@@ -966,9 +998,10 @@
         color: #fff;
     }
 
+    /* iPads have room for the near-desktop bookmark size */
     .cart-card-bookmark svg {
-        width: 14px;
-        height: 18px;
+        width: 20px;
+        height: 27px;
     }
 
     .cart-card-bottom-row {
@@ -1065,5 +1098,7 @@
         font-size: 9px;
         font-weight: 500;
         letter-spacing: 0.9px;
+        background: #fff;
+        border: none;
     }
 }

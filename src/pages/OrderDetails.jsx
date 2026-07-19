@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ordersAPI, shippingAPI } from '../lib/api';
+import Modal from '../components/ui/Modal';
 import './Checkout.css';
 
 const FULFILLMENT_STEPS = ['ORDER PLACED', 'PACKED', 'SHIPPED', 'OUT FOR DELIVERY', 'DELIVERED'];
 
-function getStatusIndex(status) {
-    if (!status) return 0;
-    const s = status.toUpperCase();
-    if (s === 'DELIVERED') return 4;
-    if (s === 'OUT_FOR_DELIVERY' || s === 'OUT FOR DELIVERY') return 3;
-    if (s === 'SHIPPED' || s === 'IN_TRANSIT' || s === 'IN TRANSIT') return 2;
-    if (s === 'PACKED' || s === 'READY_TO_SHIP') return 1;
-    return 0;
+// Map Shopify fulfillment/shipment data onto the tracker. Shopify has no
+// distinct "packed" state, so a fulfilled order lights PACKED + SHIPPED together.
+function getStatusIndex(order) {
+    const shipment = (order.shipmentStatus || '').toLowerCase();
+    if (shipment === 'delivered') return 4;
+    if (shipment === 'out_for_delivery' || shipment === 'attempted_delivery') return 3;
+    if (shipment === 'in_transit' || shipment === 'confirmed' || shipment === 'picked_up') return 2;
+    // Fulfilled in Shopify (tracking added) but no granular shipment status yet.
+    if (order.fulfillmentStatus === 'fulfilled') return 2;
+    if (order.fulfillmentStatus === 'partial') return 1;
+    return 0; // paid, not yet fulfilled
 }
 
 function getEstDelivery(createdAt) {
@@ -27,6 +31,8 @@ const OrderDetails = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    // { type: 'cancel', orderId } | { type: 'notice', title, message } | null
+    const [modal, setModal] = useState(null);
     const token = localStorage.getItem('morbei_token');
 
     useEffect(() => {
@@ -37,9 +43,30 @@ const OrderDetails = () => {
             .finally(() => setLoading(false));
     }, [token]);
 
+    const confirmCancel = async () => {
+        const orderId = modal?.orderId;
+        setModal(null);
+        if (!orderId) return;
+        try {
+            const res = await shippingAPI.cancel(orderId);
+            setOrders(prev => prev.map(o => o.id === orderId
+                ? { ...o, status: 'cancelled', refundId: res.refunded ? 'pending' : null }
+                : o));
+            if (res.refunded) {
+                setModal({
+                    type: 'notice',
+                    title: 'ORDER CANCELLED',
+                    message: `A REFUND OF RS. ${Math.round(res.refundAmount).toLocaleString('en-IN')} HAS BEEN INITIATED TO YOUR ORIGINAL PAYMENT METHOD.`,
+                });
+            }
+        } catch (e) {
+            setModal({ type: 'notice', title: 'CANCELLATION FAILED', message: e.message });
+        }
+    };
+
     if (loading) {
         return (
-            <div className="order-details-page">
+            <div className="order-details-page order-history-page">
                 <div className="order-details-container">
                     <h1 className="order-details-header reveal reveal-up">ORDER DETAILS</h1>
                     <p style={{ textAlign: 'center', padding: '4rem 0', letterSpacing: '0.1em', fontSize: '0.85rem' }}>LOADING YOUR ORDERS...</p>
@@ -50,7 +77,7 @@ const OrderDetails = () => {
 
     if (!token) {
         return (
-            <div className="order-details-page">
+            <div className="order-details-page order-history-page">
                 <div className="order-details-container">
                     <h1 className="order-details-header reveal reveal-up">ORDER DETAILS</h1>
                     <div style={{ textAlign: 'center', padding: '4rem 0' }}>
@@ -64,7 +91,7 @@ const OrderDetails = () => {
 
     if (orders.length === 0) {
         return (
-            <div className="order-details-page">
+            <div className="order-details-page order-history-page">
                 <div className="order-details-container">
                     <h1 className="order-details-header reveal reveal-up">ORDER DETAILS</h1>
                     <div style={{ textAlign: 'center', padding: '4rem 0' }}>
@@ -77,49 +104,48 @@ const OrderDetails = () => {
     }
 
     return (
-        <div className="order-details-page">
+        <div className="order-details-page order-history-page">
             <div className="order-details-container">
                 <h1 className="order-details-header reveal reveal-up">ORDER DETAILS</h1>
 
                 <div className="order-items-list-v3">
                     {orders.map((order) => {
                         const items = order.items || [];
-                        const statusIdx = getStatusIndex(order.status);
+                        const statusIdx = getStatusIndex(order);
                         const addr = order.shippingAddress || {};
 
-                        const handleCancel = async () => {
-                            if (!confirm('Cancel this order?')) return;
-                            try {
-                                await shippingAPI.cancel(order.id);
-                                setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'cancelled' } : o));
-                            } catch (e) {
-                                alert('Cancel failed: ' + e.message);
-                            }
-                        };
+                        const handleCancel = () => setModal({ type: 'cancel', orderId: order.id });
 
-                        return items.map((item, idx) => (
-                            <div key={`${order.id}-${idx}`} className="order-item-block reveal reveal-up">
-                                {/* Left — Product + Cancel */}
+                        return (
+                            <div key={order.id} className="order-item-block reveal reveal-up">
+                                {/* Left — all products in the order + a single action */}
                                 <div className="order-item-left">
-                                    <div className="order-item-main-info">
-                                        <img src={item.image || '/placeholder.png'} alt={item.title} className="order-item-img" />
-                                        <div className="order-item-texts">
-                                            <h3 className="order-item-name">{item.title}</h3>
-                                            {item.selectedOptions && (
-                                                <span className="order-item-sub">
-                                                    {item.selectedOptions.map(o => o.value).join(' | ')}
-                                                </span>
-                                            )}
-                                            <span className="order-item-sub">QTY {item.quantity}</span>
-                                            <span className="order-item-sub">RS. {Math.round(item.price * item.quantity).toLocaleString('en-IN')}</span>
-                                        </div>
+                                    <div className="order-products-stack">
+                                        {items.map((item, idx) => (
+                                            <div key={idx} className="order-item-main-info">
+                                                <img src={item.image || '/placeholder.png'} alt={item.title} className="order-item-img" />
+                                                <div className="order-item-texts">
+                                                    <h3 className="order-item-name">{item.title}</h3>
+                                                    {item.selectedOptions && (
+                                                        <span className="order-item-sub">
+                                                            {item.selectedOptions.map(o => o.value).join(' | ')}
+                                                        </span>
+                                                    )}
+                                                    <span className="order-item-sub">QTY {item.quantity}</span>
+                                                    <span className="order-item-sub">RS. {Math.round(item.price * item.quantity).toLocaleString('en-IN')}</span>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    {order.status !== 'cancelled' && (
+                                    {order.status === 'cancelled' ? (
+                                        <span className="order-item-sub" style={{ color: '#ff4444' }}>
+                                            CANCELLED{order.refundId ? ' · REFUNDED' : ''}
+                                        </span>
+                                    ) : statusIdx === 4 ? (
+                                        <Link to="/returns" className="cancel-order-btn return-exchange-btn">RETURN / EXCHANGE</Link>
+                                    ) : statusIdx === 0 ? (
                                         <button className="cancel-order-btn" onClick={handleCancel}>CANCEL</button>
-                                    )}
-                                    {order.status === 'cancelled' && (
-                                        <span className="order-item-sub" style={{ color: '#ff4444' }}>CANCELLED</span>
-                                    )}
+                                    ) : null}
                                 </div>
 
                                 {/* Middle — Address */}
@@ -146,15 +172,53 @@ const OrderDetails = () => {
                                             </div>
                                         ))}
                                     </div>
-                                    <span className="est-delivery-badge">
-                                        ESTIMATED DELIVERY {getEstDelivery(order.createdAt)}
-                                    </span>
+                                    {order.trackingNumber ? (
+                                        <div className="order-tracking-info">
+                                            {order.trackingCompany && (
+                                                <span className="est-delivery-badge">{order.trackingCompany}</span>
+                                            )}
+                                            {order.trackingUrl ? (
+                                                <a
+                                                    href={order.trackingUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="order-tracking-link"
+                                                >
+                                                    TRACK {order.trackingNumber}
+                                                </a>
+                                            ) : (
+                                                <span className="est-delivery-badge">AWB {order.trackingNumber}</span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="est-delivery-badge">
+                                            ESTIMATED DELIVERY {getEstDelivery(order.createdAt)}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
-                        ));
+                        );
                     })}
                 </div>
             </div>
+
+            <Modal
+                open={modal?.type === 'cancel'}
+                title="CANCEL THIS ORDER?"
+                message="ANY PAYMENT WILL BE REFUNDED TO YOUR ORIGINAL PAYMENT METHOD WITHIN 5–7 BUSINESS DAYS."
+                confirmLabel="YES, CANCEL ORDER"
+                cancelLabel="KEEP ORDER"
+                onConfirm={confirmCancel}
+                onClose={() => setModal(null)}
+            />
+            <Modal
+                open={modal?.type === 'notice'}
+                title={modal?.title}
+                message={modal?.message}
+                confirmLabel="OK"
+                onConfirm={() => setModal(null)}
+                onClose={() => setModal(null)}
+            />
         </div>
     );
 };

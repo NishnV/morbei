@@ -2,7 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { authenticate } from '../middleware/auth.js';
 import { createRazorpayOrder, verifyPaymentSignature, fetchPayment } from '../services/razorpay.js';
-import { createDraftOrder, completeDraftOrder, getVariant, gidToNumeric } from '../services/shopify-admin.js';
+import { createDraftOrder, completeDraftOrder, getOrder, getVariant, gidToNumeric } from '../services/shopify-admin.js';
 import { sendOrderConfirmation, sendFulfillmentFailureAlert } from '../services/email.js';
 import { get, run } from '../db/pg.js';
 
@@ -95,7 +95,13 @@ async function fulfillPaidOrder(order, razorpayPaymentId) {
         [razorpayPaymentId, order.id]
     );
     if (claimed.rowCount === 0) {
-        return { alreadyProcessed: true, shopifyOrderId: order.shopify_order_id };
+        // The other caller may have finished after our stale read — refetch
+        const fresh = await get('SELECT shopify_order_id, shopify_order_number FROM orders WHERE id = $1', [order.id]);
+        return {
+            alreadyProcessed: true,
+            shopifyOrderId: fresh?.shopify_order_id || order.shopify_order_id,
+            orderNumber: fresh?.shopify_order_number || null,
+        };
     }
 
     try {
@@ -128,8 +134,18 @@ async function fulfillPaidOrder(order, razorpayPaymentId) {
         const completed = await completeDraftOrder(draft.draft_order.id);
         const shopifyOrderId = completed.draft_order.order_id;
 
-        await run(`UPDATE orders SET shopify_order_id = $1, status = 'paid' WHERE id = $2`,
-            [String(shopifyOrderId), order.id]);
+        // Shopify's sequential order number is the customer-facing one; if the
+        // lookup fails, emails/pages fall back to the local id rather than block
+        let shopifyOrderNumber = null;
+        try {
+            const orderData = await getOrder(shopifyOrderId);
+            shopifyOrderNumber = orderData?.order?.order_number ?? null;
+        } catch (numErr) {
+            console.error('Could not fetch Shopify order number:', numErr.message);
+        }
+
+        await run(`UPDATE orders SET shopify_order_id = $1, shopify_order_number = $2, status = 'paid' WHERE id = $3`,
+            [String(shopifyOrderId), shopifyOrderNumber, order.id]);
 
         const updatedOrder = await get('SELECT * FROM orders WHERE id = $1', [order.id]);
         sendOrderConfirmation({
@@ -140,7 +156,7 @@ async function fulfillPaidOrder(order, razorpayPaymentId) {
             shopifyOrderId,
         }).catch(emailErr => console.error('Order email error (non-blocking):', emailErr.message));
 
-        return { alreadyProcessed: false, shopifyOrderId };
+        return { alreadyProcessed: false, shopifyOrderId, orderNumber: shopifyOrderNumber };
     } catch (err) {
         // Payment is captured but Shopify order creation failed — flag for manual follow-up,
         // and let the webhook retry by not leaving it stuck in 'processing'.
@@ -185,7 +201,7 @@ router.post('/verify', authenticate, async (req, res) => {
         }
 
         const result = await fulfillPaidOrder(order, razorpayPaymentId);
-        res.json({ success: true, orderId: order.id, shopifyOrderId: result.shopifyOrderId });
+        res.json({ success: true, orderId: order.id, orderNumber: result.orderNumber, shopifyOrderId: result.shopifyOrderId });
     } catch (err) {
         console.error('verify error:', err);
         res.status(500).json({ error: 'Payment verification failed. If you were charged, contact support with your payment ID.' });

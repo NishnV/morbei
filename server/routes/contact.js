@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { run } from '../db/pg.js';
-import { sendContactNotification } from '../services/email.js';
+import { sendContactNotification, sendRestockRequest } from '../services/email.js';
 
 const router = Router();
 
@@ -44,6 +44,24 @@ router.post('/newsletter', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error(err);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
+// POST /api/contact/notify-stock — request a back-in-stock notification.
+// Unauthenticated (guests can ask too); covered by the contact rate limit.
+router.post('/notify-stock', async (req, res) => {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        const product = String(req.body?.product || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !product) {
+            return res.status(400).json({ error: 'A valid email and product are required' });
+        }
+
+        await sendRestockRequest({ email, product });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Restock request error:', err.message);
         res.status(500).json({ error: 'Something went wrong' });
     }
 });

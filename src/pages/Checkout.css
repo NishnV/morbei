@@ -569,6 +569,16 @@ select.checkout-input-v3 option {
     color: #fff;
 }
 
+/* The sticky footer (which carries the go-back link on other steps) is
+   hidden on the payment step — this one lives inside the payment block */
+.razorpay-back-btn {
+    display: block;
+    margin-top: 1.75rem;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
 .checkout-next-btn {
     display: inline-block;
     background: #fff;
@@ -589,7 +599,7 @@ select.checkout-input-v3 option {
     background: rgba(255,255,255,0.9);
 }
 
-/* Checkout Page Footer */
+/* Checkout Page Footer — bottom padding clears the Safari/Chrome bottom bar */
 .checkout-page-footer {
     position: fixed;
     bottom: 0;
@@ -598,7 +608,7 @@ select.checkout-input-v3 option {
     background: #000;
     border-top: 0.5px solid rgba(255, 255, 255, 0.15);
     z-index: 100;
-    padding: 1.25rem 4rem;
+    padding: 1.25rem 4rem calc(1.25rem + env(safe-area-inset-bottom));
 }
 
 .checkout-footer-inner {
@@ -666,6 +676,12 @@ select.checkout-input-v3 option {
     gap: 2.5rem;
 }
 
+.order-products-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
 .order-item-main-info {
     display: flex;
     gap: 2.5rem;
@@ -713,6 +729,32 @@ select.checkout-input-v3 option {
     color: #fff;
 }
 
+/* Return/exchange variant renders as a link but matches the button box */
+.return-exchange-btn {
+    display: inline-block;
+    box-sizing: border-box;
+    text-align: center;
+    text-decoration: none;
+}
+
+/* TrackOrder.css also styles .cancel-order-btn and .order-details-container
+   and wins on bundle order — these scoped resets keep the order-history page
+   on this file's intended values */
+.order-history-page .order-details-container {
+    max-width: 1440px;
+    padding: 0 4rem;
+}
+
+.order-history-page .cancel-order-btn {
+    margin-top: 0;
+    background: none;
+    border: 1px solid #1a1a1a;
+    color: #444;
+    width: 200px;
+    padding: 1.1rem;
+    font-size: 0.7rem;
+}
+
 .order-progress-block {
     display: flex;
     flex-direction: column;
@@ -722,7 +764,9 @@ select.checkout-input-v3 option {
 
 .order-tracker-v3 {
     display: flex;
-    align-items: center;
+    /* Top-align: nodes differ in height when labels wrap (e.g. OUT FOR
+       DELIVERY is two lines) — centering would push their dots off the line */
+    align-items: flex-start;
     width: 100%;
     margin-top: 1rem;
 }
@@ -780,6 +824,339 @@ select.checkout-input-v3 option {
     color: #444;
 }
 
+.order-tracking-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.6rem;
+}
+
+.order-tracking-link {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: opacity 0.2s;
+}
+
+.order-tracking-link:hover {
+    opacity: 0.7;
+}
+
+/* Order Confirmed Page */
+.order-confirmed-container {
+    max-width: 1100px;
+}
+
+/* Compact vertical rhythm — the whole confirmation should fit one laptop
+   screen for a typical order (page padding scoped here, not order-details) */
+.order-confirmed-page {
+    padding-top: 84px;
+    padding-bottom: 3rem;
+}
+
+/* TrackOrder.css also styles .order-details-container (padding: 4rem 4rem)
+   and wins on bundle order — this scoped rule keeps its 4rem top padding
+   off the confirmation page at every size */
+.order-confirmed-page .order-details-container {
+    padding: 0 4rem;
+}
+
+.order-confirmed-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.9rem;
+    padding-bottom: 1.8rem;
+    border-bottom: 1px solid #1a1a1a;
+    margin-bottom: 2.2rem;
+}
+
+.order-confirmed-eyebrow {
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    color: #888;
+}
+
+.order-confirmed-title {
+    font-family: 'Castoro Titling', Avenir, sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.25em;
+    font-weight: 500;
+    margin: 0;
+}
+
+.order-confirmed-note {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: #666;
+    line-height: 1.9;
+    max-width: 460px;
+}
+
+.order-confirmed-number {
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    color: #fff;
+    margin-top: 0.5rem;
+}
+
+.order-confirmed-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 6rem;
+    margin-bottom: 2.2rem;
+}
+
+.order-confirmed-heading {
+    font-family: 'Castoro Titling', Avenir, sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.22em;
+    font-weight: 500;
+    margin: 0 0 1.2rem;
+}
+
+.order-confirmed-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.order-confirmed-item {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    gap: 2rem;
+    align-items: start;
+}
+
+/* Fill the grid column (80px desktop / 64px mobile) — the fixed 80px width
+   would overflow the narrower mobile column and eat the gap before the text */
+.order-confirmed-item .order-item-img {
+    width: 100%;
+}
+
+.order-confirmed-item-price {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.order-confirmed-totals {
+    margin-top: 1.6rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.order-confirmed-total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    color: #888;
+}
+
+.order-confirmed-total-row--grand {
+    margin-top: 0.8rem;
+    padding-top: 1.4rem;
+    border-top: 1px solid #1a1a1a;
+    color: #fff;
+    font-size: 0.85rem;
+}
+
+.order-confirmed-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 1.8rem;
+}
+
+.order-confirmed-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 2.75rem;
+    border-top: 1px solid #1a1a1a;
+}
+
+@media (--narrow-desktop-lg) {
+    .order-confirmed-grid {
+        grid-template-columns: 1fr;
+        gap: 4rem;
+    }
+}
+
+@media (--mobile) {
+    /* Match the checkout page's mobile top offset — 100px reads as a hole
+       above the hero under the shorter mobile navbar. Bottom padding restores
+       the pre-compression page tail (the desktop one-screen rule trims it). */
+    .order-confirmed-page {
+        padding-top: 80px;
+        padding-bottom: calc(10rem + env(safe-area-inset-bottom));
+    }
+
+    .order-confirmed-page .order-details-container {
+        padding: 0 1.5rem;
+    }
+
+    .order-confirmed-title {
+        font-size: 1.5rem;
+        letter-spacing: 0.2em;
+    }
+
+    .order-confirmed-hero {
+        padding-bottom: 2.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .order-confirmed-grid {
+        gap: 3rem;
+        margin-bottom: 3rem;
+    }
+
+    .order-confirmed-item {
+        grid-template-columns: 64px 1fr auto;
+        gap: 1.5rem;
+    }
+
+    .order-confirmed-heading {
+        margin-bottom: 1.5rem;
+    }
+}
+
+/* Portrait iPads have room for the full-size image — only phones need the
+   compact 64px column above */
+@media (--tablet) {
+    .order-confirmed-item {
+        grid-template-columns: 80px 1fr auto;
+        gap: 2rem;
+    }
+
+    /* Roomier cancel/return pill than the phone version */
+    .order-history-page .cancel-order-btn {
+        padding: 0.8rem 1.5rem;
+        font-size: 0.68rem;
+    }
+}
+
+/* Phones: purpose-built compact layout, aiming for a single screen —
+   smaller type scale, tight bands, full-width primary button.
+   (iPads keep the --mobile version above, which reads well there.) */
+@media (--phone) {
+    /* Fixed navbar is ~44px tall on phones — this just clears it */
+    .order-confirmed-page {
+        padding-top: 48px;
+        padding-bottom: calc(2.5rem + env(safe-area-inset-bottom));
+    }
+
+    .order-confirmed-page .order-details-container {
+        padding: 0 1.25rem;
+    }
+
+    .order-confirmed-hero {
+        gap: 0.6rem;
+        padding-bottom: 1.5rem;
+        margin-bottom: 1.7rem;
+    }
+
+    .order-confirmed-eyebrow {
+        font-size: 0.55rem;
+        letter-spacing: 0.3em;
+    }
+
+    .order-confirmed-title {
+        font-size: 1.05rem;
+        letter-spacing: 0.22em;
+    }
+
+    .order-confirmed-note {
+        font-size: 0.58rem;
+        line-height: 1.75;
+        max-width: 320px;
+    }
+
+    .order-confirmed-number {
+        font-size: 0.6rem;
+        margin-top: 0.2rem;
+    }
+
+    .order-confirmed-grid {
+        gap: 1.8rem;
+        margin-bottom: 1.8rem;
+    }
+
+    .order-confirmed-heading {
+        font-size: 0.78rem;
+        margin-bottom: 1rem;
+    }
+
+    .order-confirmed-items {
+        gap: 1.2rem;
+    }
+
+    .order-confirmed-item .order-item-name {
+        font-size: 0.66rem;
+    }
+
+    .order-confirmed-item .order-item-sub {
+        font-size: 0.58rem;
+    }
+
+    .order-confirmed-item-price {
+        font-size: 0.66rem;
+    }
+
+    .order-confirmed-totals {
+        margin-top: 1.2rem;
+        padding-top: 1rem;
+        gap: 0.55rem;
+    }
+
+    .order-confirmed-total-row {
+        font-size: 0.6rem;
+    }
+
+    .order-confirmed-total-row--grand {
+        font-size: 0.72rem;
+        margin-top: 0.5rem;
+        padding-top: 0.9rem;
+    }
+
+    .order-confirmed-aside {
+        gap: 1.5rem;
+    }
+
+    .order-confirmed-page .address-details {
+        gap: 0.45rem;
+        font-size: 0.6rem;
+        line-height: 1.7;
+    }
+
+    .order-confirmed-actions {
+        padding-top: 1.6rem;
+        gap: 1rem;
+    }
+
+    /* Full-width, properly tappable primary action */
+    .order-confirmed-actions .checkout-next-btn {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 1rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.2em;
+    }
+
+    .order-confirmed-actions .go-back-link {
+        font-size: 0.62rem;
+    }
+}
+
 @media (--narrow-desktop-lg) {
     .checkout-layout-v3, .order-item-block {
         grid-template-columns: 1fr;
@@ -819,7 +1196,7 @@ select.checkout-input-v3 option {
 @media (--mobile) {
     .checkout-page-v3 {
         padding-top: 80px;
-        padding-bottom: 150px;
+        padding-bottom: calc(150px + env(safe-area-inset-bottom));
     }
 
     .checkout-container-v3 {
@@ -1025,7 +1402,7 @@ select.checkout-input-v3 option {
 
     /* Footer Mobile */
     .checkout-page-footer {
-        padding: 1rem 1.5rem;
+        padding: 1rem 1.5rem calc(1rem + env(safe-area-inset-bottom));
         bottom: 0;
     }
 
@@ -1049,8 +1426,12 @@ select.checkout-input-v3 option {
         flex: 1;
     }
 
-    /* Order Details Mobile */
-    .order-details-container {
+    /* Order Details Mobile — scoped to beat TrackOrder.css's 4rem padding */
+    .order-history-page {
+        padding-top: 64px;
+    }
+
+    .order-history-page .order-details-container {
         padding: 0 1.5rem;
     }
 
@@ -1061,7 +1442,33 @@ select.checkout-input-v3 option {
         margin-bottom: 2rem;
     }
 
+    /* CANCEL / RETURN button: pinned top-right, level with the first product
+       name. Scoped so TrackOrder.css's big padding/font/margin can't win. */
+    .order-item-left {
+        position: relative;
+    }
+
+    .order-history-page .cancel-order-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: auto;
+        margin-top: 0;
+        padding: 0.55rem 0.9rem;
+        font-size: 0.55rem;
+        color: #fff;
+    }
+
+    /* Keep the first product's text from running under the pinned button */
+    .order-history-page .order-item-main-info:first-child .order-item-texts {
+        padding-right: 6rem;
+    }
+
     .order-progress-block {
+        align-items: flex-start;
+    }
+
+    .order-tracking-info {
         align-items: flex-start;
     }
 
@@ -1119,7 +1526,7 @@ select.checkout-input-v3 option {
 @media (--phone-sm) {
     .checkout-page-v3 {
         padding-top: 64px;
-        padding-bottom: 120px;
+        padding-bottom: calc(120px + env(safe-area-inset-bottom));
     }
 
     .checkout-container-v3 {
@@ -1171,7 +1578,7 @@ select.checkout-input-v3 option {
     }
 
     .checkout-page-footer {
-        padding: 0.75rem clamp(0.75rem, 1.5vw, 0.8rem);
+        padding: 0.75rem clamp(0.75rem, 1.5vw, 0.8rem) calc(0.75rem + env(safe-area-inset-bottom));
     }
 
     .checkout-footer-inner {

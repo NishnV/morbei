@@ -47,27 +47,38 @@
     padding: 0 2.5rem;
 }
 
+/* Desktop/laptop: wrapping grid, four per row */
 .wishlist-slider {
-    display: flex;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    row-gap: 3rem;
     margin-bottom: 6rem;
     width: 100%;
-    cursor: grab;
-    user-select: none;
 }
 
-.wishlist-slider::-webkit-scrollbar {
-    display: none;
-}
+/* Portrait handhelds keep the horizontal drag-slider */
+@media (--mobile) {
+    .wishlist-slider {
+        display: flex;
+        flex-direction: row;
+        row-gap: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        cursor: grab;
+        user-select: none;
+    }
 
-.wishlist-slider.is-dragging {
-    cursor: grabbing;
-    scroll-behavior: auto;
+    .wishlist-slider::-webkit-scrollbar {
+        display: none;
+    }
+
+    .wishlist-slider.is-dragging {
+        cursor: grabbing;
+        scroll-behavior: auto;
+    }
 }
 
 .wishlist-item {
@@ -76,7 +87,7 @@
     background: #000;
     border-right: 1px solid #000;
     flex: 0 0 25vw;
-    min-width: 200px;
+    min-width: 0;
 }
 
 .wishlist-img-wrapper {
@@ -249,9 +260,10 @@
     background: #fff;
     color: #000;
     text-decoration: none;
-    font-size: 0.8rem;
-    letter-spacing: 0.2em;
+    font-size: 0.6rem;
+    letter-spacing: 0.22em;
     font-weight: 500;
+    text-transform: uppercase;
 }
 
 /* Recommendations Section */

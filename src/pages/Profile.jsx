@@ -132,101 +132,134 @@ const Profile = () => {
                         <button onClick={handleLogout} className="profile-account-logout">LOGOUT</button>
                     </div>
 
-                    <div className="profile-account-section">
-                        <h2 className="profile-account-section-title">PERSONAL INFORMATION</h2>
-                        <p className="profile-account-text">{customer.firstName} {customer.lastName}</p>
-                        <p className="profile-account-text">{customer.email}</p>
-                        {customer.phone && <p className="profile-account-text">{customer.phone}</p>}
-                    </div>
-
-                    {orders.length > 0 && (
-                        <div className="profile-account-section">
-                            <h2 className="profile-account-section-title">ORDER HISTORY</h2>
-                            {orders.map(order => (
-                                <div key={order.id} className="profile-order-card">
-                                    <div className="profile-order-header">
-                                        <span>Order {order.orderNumber}</span>
-                                        <span>{new Date(order.processedAt).toLocaleDateString()}</span>
-                                    </div>
-                                    <div className="profile-order-details">
-                                        <span>Status: {order.fulfillmentStatus}</span>
-                                        <span>Total: {formatPrice(order.currentTotalPrice)}</span>
-                                    </div>
+                    <div className="profile-account-grid">
+                        {/* Left column — personal info + orders */}
+                        <div className="profile-account-main">
+                            <section className="profile-account-section">
+                                <div className="profile-section-head">
+                                    <h2 className="profile-account-section-title">PERSONAL INFORMATION</h2>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                <dl className="profile-info-list">
+                                    <div className="profile-info-row">
+                                        <dt>NAME</dt>
+                                        <dd>{customer.firstName} {customer.lastName}</dd>
+                                    </div>
+                                    <div className="profile-info-row">
+                                        <dt>EMAIL</dt>
+                                        <dd className="profile-info-lower">{customer.email}</dd>
+                                    </div>
+                                    {customer.phone && (
+                                        <div className="profile-info-row">
+                                            <dt>PHONE</dt>
+                                            <dd>{customer.phone}</dd>
+                                        </div>
+                                    )}
+                                </dl>
+                            </section>
 
-                    <div className="profile-account-section">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <h2 className="profile-account-section-title">ADDRESSES</h2>
-                            {editingAddr === null && (
-                                <button onClick={openAddAddr} className="profile-address-btn">+ ADD ADDRESS</button>
-                            )}
-                        </div>
+                            <section className="profile-account-section">
+                                <div className="profile-section-head">
+                                    <h2 className="profile-account-section-title">ORDERS</h2>
+                                    {orders.length > 0 && (
+                                        <Link to="/order-details" className="profile-section-link">VIEW ALL</Link>
+                                    )}
+                                </div>
 
-                        {/* Add / Edit form */}
-                        {editingAddr !== null && (
-                            <form onSubmit={handleAddrSubmit} style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                {[
-                                    { name: 'firstName', placeholder: 'FIRST NAME' },
-                                    { name: 'lastName', placeholder: 'LAST NAME' },
-                                    { name: 'address1', placeholder: 'ADDRESS LINE 1', full: true },
-                                    { name: 'address2', placeholder: 'ADDRESS LINE 2 (OPTIONAL)', full: true },
-                                    { name: 'city', placeholder: 'CITY' },
-                                    { name: 'province', placeholder: 'STATE / PROVINCE' },
-                                    { name: 'zip', placeholder: 'PIN / ZIP CODE' },
-                                    { name: 'country', placeholder: 'COUNTRY' },
-                                    { name: 'phone', placeholder: 'PHONE' },
-                                ].map(field => (
-                                    <input
-                                        key={field.name}
-                                        name={field.name}
-                                        placeholder={field.placeholder}
-                                        value={addrForm[field.name]}
-                                        onChange={e => setAddrForm(p => ({ ...p, [field.name]: e.target.value }))}
-                                        style={{
-                                            gridColumn: field.full ? '1 / -1' : 'auto',
-                                            background: 'transparent',
-                                            border: '1px solid #333',
-                                            color: '#fff',
-                                            padding: '10px 12px',
-                                            fontSize: '0.7rem',
-                                            letterSpacing: '0.1em',
-                                        }}
-                                    />
-                                ))}
-                                {addrMessage && (
-                                    <p style={{ gridColumn: '1 / -1', fontSize: '0.7rem', color: '#e88', letterSpacing: '0.1em' }}>{addrMessage}</p>
+                                {orders.length > 0 ? (
+                                    <div className="profile-orders">
+                                        {orders.slice(0, 3).map(order => (
+                                            <Link key={order.id} to="/order-details" className="profile-order-row">
+                                                <div className="profile-order-row-top">
+                                                    <span className="profile-order-num">ORDER #{order.orderNumber}</span>
+                                                    <span className="profile-order-total">{formatPrice(order.currentTotalPrice)}</span>
+                                                </div>
+                                                <div className="profile-order-row-bottom">
+                                                    <span>{new Date(order.processedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span>
+                                                    <span className="profile-order-status">{(order.fulfillmentStatus || 'PROCESSING').replace(/_/g, ' ')}</span>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                        <Link to="/order-details" className="profile-track-btn">TRACK YOUR ORDERS</Link>
+                                    </div>
+                                ) : (
+                                    <div className="profile-empty">
+                                        <p className="profile-empty-text">YOU HAVEN'T PLACED ANY ORDERS YET</p>
+                                        <Link to="/shop/all" className="profile-section-link">START SHOPPING</Link>
+                                    </div>
                                 )}
-                                <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem' }}>
-                                    <button type="submit" disabled={addrLoading} className="profile-address-btn">
-                                        {addrLoading ? 'SAVING...' : 'SAVE ADDRESS'}
-                                    </button>
-                                    <button type="button" onClick={() => setEditingAddr(null)} className="profile-address-btn">
-                                        CANCEL
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                            </section>
+                        </div>
 
-                        {addresses.map(addr => (
-                            <div key={addr.id} className="profile-address-card">
-                                <p className="profile-account-text">{addr.firstName} {addr.lastName}</p>
-                                <p className="profile-account-text">{addr.address1}{addr.address2 ? `, ${addr.address2}` : ''}</p>
-                                <p className="profile-account-text">{addr.city}, {addr.province} {addr.zip}</p>
-                                <p className="profile-account-text">{addr.country}</p>
-                                <div className="profile-address-actions">
-                                    <button onClick={() => setDefaultAddress(addr.id)} className="profile-address-btn">SET DEFAULT</button>
-                                    <button onClick={() => openEditAddr(addr)} className="profile-address-btn">EDIT</button>
-                                    <button onClick={() => deleteAddress(addr.id)} className="profile-address-btn">DELETE</button>
+                        {/* Right column — addresses */}
+                        <div className="profile-account-side">
+                            <section className="profile-account-section">
+                                <div className="profile-section-head">
+                                    <h2 className="profile-account-section-title">ADDRESSES</h2>
+                                    {editingAddr === null && (
+                                        <button onClick={openAddAddr} className="profile-section-link">+ ADD</button>
+                                    )}
                                 </div>
-                            </div>
-                        ))}
 
-                        {addresses.length === 0 && editingAddr === null && (
-                            <p className="profile-account-text" style={{ opacity: 0.5 }}>No addresses saved yet.</p>
-                        )}
+                                {/* Add / Edit form */}
+                                {editingAddr !== null && (
+                                    <form onSubmit={handleAddrSubmit} className="profile-addr-form">
+                                        {[
+                                            { name: 'firstName', placeholder: 'FIRST NAME' },
+                                            { name: 'lastName', placeholder: 'LAST NAME' },
+                                            { name: 'address1', placeholder: 'ADDRESS LINE 1', full: true },
+                                            { name: 'address2', placeholder: 'ADDRESS LINE 2 (OPTIONAL)', full: true },
+                                            { name: 'city', placeholder: 'CITY' },
+                                            { name: 'province', placeholder: 'STATE / PROVINCE' },
+                                            { name: 'zip', placeholder: 'PIN / ZIP CODE' },
+                                            { name: 'country', placeholder: 'COUNTRY' },
+                                            { name: 'phone', placeholder: 'PHONE', full: true },
+                                        ].map(field => (
+                                            <input
+                                                key={field.name}
+                                                name={field.name}
+                                                placeholder={field.placeholder}
+                                                value={addrForm[field.name]}
+                                                onChange={e => setAddrForm(p => ({ ...p, [field.name]: e.target.value }))}
+                                                className={`profile-addr-input${field.full ? ' profile-addr-input--full' : ''}`}
+                                            />
+                                        ))}
+                                        {addrMessage && <p className="profile-addr-error">{addrMessage}</p>}
+                                        <div className="profile-addr-form-actions">
+                                            <button type="submit" disabled={addrLoading} className="profile-addr-save">
+                                                {addrLoading ? 'SAVING...' : 'SAVE ADDRESS'}
+                                            </button>
+                                            <button type="button" onClick={() => setEditingAddr(null)} className="profile-section-link">
+                                                CANCEL
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
+
+                                {addresses.map(addr => (
+                                    <div key={addr.id} className="profile-address-card">
+                                        {addr.id === customer.defaultAddress?.id && (
+                                            <span className="profile-address-default">DEFAULT</span>
+                                        )}
+                                        <p className="profile-address-name">{addr.firstName} {addr.lastName}</p>
+                                        <p className="profile-account-text">{addr.address1}{addr.address2 ? `, ${addr.address2}` : ''}</p>
+                                        <p className="profile-account-text">{addr.city}, {addr.province} {addr.zip}</p>
+                                        <p className="profile-account-text">{addr.country}</p>
+                                        {addr.phone && <p className="profile-account-text">{addr.phone}</p>}
+                                        <div className="profile-address-actions">
+                                            {addr.id !== customer.defaultAddress?.id && (
+                                                <button onClick={() => setDefaultAddress(addr.id)} className="profile-section-link">SET DEFAULT</button>
+                                            )}
+                                            <button onClick={() => openEditAddr(addr)} className="profile-section-link">EDIT</button>
+                                            <button onClick={() => deleteAddress(addr.id)} className="profile-section-link">DELETE</button>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {addresses.length === 0 && editingAddr === null && (
+                                    <p className="profile-empty-text">NO ADDRESSES SAVED YET</p>
+                                )}
+                            </section>
+                        </div>
                     </div>
                 </div>
             </div>

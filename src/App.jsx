@@ -29,6 +29,8 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import CookiePolicy from './pages/CookiePolicy';
 import OrderDetails from './pages/OrderDetails';
+import OrderConfirmed from './pages/OrderConfirmed';
+import OrderFailed from './pages/OrderFailed';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -49,6 +51,7 @@ const ROUTE_TITLES = [
   [/^\/faqs/, 'FAQ | MORBEI'],
   [/^\/contact/, 'CONTACT | MORBEI'],
   [/^\/track/, 'TRACK ORDER | MORBEI'],
+  [/^\/order-failed/, 'PAYMENT FAILED | MORBEI'],
   [/^\/order-/, 'YOUR ORDER | MORBEI'],
   [/^\/shipping/, 'SHIPPING | MORBEI'],
   [/^\/returns/, 'RETURNS | MORBEI'],
@@ -147,7 +150,8 @@ const AppContent = () => {
           <Route path="/faqs" element={<FAQ />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/track" element={<TrackOrder />} />
-          <Route path="/order-confirmed" element={<RequireAuth><OrderDetails /></RequireAuth>} />
+          <Route path="/order-confirmed" element={<RequireAuth><OrderConfirmed /></RequireAuth>} />
+          <Route path="/order-failed" element={<OrderFailed />} />
           <Route path="/order-details" element={<RequireAuth><OrderDetails /></RequireAuth>} />
           <Route path="/shipping" element={<Shipping />} />
           <Route path="/returns" element={<Returns />} />

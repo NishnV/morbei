@@ -58,9 +58,9 @@
 
 .shop-category-title {
     font-family: 'Castoro Titling', serif;
-    font-size: 0.8rem;
+    font-size: 0.7rem; /* match .dropdown-trigger (FILTER / SORT) */
     font-weight: 100;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.15em; /* match .dropdown-trigger */
     text-transform: uppercase;
     position: absolute;
     left: 50%;
@@ -535,7 +535,7 @@
     border: none;
     text-align: left;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.7rem; /* match .filter-check-label in the filter panel */
     letter-spacing: 0.15em;
     color: inherit;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -654,6 +654,39 @@
     text-decoration: underline;
     text-decoration-color: #fff;
     text-underline-offset: 2px;
+}
+
+/* Sold-out size: visible but inert */
+.product-sizes span.size-unavailable {
+    opacity: 0.35;
+    text-decoration: line-through;
+    cursor: default;
+}
+
+.product-sizes span.size-unavailable:hover {
+    text-decoration: line-through;
+}
+
+/* Fully out of stock: hover overlay swaps sizes for a notify prompt */
+.product-sizes--oos {
+    gap: 1.5rem;
+}
+
+.product-sizes--oos .oos-label {
+    width: auto;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    opacity: 0.6;
+    cursor: default;
+}
+
+.product-sizes--oos .notify-me-link {
+    width: auto;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .product-item:hover .product-sizes {
@@ -861,6 +894,9 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    /* Lift the bookmark so its visual top sits level with the product name —
+       the SVG path has ~3px of built-in headroom inside its viewBox */
+    top: -3px;
     width: 21px;
     height: 29px;
     opacity: 1;
@@ -895,6 +931,11 @@
         /* flex-start (not center): p-price carries a margin-bottom that inflates
            the text block, so centering pushes the wishlist icon below the name */
         align-items: center;
+    }
+
+    /* Centered footer here — the desktop top-align nudge doesn't apply */
+    .wishlist-black {
+        top: 0;
     }
 
     .product-footer .p-detail {
@@ -937,7 +978,7 @@
     }
 
     .products-grid.col-4 {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
     }
 
     .product-footer {
@@ -994,7 +1035,7 @@
     }
 
     .products-grid.col-4 {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
     }
 
     .product-footer {
@@ -1098,7 +1139,6 @@
     .sort-btn {
         font-family: 'Castoro Titling', serif;
         font-size: 9px;
-        margin-top: 0.15rem;
         letter-spacing: 0.9px;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -1210,12 +1250,17 @@
         margin-right: 0;
     }
 
-    /* Figma toolbar type: Castoro Titling 9px / 0.9px tracking */
+    /* Figma toolbar type: Castoro Titling 9px / 0.9px tracking.
+       Centered on the bar's CONTENT box, where the flex-centered FILTER/SORT
+       sit: the bar's padding is asymmetric (0.75rem top / 0.5rem bottom), so
+       the content center is 2px below the box center the base rule uses */
     .shop-category-title {
         font-family: 'Castoro Titling', serif;
         font-size: 9px;
         font-weight: 400;
         letter-spacing: 0.9px;
+        top: calc(50% + 2px);
+        transform: translate(-50%, -50%);
     }
 
     .filter-btn,
@@ -1383,6 +1428,21 @@
 
     .view-options {
         display: flex;
+    }
+}
+
+/* Grid view 3 on portrait iPads: four across. Placed after the --mobile
+   block above (which keeps phones at two across) so it wins on iPads. */
+@media (--tablet) {
+    .products-grid.col-4 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    /* Product name's left edge lines up with the navbar hamburger, which
+       sits at 1.2rem + 2px on portrait tablets (the --mobile block's 15px
+       is phone-tuned and wins there otherwise) */
+    .product-footer {
+        padding-left: calc(1.2rem + 2px);
     }
 }
 
