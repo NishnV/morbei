@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { get, run } from '../db/pg.js';
+import { get } from '../db/pg.js';
 import { signToken } from '../middleware/auth.js';
 import { getCustomerByToken } from '../services/shopify-storefront.js';
 import { notifySlackError } from '../services/slack.js';
@@ -21,21 +21,19 @@ router.post('/shopify-login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid or expired Shopify session' });
         }
 
-        // Find or create the local user record keyed by email
-        let user = await get('SELECT * FROM users WHERE email = $1', [customer.email]);
-        if (!user) {
-            user = await get(
-                `INSERT INTO users (email, password, first_name, last_name, phone)
-                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-                [customer.email, '!shopify', customer.firstName || '', customer.lastName || '', customer.phone || '']
-            );
-        } else {
-            // Keep name/phone in sync with Shopify
-            await run(
-                'UPDATE users SET first_name = $1, last_name = $2, phone = $3 WHERE id = $4',
-                [customer.firstName || user.first_name, customer.lastName || user.last_name, customer.phone || user.phone, user.id]
-            );
-        }
+        // Upsert keyed by email — atomic, so two concurrent exchanges for the
+        // same brand-new account (e.g. signup + an immediate checkout retry)
+        // can't race a select-then-insert and collide on the email unique constraint.
+        const user = await get(
+            `INSERT INTO users (email, password, first_name, last_name, phone)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (email) DO UPDATE SET
+                first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first_name),
+                last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), users.last_name),
+                phone = COALESCE(NULLIF(EXCLUDED.phone, ''), users.phone)
+             RETURNING *`,
+            [customer.email, '!shopify', customer.firstName || '', customer.lastName || '', customer.phone || '']
+        );
 
         const token = signToken(user.id, user.email);
         res.json({
