@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { get, all } from '../db/pg.js';
 import { getOrderTracking } from '../services/shopify-admin.js';
+import { notifySlackError } from '../services/slack.js';
 
 const router = Router();
 
@@ -44,6 +45,7 @@ router.get('/', authenticate, async (req, res) => {
         res.json(enriched);
     } catch (err) {
         console.error(err);
+        notifySlackError('list orders failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
@@ -59,6 +61,7 @@ router.get('/:id', authenticate, async (req, res) => {
         res.json(await withTracking(serializeOrder(order)));
     } catch (err) {
         console.error(err);
+        notifySlackError('get order failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });

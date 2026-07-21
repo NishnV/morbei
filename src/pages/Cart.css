@@ -305,8 +305,8 @@
 
 .cart-main {
     max-width: 100%;
-    /* bottom padding clears the fixed summary footer (~310px tall) */
-    padding: 0 40px 340px;
+    /* bottom padding clears the fixed summary footer (~250px tall) */
+    padding: 0 40px 280px;
 }
 
 /* ---- Title ---- */
@@ -606,7 +606,7 @@
     z-index: 100;
     background: #000;
     border-top: none;
-    padding: 24px 40px 32px;
+    padding: 16px 40px 20px;
 }
 
 .cart-summary-heading {
@@ -616,12 +616,12 @@
     font-weight: 400;
     line-height: 26px;
     text-transform: uppercase;
-    margin-bottom: 22px;
+    margin-bottom: 14px;
 }
 
 .cart-summary-lines {
     border-top: 1px solid rgba(255,255,255,0.45);
-    padding-top: 21px;
+    padding-top: 14px;
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -634,14 +634,14 @@
     letter-spacing: 1px;
     color: #fff;
     font-weight: 400;
-    line-height: 28px;
+    line-height: 24px;
     text-transform: uppercase;
 }
 
 .cart-summary-total {
     display: flex;
     justify-content: space-between;
-    margin-top: 11px;
+    margin-top: 8px;
     padding-top: 0;
     font-size: 12px;
     font-weight: 800;
@@ -653,15 +653,15 @@
 .cart-checkout-row {
     display: flex;
     justify-content: flex-end;
-    margin-top: 21px;
+    margin-top: 12px;
 }
 
 .cart-checkout-btn {
     display: block;
     box-sizing: border-box;
     width: 260px;
-    height: 40px;
-    line-height: 40px;
+    height: 36px;
+    line-height: 36px;
     padding: 0;
     background: #d9d9d9;
     border: 0.4px solid #fff;

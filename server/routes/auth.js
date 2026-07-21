@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { get, run } from '../db/pg.js';
 import { signToken } from '../middleware/auth.js';
 import { getCustomerByToken } from '../services/shopify-storefront.js';
+import { notifySlackError } from '../services/slack.js';
 
 const router = Router();
 
@@ -43,6 +44,7 @@ router.post('/shopify-login', async (req, res) => {
         });
     } catch (err) {
         console.error('shopify-login error:', err);
+        notifySlackError('shopify-login failed', err).catch(() => {});
         res.status(500).json({ error: 'Login failed. Please try again.' });
     }
 });

@@ -10,6 +10,8 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { isMobileViewport } from '../lib/viewport';
 import './ProductDetail.css';
 
+const LB_ZOOMS = [1, 2, 3.5, 5]; // lightbox zoom levels: 0=fit, then 2x/3.5x/5x
+
 const ProductDetail = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
@@ -75,9 +77,6 @@ const ProductDetail = () => {
     const lbImgRef = useRef(null);
     const col2Ref = useRef(null);
     const mobileTouchStartX = useRef(null);
-
-
-    const LB_ZOOMS = [1, 2, 3.5, 5];
 
     const handleLbMouseMove = useCallback((e) => {
         const cRect = lbMainRef.current?.getBoundingClientRect();
@@ -159,8 +158,10 @@ const ProductDetail = () => {
     };
 
     const handleAddToCart = async (e) => {
-        // On the mobile design (portrait phones + iPads), show size overlay instead
+        // On the mobile design (portrait phones + iPads), the size overlay lives on the
+        // product image — scroll back up to it so it's actually visible, then show it.
         if (isMobileViewport()) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             setShowMobileSizeOverlay(true);
             return;
         }
@@ -214,7 +215,15 @@ const ProductDetail = () => {
         if (mobileTouchStartX.current === null) return;
         const delta = e.changedTouches[0].clientX - mobileTouchStartX.current;
         mobileTouchStartX.current = null;
-        if (Math.abs(delta) < 40) return;
+        if (Math.abs(delta) < 40) {
+            // Not a swipe — treat as a tap on the image, same as clicking it on desktop
+            setLightboxIndex(mainImageIndex);
+            setLightboxZoom(0);
+            setLbOrigin({ x: 50, y: 50 });
+            lbNatRect.current = null;
+            setLightboxOpen(true);
+            return;
+        }
         e.preventDefault();
         if (delta < 0) {
             setMainImageIndex(prev => Math.min(prev + 1, product.images.length - 1));
@@ -548,6 +557,8 @@ const ProductDetail = () => {
                             onMouseMove={handleLbMouseMove}
                             onMouseLeave={handleLbMouseLeave}
                             onClick={() => {
+                                // No zoom-on-tap on phone/iPad — this is a desktop-only interaction
+                                if (isMobileViewport()) return;
                                 const newZoom = (lightboxZoom + 1) % 4;
                                 if (newZoom === 0) { setLbOrigin({ x: 50, y: 50 }); lbNatRect.current = null; }
                                 setLightboxZoom(newZoom);

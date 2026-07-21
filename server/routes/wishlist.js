@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { all, run, withTransaction } from '../db/pg.js';
+import { notifySlackError } from '../services/slack.js';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.get('/', authenticate, async (req, res) => {
         res.json({ wishlist: parseWishlistRows(items) });
     } catch (err) {
         console.error(err);
+        notifySlackError('wishlist get failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
@@ -43,6 +45,7 @@ router.post('/', authenticate, async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error(err);
+        notifySlackError('wishlist add failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
@@ -57,6 +60,7 @@ router.delete('/:productId', authenticate, async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error(err);
+        notifySlackError('wishlist remove failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
@@ -87,6 +91,7 @@ router.post('/sync', authenticate, async (req, res) => {
         res.json({ wishlist: parseWishlistRows(rows) });
     } catch (err) {
         console.error(err);
+        notifySlackError('wishlist sync failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });

@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import { createRazorpayOrder, verifyPaymentSignature, fetchPayment } from '../services/razorpay.js';
 import { createDraftOrder, completeDraftOrder, getOrder, getVariant, gidToNumeric } from '../services/shopify-admin.js';
 import { sendOrderConfirmation, sendFulfillmentFailureAlert } from '../services/email.js';
+import { notifySlackError } from '../services/slack.js';
 import { get, run } from '../db/pg.js';
 
 const router = Router();
@@ -78,6 +79,7 @@ router.post('/create-order', authenticate, async (req, res) => {
         });
     } catch (err) {
         console.error('create-order error:', err);
+        if (!err.statusCode) notifySlackError('create-order failed', err).catch(() => {});
         res.status(err.statusCode || 500).json({
             error: err.statusCode ? err.message : 'Could not create order. Please try again.',
         });
@@ -204,6 +206,7 @@ router.post('/verify', authenticate, async (req, res) => {
         res.json({ success: true, orderId: order.id, orderNumber: result.orderNumber, shopifyOrderId: result.shopifyOrderId });
     } catch (err) {
         console.error('verify error:', err);
+        notifySlackError('payment verify failed', err).catch(() => {});
         res.status(500).json({ error: 'Payment verification failed. If you were charged, contact support with your payment ID.' });
     }
 });
@@ -245,6 +248,7 @@ router.post('/webhook', async (req, res) => {
         res.json({ received: true });
     } catch (err) {
         console.error('webhook error:', err);
+        notifySlackError('Razorpay webhook failed', err).catch(() => {});
         // 500 → Razorpay will retry, which is what we want for transient failures
         res.status(500).json({ error: 'Webhook processing failed' });
     }

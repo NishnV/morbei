@@ -235,7 +235,7 @@
 }
 
 .filter-section-title {
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 400;
     letter-spacing: 0.2em;
     margin: 0 0 2.4rem 0;
@@ -1418,8 +1418,8 @@
     .products-grid.col-4 {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        column-gap: 1.5px;
-        row-gap: 1.5px;
+        column-gap: 1px;
+        row-gap: 1px;
     }
     
     /* Ensure the product item resets any flex properties */
@@ -1443,6 +1443,8 @@
 @media (--tablet) {
     .products-grid.col-4 {
         grid-template-columns: repeat(4, 1fr);
+        row-gap: 1px;
+        column-gap: 1px;
     }
 
     /* Product name's left edge lines up with the navbar hamburger, which

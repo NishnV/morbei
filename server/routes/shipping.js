@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth.js';
 import { cancelOrder, getOrderTracking } from '../services/shopify-admin.js';
 import { refundPayment, fetchOrderPayments } from '../services/razorpay.js';
 import { sendOrderCancellation, sendRefundFailureAlert } from '../services/email.js';
+import { notifySlackError } from '../services/slack.js';
 import { get, run } from '../db/pg.js';
 
 const router = Router();
@@ -20,6 +21,7 @@ async function findCapturedPayment(order) {
         return payments.find(p => p.status === 'captured' || p.status === 'refunded') || null;
     } catch (err) {
         console.error('findCapturedPayment failed:', err.message);
+        notifySlackError('findCapturedPayment failed', err).catch(() => {});
         return null;
     }
 }
@@ -42,6 +44,7 @@ router.get('/track-order/:orderId', authenticate, async (req, res) => {
         });
     } catch (err) {
         console.error(err);
+        notifySlackError('track-order failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
@@ -109,7 +112,10 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
         // the money (the critical part) is already refunded above.
         if (order.shopify_order_id) {
             try { await cancelOrder(order.shopify_order_id); }
-            catch (err) { console.error(`Shopify cancel failed for order ${order.id}:`, err.message); }
+            catch (err) {
+                console.error(`Shopify cancel failed for order ${order.id}:`, err.message);
+                notifySlackError(`Shopify cancel failed for order ${order.id}`, err).catch(() => {});
+            }
         }
 
         await run('UPDATE orders SET status = $1, refund_id = $2 WHERE id = $3', ['cancelled', refundId, order.id]);
@@ -117,7 +123,10 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
         const user = await get('SELECT * FROM users WHERE id = $1', [order.user_id]).catch(() => null);
         if (user) {
             sendOrderCancellation({ order, user, refundAmountPaise: refundedPaise, refundId })
-                .catch(err => console.error('Cancellation email failed:', err.message));
+                .catch(err => {
+                    console.error('Cancellation email failed:', err.message);
+                    notifySlackError('cancellation email failed', err).catch(() => {});
+                });
         }
 
         res.json({
@@ -128,6 +137,7 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
         });
     } catch (err) {
         console.error(err);
+        notifySlackError('order cancel failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });

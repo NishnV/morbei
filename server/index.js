@@ -9,6 +9,7 @@ import orderRoutes from './routes/orders.js';
 import shippingRoutes from './routes/shipping.js';
 import contactRoutes from './routes/contact.js';
 import wishlistRoutes from './routes/wishlist.js';
+import { notifySlackError } from './services/slack.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -31,6 +32,9 @@ if (missing.length > 0) {
 }
 if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
   console.warn('RAZORPAY_WEBHOOK_SECRET not set — the payment webhook will reject all events until configured');
+}
+if (!process.env.SLACK_WEBHOOK_URL) {
+  console.warn('SLACK_WEBHOOK_URL not set — server error alerts will not be sent to Slack');
 }
 
 // Railway/Vercel sit behind a proxy — needed for correct client IPs in rate limiting
@@ -87,6 +91,7 @@ app.use((err, _req, res, _next) => {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
   console.error('Unhandled error:', err);
+  notifySlackError('Unhandled error', err).catch(() => {});
   res.status(500).json({ error: 'Something went wrong' });
 });
 

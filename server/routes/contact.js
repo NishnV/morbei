@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { run } from '../db/pg.js';
 import { sendContactNotification, sendRestockRequest } from '../services/email.js';
+import { notifySlackError } from '../services/slack.js';
 
 const router = Router();
 
@@ -18,13 +19,15 @@ router.post('/', async (req, res) => {
         );
 
         // Non-blocking email — don't let email failure break the response
-        sendContactNotification({ name, email, subject, message }).catch(err =>
-            console.error('Contact email error:', err.message)
-        );
+        sendContactNotification({ name, email, subject, message }).catch(err => {
+            console.error('Contact email error:', err.message);
+            notifySlackError('contact notification email failed', err).catch(() => {});
+        });
 
         res.json({ success: true });
     } catch (err) {
         console.error(err);
+        notifySlackError('contact form submission failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
@@ -44,6 +47,7 @@ router.post('/newsletter', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error(err);
+        notifySlackError('newsletter subscribe failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
@@ -62,6 +66,7 @@ router.post('/notify-stock', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('Restock request error:', err.message);
+        notifySlackError('restock request failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
