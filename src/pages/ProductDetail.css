@@ -63,6 +63,46 @@
     to   { opacity: 0; transform: scale(0.97); }
 }
 
+/* Wheel-driven vertical slide (desktop) — direction-aware, applied only when the
+   transition was triggered by scrolling over the main image, not a thumbnail click. */
+.pd-main-img-slide-in-up {
+    animation: pd-img-slide-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pd-main-img-slide-out-up {
+    animation: pd-img-slide-out-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: none;
+}
+
+.pd-main-img-slide-in-down {
+    animation: pd-img-slide-in-down 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pd-main-img-slide-out-down {
+    animation: pd-img-slide-out-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: none;
+}
+
+@keyframes pd-img-slide-in-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}
+
+@keyframes pd-img-slide-out-up {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-100%); }
+}
+
+@keyframes pd-img-slide-in-down {
+    from { transform: translateY(-100%); }
+    to   { transform: translateY(0); }
+}
+
+@keyframes pd-img-slide-out-down {
+    from { transform: translateY(0); }
+    to   { transform: translateY(100%); }
+}
+
 .pd-secondary-img-enter {
     animation: pd-thumb-fadein 1.3s cubic-bezier(0.16, 1, 0.3, 1);
 }

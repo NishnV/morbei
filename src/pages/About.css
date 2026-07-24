@@ -1,86 +1,115 @@
-.about-page {
-    padding-top: 60px;
-}
+/* About — "Our Design" fullpage slide, matching Home's per-slide UX via
+   useFullpageSections(). Base section mechanics (.fp-page/.fp-section —
+   locked scroll, translateY transitions) live in ../styles/fullpage.css;
+   this file only styles this page's own slide content. */
 
-.about-hero {
-    padding: 10rem 0;
-    text-align: center;
-    background: var(--bg-offset);
-}
-
-.about-hero h1 {
-    font-size: 4rem;
-    margin-bottom: 2rem;
-}
-
-.about-hero .lead {
-    font-size: 1.5rem;
-    max-width: 800px;
-    margin: 0 auto;
-    color: var(--text-muted);
-    line-height: 1.6;
-}
-
-.about-content {
-    padding: 8rem 2rem;
-}
-
-.about-text {
+.ab-design {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    padding-right: 4rem;
+    background: #0e0e0e;
 }
 
-.about-text h2 {
-    font-size: 2rem;
-    margin-bottom: 2rem;
+/* Grid (not flex+gap) is what makes the image land exactly on the viewport's
+   horizontal center: the two 1fr side tracks are always equal width no
+   matter how long the heading/copy text is, so the fixed-width middle
+   track (the image) is guaranteed centered. With flex+gap, a longer
+   paragraph on one side pulls the whole row — and the image — off-center. */
+.ab-design-inner {
+    display: grid;
+    grid-template-columns: 1fr min(28vw, 399px) 1fr;
+    align-items: center;
+    column-gap: clamp(2.5rem, 5vw, 6rem);
+    width: 100%;
+    max-width: 1440px;
+    box-sizing: border-box;
+    padding: 48px clamp(1.5rem, 2.5vw, 3rem) 0;
 }
 
-.about-text p {
-    font-size: 1.1rem;
-    color: var(--text-muted);
-    margin-bottom: 1.5rem;
-    line-height: 1.8;
+.ab-design-heading {
+    justify-self: start;
+    /* Figma sets the heading well in from the edge (~11% of the 1440 frame),
+       noticeably more than the page's own edge padding above — this margin
+       is the difference between the two. */
+    margin: 0 0 0 clamp(0px, 7vw, 7.5rem);
+    white-space: nowrap;
+    font-family: 'Castoro Titling', Avenir, sans-serif;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 26px;
+    letter-spacing: 2.4px;
+    color: #fff;
 }
 
-.about-image {
-    aspect-ratio: 16/9;
+.ab-design-image {
+    justify-self: center;
+    width: 100%;
+    aspect-ratio: 399 / 700;
+    max-height: 78vh;
     overflow: hidden;
 }
 
-.about-image img {
+.ab-design-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
 }
 
-.values {
-    padding: 8rem 2rem;
-    border-top: 1px solid var(--border);
-}
-
-.value-item h3 {
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
-}
-
-.value-item p {
-    color: var(--text-muted);
-    font-size: 0.95rem;
+.ab-design-copy {
+    justify-self: start;
+    width: 100%;
+    max-width: 401px;
+    font-family: Avenir, sans-serif;
+    font-weight: 300;
+    font-size: 10px;
+    line-height: 25px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 0;
 }
 
 @media (--mobile) {
-    .about-hero h1 {
-        font-size: 2.5rem;
+    .ab-design-inner {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        row-gap: 1.5rem;
+        padding-top: 56px;
+        text-align: center;
     }
 
-    .about-hero .lead {
-        font-size: 1.1rem;
+    .ab-design-heading {
+        justify-self: center;
+        margin: 0;
+        white-space: normal;
+        width: 100%;
+        font-size: 20px;
+        letter-spacing: 2px;
     }
 
-    .about-text {
-        padding-right: 0;
-        margin-bottom: 3rem;
+    .ab-design-image {
+        justify-self: center;
+        width: min(72vw, 300px);
+        max-height: 45vh;
+    }
+
+    .ab-design-copy {
+        justify-self: center;
+        width: 100%;
+        max-width: 340px;
+        font-size: 9px;
+        line-height: 20px;
+    }
+}
+
+@media (--phone-sm) {
+    .ab-design-inner {
+        padding-top: 44px;
+        gap: 1.2rem;
+    }
+
+    .ab-design-image {
+        max-height: 40vh;
     }
 }

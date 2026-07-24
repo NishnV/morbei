@@ -41,7 +41,9 @@ const ProductDetail = () => {
     const [activeAccordion, setActiveAccordion] = useState(null);
     const [mainImageIndex, setMainImageIndex] = useState(0);
     const [prevImageIndex, setPrevImageIndex] = useState(null);
+    const [mainSlideDir, setMainSlideDir] = useState(null); // null = default crossfade; 1/-1 = wheel-triggered vertical slide direction
     const [bgColor, setBgColor] = useState('#fff');
+    const mainImgWheelLock = useRef(false);
 
     const sampleImageBg = useCallback((img) => {
         try {
@@ -60,9 +62,29 @@ const ProductDetail = () => {
 
     const handleImageSelect = (idx) => {
         if (idx === mainImageIndex) return;
+        setMainSlideDir(null); // thumbnail clicks keep the crossfade, not the wheel's vertical slide
         setPrevImageIndex(mainImageIndex);
         setMainImageIndex(idx);
         setTimeout(() => setPrevImageIndex(null), 1350);
+    };
+
+    // Desktop: scrolling over the main image slides vertically to the next/previous
+    // image, mirroring the mobile touch-swipe slider but wheel-driven. Locked for the
+    // animation's duration so one wheel gesture only advances one image at a time.
+    const handleMainImageWheel = (e) => {
+        if (!product.images || product.images.length <= 1) return;
+        if (Math.abs(e.deltaY) < 12) return;
+        e.preventDefault();
+        if (mainImgWheelLock.current) return;
+        const dir = e.deltaY > 0 ? 1 : -1;
+        const next = Math.max(0, Math.min(product.images.length - 1, mainImageIndex + dir));
+        if (next === mainImageIndex) return;
+        mainImgWheelLock.current = true;
+        setTimeout(() => { mainImgWheelLock.current = false; }, 650);
+        setMainSlideDir(dir);
+        setPrevImageIndex(mainImageIndex);
+        setMainImageIndex(next);
+        setTimeout(() => { setPrevImageIndex(null); setMainSlideDir(null); }, 650);
     };
 
     // Lightbox state
@@ -77,6 +99,93 @@ const ProductDetail = () => {
     const lbImgRef = useRef(null);
     const col2Ref = useRef(null);
     const mobileTouchStartX = useRef(null);
+    const mobileTouchStartY = useRef(null);
+    const lbTouchStartX = useRef(null);
+    const lbTouchStartY = useRef(null);
+    const lbPanOrigin = useRef({ x: 50, y: 50 });
+    const lbPinchStartDist = useRef(null);
+    const lbPinchStartZoom = useRef(0);
+
+    // Lightbox pinch-to-zoom + pan + horizontal swipe (mobile). Reuses the same
+    // lbOrigin/lbNatRect machinery as the desktop hover-zoom above: transform-origin
+    // percentages are relative to the image's *unscaled* box, so lbNatRect is only
+    // re-measured while zoom is 0 and stays frozen (still valid) while zoomed in.
+    const lbTouchMidpointOrigin = (touches, nr) => {
+        const midX = (touches[0].clientX + touches[1].clientX) / 2;
+        const midY = (touches[0].clientY + touches[1].clientY) / 2;
+        return {
+            x: Math.max(0, Math.min(100, ((midX - nr.left) / nr.width) * 100)),
+            y: Math.max(0, Math.min(100, ((midY - nr.top) / nr.height) * 100)),
+        };
+    };
+
+    const handleLbTouchStart = useCallback((e) => {
+        if (e.touches.length === 2) {
+            lbTouchStartX.current = null;
+            lbPinchStartDist.current = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            lbPinchStartZoom.current = lightboxZoom;
+            if (!lbNatRect.current) lbNatRect.current = lbImgRef.current?.getBoundingClientRect() || null;
+            if (lbNatRect.current) setLbOrigin(lbTouchMidpointOrigin(e.touches, lbNatRect.current));
+            return;
+        }
+        if (e.touches.length === 1) {
+            lbTouchStartX.current = e.touches[0].clientX;
+            lbTouchStartY.current = e.touches[0].clientY;
+            lbPanOrigin.current = lbOrigin;
+            if (lightboxZoom === 0) lbNatRect.current = lbImgRef.current?.getBoundingClientRect() || null;
+        }
+    }, [lightboxZoom, lbOrigin]);
+
+    const handleLbTouchMove = useCallback((e) => {
+        if (e.touches.length === 2 && lbPinchStartDist.current) {
+            e.preventDefault();
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const ratio = dist / lbPinchStartDist.current;
+            let targetZoom = lbPinchStartZoom.current;
+            if (ratio > 1.15) targetZoom = Math.min(LB_ZOOMS.length - 1, lbPinchStartZoom.current + 1);
+            else if (ratio < 0.87) targetZoom = Math.max(0, lbPinchStartZoom.current - 1);
+            if (targetZoom !== lightboxZoom) setLightboxZoom(targetZoom);
+            return;
+        }
+        if (e.touches.length === 1 && lbTouchStartX.current !== null && lightboxZoom > 0) {
+            const nr = lbNatRect.current;
+            if (!nr) return;
+            e.preventDefault();
+            const dx = e.touches[0].clientX - lbTouchStartX.current;
+            const dy = e.touches[0].clientY - lbTouchStartY.current;
+            setLbOrigin({
+                x: Math.max(0, Math.min(100, lbPanOrigin.current.x - (dx / nr.width) * 100)),
+                y: Math.max(0, Math.min(100, lbPanOrigin.current.y - (dy / nr.height) * 100)),
+            });
+        }
+    }, [lightboxZoom]);
+
+    const handleLbTouchEnd = useCallback((e) => {
+        if (lbPinchStartDist.current !== null) {
+            lbPinchStartDist.current = null;
+            if (lightboxZoom === 0) { setLbOrigin({ x: 50, y: 50 }); lbNatRect.current = null; }
+            lbTouchStartX.current = null;
+            lbTouchStartY.current = null;
+            return;
+        }
+        if (lbTouchStartX.current === null) return;
+        const deltaX = e.changedTouches[0].clientX - lbTouchStartX.current;
+        const deltaY = e.changedTouches[0].clientY - lbTouchStartY.current;
+        lbTouchStartX.current = null;
+        lbTouchStartY.current = null;
+        if (lightboxZoom > 0) return; // was panning a zoomed image, not swiping
+        if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+            setLightboxIndex(prev => deltaX < 0
+                ? Math.min(prev + 1, product.images.length - 1)
+                : Math.max(prev - 1, 0));
+        }
+    }, [lightboxZoom, product]);
 
     const handleLbMouseMove = useCallback((e) => {
         const cRect = lbMainRef.current?.getBoundingClientRect();
@@ -210,12 +319,21 @@ const ProductDetail = () => {
     // Mobile swipe slider
     const handleMobileTouchStart = (e) => {
         mobileTouchStartX.current = e.touches[0].clientX;
+        mobileTouchStartY.current = e.touches[0].clientY;
     };
     const handleMobileTouchEnd = (e) => {
         if (mobileTouchStartX.current === null) return;
-        const delta = e.changedTouches[0].clientX - mobileTouchStartX.current;
+        const deltaX = e.changedTouches[0].clientX - mobileTouchStartX.current;
+        const deltaY = e.changedTouches[0].clientY - mobileTouchStartY.current;
         mobileTouchStartX.current = null;
-        if (Math.abs(delta) < 40) {
+        mobileTouchStartY.current = null;
+        // A mostly-vertical drag is the user scrolling the page, not interacting with
+        // the slider — ignore it so it can't be misread as a tap (deltaX ~ 0) and pop
+        // the lightbox open, or as a swipe and flip the image.
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
+            return;
+        }
+        if (Math.abs(deltaX) < 40) {
             // Not a swipe — treat as a tap on the image, same as clicking it on desktop
             setLightboxIndex(mainImageIndex);
             setLightboxZoom(0);
@@ -225,7 +343,7 @@ const ProductDetail = () => {
             return;
         }
         e.preventDefault();
-        if (delta < 0) {
+        if (deltaX < 0) {
             setMainImageIndex(prev => Math.min(prev + 1, product.images.length - 1));
         } else {
             setMainImageIndex(prev => Math.max(prev - 1, 0));
@@ -239,17 +357,25 @@ const ProductDetail = () => {
                 <div
                     className="pd-main-image-col"
                     onClick={() => { setLightboxIndex(mainImageIndex); setLightboxZoom(0); setLightboxOpen(true); }}
+                    onWheel={handleMainImageWheel}
                     style={{ background: bgColor, cursor: 'pointer' }}
                 >
                     {prevImageIndex !== null && (
                         <img
                             src={product.images[prevImageIndex]}
                             alt=""
-                            className="pd-main-img pd-main-img-exit"
+                            className={`pd-main-img pd-main-img-exit${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-out-up' : ' pd-main-img-slide-out-down') : ''}`}
                             style={{ position: 'absolute', inset: 0 }}
                         />
                     )}
-                    <img key={mainImageIndex} src={product.images[mainImageIndex]} alt={product.name} className="pd-main-img" crossOrigin="anonymous" onLoad={(e) => sampleImageBg(e.currentTarget)} />
+                    <img
+                        key={mainImageIndex}
+                        src={product.images[mainImageIndex]}
+                        alt={product.name}
+                        className={`pd-main-img${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-in-up' : ' pd-main-img-slide-in-down') : ''}`}
+                        crossOrigin="anonymous"
+                        onLoad={(e) => sampleImageBg(e.currentTarget)}
+                    />
                 </div>
 
                 {/* Column 2 — 25%: Scrollable thumbnail strip — all images, active one highlighted */}
@@ -556,6 +682,9 @@ const ProductDetail = () => {
                             ref={lbMainRef}
                             onMouseMove={handleLbMouseMove}
                             onMouseLeave={handleLbMouseLeave}
+                            onTouchStart={handleLbTouchStart}
+                            onTouchMove={handleLbTouchMove}
+                            onTouchEnd={handleLbTouchEnd}
                             onClick={() => {
                                 // No zoom-on-tap on phone/iPad — this is a desktop-only interaction
                                 if (isMobileViewport()) return;

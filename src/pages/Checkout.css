@@ -8,10 +8,15 @@
     text-transform: uppercase;
 }
 
+/* No max-width/auto-margin here on purpose: the progress sidebar's left
+   edge needs to line up with the navbar's hamburger button at every
+   viewport width, and centering a capped container breaks that once the
+   cap kicks in (the left offset becomes (viewport-maxWidth)/2, independent
+   of padding). Full-bleed + the same clamp() as .nav-container keeps them
+   pinned together always. Inner content still self-limits via
+   .checkout-main-content-v3 / .step0-content's own 780px max-width. */
 .checkout-container-v3 {
-    max-width: 1440px;
-    margin: 0 auto;
-    padding: 0 4rem 10rem;
+    padding: 0 clamp(1.5rem, 2.5vw, 3rem) 10rem;
 }
 
 /* Header */
@@ -49,9 +54,14 @@
     width: 100%;
 }
 
+/* Right column matches the left sidebar's 200px on purpose: the container's
+   padding is symmetric (see .checkout-container-v3), so a symmetric grid
+   makes the middle column's center exactly the viewport's center — same
+   spot the navbar logo sits (.nav-center, left:50%). A narrower right
+   column would pull the centered form off from under the logo. */
 .checkout-layout-v3 {
     display: grid;
-    grid-template-columns: 200px 1fr 80px;
+    grid-template-columns: 200px 1fr 200px;
     gap: 8rem;
     width: 100%;
 }
@@ -143,6 +153,7 @@
 .checkout-main-content-v3 {
     width: 100%;
     max-width: 780px;
+    margin: 0 auto;
 }
 
 .checkout-step-content {
@@ -154,18 +165,19 @@
 /* Step 0 — CSS grid layout: dot cells and content cells share the same rows */
 .step0-layout {
     display: grid;
-    grid-template-columns: 200px 1fr 80px;
+    grid-template-columns: 200px 1fr 200px;
     gap: 8rem;
     width: 100%;
     padding-top: 1rem;
 }
 
-/* Sidebar: all 3 dots spread top-to-bottom — same flex/percent geometry
-   as .progress-steps-v3 so both rails render identically */
+/* Sidebar: all 3 dots spread top-to-bottom. No explicit height/align-self —
+   .step0-layout is a grid, so the sidebar stretches (default align-items)
+   to match the form column's actual height. That puts the last dot
+   (PAYMENT) level with the form's last field (PIN/ZIP CODE) instead of at
+   an arbitrary viewport-based height. */
 .step0-sidebar {
-    align-self: start;
     position: relative;
-    height: clamp(16rem, 55vh, 30rem);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -208,6 +220,7 @@
     display: flex;
     flex-direction: column;
     max-width: 780px;
+    margin: 0 auto;
 }
 
 .checkout-section-v3 {

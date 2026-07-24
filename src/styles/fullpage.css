@@ -1,0 +1,31 @@
+/* Shared base for Home-style "fullpage" slide pages: driven by
+   useFullpageSections() (locked page scroll, wheel/swipe/arrow-key section
+   changes). Page-specific slide content — backgrounds, layout, typography —
+   belongs in that page's own CSS file, layered on top of these classes. */
+.fp-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+}
+
+/* Each section stacks at z-index order, slides up to cover previous */
+/* svh (not dvh/vh): this page never scrolls, so browser chrome never collapses —
+   on iPad Safari/Chrome vh & dvh include the area behind the browser bar, which
+   permanently hides bottom content. svh = viewport with browser UI expanded. */
+.fp-section {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100svh;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    transition: transform 0.9s cubic-bezier(0.76, 0, 0.24, 1);
+    will-change: transform;
+}

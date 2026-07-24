@@ -1,46 +1,73 @@
 import React from 'react';
+import { useFullpageSections } from '../hooks/useFullpageSections';
+import '../styles/fullpage.css';
 import './About.css';
 
+const TOTAL_SECTIONS = 3;
+
 const About = () => {
+    const { sectionStyle, handleTouchStart, handleTouchEnd, floatingLogoPortal } = useFullpageSections(TOTAL_SECTIONS);
+
     return (
-        <div className="about-page">
-            <section className="about-hero reveal reveal-up">
-                <div className="container">
-                    <h1 className="serif">Our Ethos</h1>
-                    <p className="lead">Morbei is founded on the principles of timeless design, ethical craftsmanship, and minimalist luxury.</p>
+        <>
+        {floatingLogoPortal}
+        <div
+            className="fp-page"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+        >
+            {/* Section 0 — Our Design */}
+            <section className="fp-section ab-design" style={{ ...sectionStyle(0), zIndex: 1 }}>
+                <div className="ab-design-inner">
+                    <h2 className="ab-design-heading">Our Design</h2>
+                    <div className="ab-design-image">
+                        <img src="/about-our-design.jpg" alt="Hands hand-stitching a garment seam" loading="lazy" />
+                    </div>
+                    <p className="ab-design-copy">
+                        MORBEI creates timeless clothing with a focus on proportion, fit, and craftsmanship.
+                        Every design is shaped with balance in mind, where nothing feels unnecessary and
+                        nothing feels overdone.
+                    </p>
                 </div>
             </section>
 
-            <section className="about-content container">
-                <div className="grid-2">
-                    <div className="about-text reveal reveal-right">
-                        <h2>The Vision</h2>
-                        <p>At Morbei, we believe that the clothes we wear should be an extension of our inner selves—simple, elegant, and intentional. We reject the fast-fashion cycle in favor of pieces that endure, both in quality and style.</p>
-                        <p>Every collection is a study in form and fabric, designed for the modern individual who values substance as much as style.</p>
+            {/* Section 1 — Our Craft */}
+            <section className="fp-section ab-design" style={{ ...sectionStyle(1), zIndex: 2 }}>
+                <div className="ab-design-inner">
+                    <h2 className="ab-design-heading">Our Craft</h2>
+                    <div className="ab-design-image">
+                        {/* TODO: source photo has a visible "Saint Laurent Paris" garment
+                            label — placeholder from Figma per request, swap before this
+                            page is considered final. */}
+                        <img src="/about-our-craft.jpg" alt="Hands finishing a garment seam" loading="lazy" />
                     </div>
-                    <div className="about-image reveal reveal-left">
-                        <img src="https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=1200&q=80" alt="Studio" />
-                    </div>
+                    <p className="ab-design-copy">
+                        Every piece is crafted in our atelier and undergoes multiple fittings and quality
+                        checks before it reaches you. Our approach is guided by precision, attention to
+                        detail, and a commitment to making garments that you will enjoy wearing.
+                    </p>
                 </div>
             </section>
 
-            <section className="values container">
-                <div className="grid-3">
-                    <div className="value-item reveal reveal-up reveal-delay-1">
-                        <h3>Quality</h3>
-                        <p>Sourcing the finest fabrics from heritage mills to ensure longevity.</p>
+            {/* Section 2 — Our Standards */}
+            <section className="fp-section ab-design" style={{ ...sectionStyle(2), zIndex: 3 }}>
+                <div className="ab-design-inner">
+                    <h2 className="ab-design-heading">Our Standards</h2>
+                    <div className="ab-design-image">
+                        {/* TODO: source photo shows a large "Saint Laurent" hanger/tag —
+                            placeholder from Figma per request, swap before this page is
+                            considered final. */}
+                        <img src="/about-our-standards.jpg" alt="A finished garment on a hanger" loading="lazy" />
                     </div>
-                    <div className="value-item reveal reveal-up reveal-delay-2">
-                        <h3>Sustainability</h3>
-                        <p>Committing to ethical production and minimal waste practices.</p>
-                    </div>
-                    <div className="value-item reveal reveal-up reveal-delay-3">
-                        <h3>Design</h3>
-                        <p>Creating architectural silhouettes that celebrate the human form.</p>
-                    </div>
+                    <p className="ab-design-copy">
+                        Honesty is central to MORBEI. What you see is what you get. We choose our fabrics
+                        with care and make every piece to the same standard from the first sample to the
+                        final garment.
+                    </p>
                 </div>
             </section>
         </div>
+        </>
     );
 };
 
