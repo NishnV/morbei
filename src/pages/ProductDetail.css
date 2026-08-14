@@ -762,7 +762,7 @@
 
     /* Move color/size section lower (request 2) */
     .pd-color-selector {
-        margin-top: 3rem;
+        margin-top: 2rem;
         justify-content: flex-start;
         gap: 0.75rem;
     }
@@ -774,14 +774,31 @@
     }
 
     .pd-size-selector {
-        margin-top: 1.5rem;
+        margin-top: 1rem;
+        /* The spacer before the CTA lives on .pd-low-stock below, so this only
+           needs to clear the SIZE GUIDE link. */
+        margin-bottom: 0;
     }
 
-    /* Align Add to Bag button top with the seam between the 2 secondary images.
-       Secondary images: each 25vw wide, 4/5 aspect → 31.25vw tall. Seam at 31.25vw.
-       +24px accounts for the 1.5rem margin-top added to pd-size-selector. */
+    /* Spacer between the size block and the CTA group.
+       Originally this sat on .pd-actions as `max(0px, 31.25vw - 403px)` to line
+       the button up with the seam between the two stacked secondary images
+       (each 25vw wide at 4/5 aspect → seam at 31.25vw). That offset is
+       unbounded, so on a wide screen it grew without limit — roughly 220px at
+       2000px — leaving a chasm mid-column. Capped, and moved onto the stock
+       line so the whole CTA group travels together and the message stays
+       attached to the button it describes. */
+    .pd-low-stock {
+        margin-top: clamp(1.5rem, calc(31.25vw - 403px), 3.5rem);
+    }
+
     .pd-actions {
-        margin-top: max(0px, calc(31.25vw - 403px));
+        margin-top: 0.5rem;
+    }
+
+    /* Keep the CTA clear of the DESCRIPTION block below it. */
+    .pd-description-section {
+        margin-top: 5rem;
     }
 }
 
@@ -2042,22 +2059,41 @@
     }
 
     .pd-color-selector {
-        margin-top: 4rem;
+        margin-top: 2.5rem;
         justify-content: flex-start;
         gap: 0.75rem;
     }
 
     .pd-size-selector {
-        margin-top: 1.5rem;
+        margin-top: 0.85rem;
+        /* The spacer before the CTA lives on .pd-low-stock; this only needs to
+           clear the SIZE GUIDE link. */
+        margin-bottom: 0;
+    }
+
+    /* Spacer between the size block and the CTA group.
+       This was `max(0px, 31.25vw - 419px)` on .pd-actions, lining the button up
+       with the seam between the two stacked secondary images (each 25vw at 4/5
+       aspect → seam at 31.25vw). Unbounded, so it kept growing with viewport
+       width — ~220px at 2000px — leaving a chasm mid-column. Capped, and moved
+       onto the stock line so the CTA group travels together and the message
+       stays attached to the button it describes. */
+    .pd-low-stock {
+        margin-top: clamp(1.25rem, calc(31.25vw - 419px), 3rem);
     }
 
     .pd-actions {
-        margin-top: max(0px, calc(31.25vw - 419px));
+        margin-top: 0.5rem;
     }
 
     .pd-description-section {
         order: 5;
-        margin-top: auto;
+        /* Was `margin-top: auto`, which absorbed whatever height was spare in
+           the sticky column. That made the gap swing with the viewport: ~330px
+           on a tall screen, and exactly 0 once the content filled the column —
+           which is when ADD TO BAG ended up sitting against DESCRIPTION. A
+           fixed value is less clever and reads the same at every size. */
+        margin-top: 4rem;
         margin-bottom: 0;
         padding-bottom: 0;
     }
