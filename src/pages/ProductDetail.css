@@ -512,6 +512,51 @@
     visibility: visible;
 }
 
+/* Remaining-stock notice. Deliberately quiet — this is information, not a
+   countdown timer, and the stock levels here are genuinely low.
+
+   NOTE: .pd-info-section is a flex column where EVERY child sets an explicit
+   `order` (header 1, colour 2, sizes 3, actions 4 …), so DOM position does not
+   determine visual position. Without this rule the element defaults to order 0
+   and renders above the product title. Matching the size selector's order (3)
+   places it directly after — equal `order` values fall back to DOM order — and
+   still ahead of .pd-actions at 4, on both breakpoints. */
+.pd-low-stock {
+    order: 3;
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    color: #c98a3c;
+    text-transform: uppercase;
+    margin: 0.9rem 0 0 0;
+}
+
+/* Restock alert replaces ADD TO BAG when the chosen size is sold out. Outlined
+   rather than solid so it doesn't compete with a real add-to-bag elsewhere. */
+.pd-notify-btn {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.pd-notify-btn:hover {
+    background: #fff;
+    color: #0a0a0a;
+    border-color: #fff;
+}
+
+/* Colour option whose name we can't resolve to a swatch (e.g. a bespoke name
+   with no palette entry). A neutral chip beats a transparent gap — the name is
+   still shown next to it. */
+.color-swatch--unknown {
+    background: repeating-linear-gradient(
+        45deg,
+        #3a3a3a,
+        #3a3a3a 3px,
+        #2a2a2a 3px,
+        #2a2a2a 6px
+    );
+}
+
 .pd-description {
     font-size: 0.68rem;
     color: #888;

@@ -9,7 +9,12 @@ import { useGlobalLoading } from '../context/LoadingContext';
 import { useCustomer } from '../hooks/useCustomer';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Seo, { SITE_URL, breadcrumbJsonLd } from '../components/Seo';
+import SizeGuide from '../components/SizeGuide';
+import Modal from '../components/ui/Modal';
 import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
+import { sortSizes } from '../utils/sizes';
+import { colorToSwatch } from '../utils/colors';
+import { contactAPI } from '../lib/api';
 import { isMobileViewport } from '../lib/viewport';
 import './ProductDetail.css';
 
@@ -24,6 +29,11 @@ const DESCRIPTION_HTML = {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'ul', 'ol', 'li', 'h3', 'h4', 'span', 'a'],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
 };
+
+// Show remaining stock at or below this. The catalogue runs 1-3 units per size,
+// so a higher threshold would put "only N left" on essentially everything and
+// the signal would stop meaning anything.
+const LOW_STOCK_THRESHOLD = 3;
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -50,6 +60,12 @@ const ProductDetail = () => {
 
     const [selectedSize, setSelectedSize] = useState(searchParams.get('size') || '');
     const [sizeError, setSizeError] = useState(false);
+    const [showSizeGuide, setShowSizeGuide] = useState(false);
+    const [notifyOpen, setNotifyOpen] = useState(false);
+    // { ok, message } — the title has to follow the outcome; a "THANK YOU"
+    // heading over a failure message is exactly the false-reassurance the
+    // newsletter form used to give.
+    const [notifyResult, setNotifyResult] = useState(null);
     const [hoveredSize, setHoveredSize] = useState(null);
     const [showMobileSizeOverlay, setShowMobileSizeOverlay] = useState(false);
     const [selectedColor, setSelectedColor] = useState('');
@@ -276,6 +292,14 @@ const ProductDetail = () => {
             setSizeError(true);
             return;
         }
+        // Sold-out sizes are selectable now (that's how the restock alert is
+        // reached), so guard the add itself rather than relying on the button
+        // being swapped out.
+        if (selectedVariant && !selectedVariant.available) {
+            setNotifyResult(null);
+            setNotifyOpen(true);
+            return;
+        }
         setIsAnimating(true);
         try {
             if (selectedVariant?.id) {
@@ -349,6 +373,38 @@ const ProductDetail = () => {
 
     const productUrl = `/product/${product.handle || product.id}`;
     const inStock = product.variants?.some(v => v.available) ?? product.availableForSale;
+
+    // quantityAvailable is null when the store isn't tracking inventory for a
+    // variant — that's "unknown", not "none", so show nothing rather than a
+    // scarcity claim we can't stand behind.
+    const qty = selectedVariant?.quantityAvailable;
+    const lowStockCount =
+        selectedVariant?.available && typeof qty === 'number' && qty > 0 && qty <= LOW_STOCK_THRESHOLD
+            ? qty
+            : null;
+
+    // A size is picked and that exact variant is sold out — the moment to offer
+    // a restock alert rather than a dead disabled button.
+    const selectedSoldOut = !!selectedSize && !!selectedVariant && !selectedVariant.available;
+
+    const submitNotify = async (email) => {
+        try {
+            await contactAPI.notifyStock(
+                email,
+                `${product.name}${selectedSize ? ` — size ${selectedSize}` : ''}`
+            );
+            setNotifyOpen(false);
+            setNotifyResult({ ok: true, message: "WE'LL EMAIL YOU AS SOON AS IT'S BACK IN STOCK." });
+        } catch (err) {
+            setNotifyOpen(false);
+            setNotifyResult({
+                ok: false,
+                message: err.status === 429
+                    ? 'TOO MANY REQUESTS — PLEASE TRY AGAIN IN A LITTLE WHILE.'
+                    : "WE COULDN'T SAVE THAT — PLEASE TRY AGAIN.",
+            });
+        }
+    };
 
     return (
         <div className="product-detail-page">
@@ -493,18 +549,27 @@ const ProductDetail = () => {
 
                         {/* Mobile Size Overlay - contained within image bounds */}
                         <div className={`pd-mobile-product-sizes${showMobileSizeOverlay ? ' visible' : ''}`}>
-                            {[...product.sizes].sort((a, b) => {
-                                const order = ['XXS', 'XS', 'S', 'M', 'L', 'XL'];
-                                return order.indexOf(a) - order.indexOf(b);
-                            }).map(size => {
+                            {sortSizes(product.sizes).map(size => {
                                 const variant = product.variants?.find(v => v.size === size && (!selectedColor || v.color === selectedColor));
                                 const outOfStock = variant && !variant.available;
                                 return (
                                     <span
                                         key={size}
                                         className={`pd-size-item ${outOfStock ? 'out-of-stock' : ''}`}
-                                        onClick={() => { if (!outOfStock) { handleAddToCartFromSize(size); setShowMobileSizeOverlay(false); } }}
-                                        style={{ cursor: outOfStock ? 'not-allowed' : 'pointer' }}
+                                        // In stock: tapping a size adds it straight to the bag.
+                                        // Sold out: select it and offer the restock alert instead of
+                                        // doing nothing, which is what used to happen.
+                                        onClick={() => {
+                                            setShowMobileSizeOverlay(false);
+                                            if (outOfStock) {
+                                                setSelectedSize(size);
+                                                setNotifyResult(null);
+                                                setNotifyOpen(true);
+                                            } else {
+                                                handleAddToCartFromSize(size);
+                                            }
+                                        }}
+                                        style={{ cursor: 'pointer' }}
                                     >
                                         {size}
                                     </span>
@@ -551,65 +616,94 @@ const ProductDetail = () => {
                         <p className="pd-tax-text">MRP INCL. OF ALL TAXES</p>
                     </div>
 
-                    {/* Color */}
-                    {product.colors?.length > 0 ? (
+                    {/* Colour. Only rendered when the product actually has a
+                        Colour option — this used to fall back to a hardcoded
+                        "Ecru" swatch on every product, which asserted a colour
+                        the garment may not be. */}
+                    {product.colors?.length > 0 && (
                         <div className="pd-color-selector">
                             <div className="pd-color-swatches">
-                                {product.colors.map(color => (
-                                    <button
-                                        key={color}
-                                        className={`color-swatch ${selectedColor === color ? 'active' : ''}`}
-                                        style={{ background: color.toLowerCase() }}
-                                        onClick={() => setSelectedColor(color)}
-                                    />
-                                ))}
+                                {product.colors.map(color => {
+                                    const swatch = colorToSwatch(color);
+                                    return (
+                                        <button
+                                            key={color}
+                                            type="button"
+                                            title={color}
+                                            aria-label={color}
+                                            aria-pressed={selectedColor === color}
+                                            className={`color-swatch ${selectedColor === color ? 'active' : ''}${swatch ? '' : ' color-swatch--unknown'}`}
+                                            style={swatch ? { background: swatch } : undefined}
+                                            onClick={() => setSelectedColor(color)}
+                                        />
+                                    );
+                                })}
                             </div>
                             <span className="color-label-right" style={{ marginTop: '8px' }}>{selectedColor || product.colors[0]}</span>
-                        </div>
-                    ) : (
-                        <div className="pd-color-selector">
-                            <div className="pd-color-swatches">
-                                <div className="color-swatch" style={{ background: '#e5ddd3' }}></div>
-                            </div>
-                            <span className="color-label-right" style={{ marginTop: '8px' }}>Ecru</span>
                         </div>
                     )}
 
                     {/* Sizes - hidden on mobile, shown on desktop */}
                     <div className="pd-size-selector pd-size-selector-desktop">
                         <div className="pd-sizes-row">
-                            {[...product.sizes].sort((a, b) => {
-                                const order = ['XXS', 'XS', 'S', 'M', 'L', 'XL'];
-                                return order.indexOf(a) - order.indexOf(b);
-                            }).map(size => {
+                            {sortSizes(product.sizes).map(size => {
                                 const variant = product.variants?.find(v => v.size === size && (!selectedColor || v.color === selectedColor));
                                 const outOfStock = variant && !variant.available;
                                 return (
                                     <button
                                         key={size}
+                                        type="button"
                                         className={`pd-size-text ${selectedSize === size ? 'active' : ''} ${outOfStock ? 'out-of-stock' : ''}`}
-                                        onClick={() => { if (!outOfStock) { setSelectedSize(prev => prev === size ? '' : size); setSizeError(false); } }}
-                                        disabled={outOfStock}
+                                        // Sold-out sizes stay selectable on purpose: selecting one is
+                                        // how you reach the restock alert. Add-to-bag is what gets
+                                        // blocked, not the selection. (Marking them `disabled` made
+                                        // the notify flow unreachable.)
+                                        onClick={() => { setSelectedSize(prev => prev === size ? '' : size); setSizeError(false); }}
+                                        aria-pressed={selectedSize === size}
+                                        title={outOfStock ? `${size} — out of stock, tap to get notified` : size}
                                     >
                                         {size}
                                     </button>
                                 );
                             })}
                         </div>
-                        <button className="pd-guide-link">Size Guide</button>
+                        <button type="button" className="pd-guide-link" onClick={() => setShowSizeGuide(true)}>Size Guide</button>
                     </div>
+
+                    {/* Scarcity. quantityAvailable was already being fetched and
+                        normalised, just never shown. Only surfaced once a size is
+                        picked, so it refers to something specific. */}
+                    {selectedSize && lowStockCount != null && (
+                        <p className="pd-low-stock" role="status">
+                            {lowStockCount === 1 ? 'LAST ONE LEFT' : `ONLY ${lowStockCount} LEFT`}
+                        </p>
+                    )}
                     
                     {/* Add to Bag + Wishlist */}
                     <div className="pd-actions">
                         <p className={`pd-size-error${sizeError ? ' visible' : ''}`}>PLEASE SELECT A SIZE</p>
                         <div className="pd-actions-row">
-                        <button
-                            className="pd-add-bag-btn"
-                            onClick={handleAddToCart}
-                            disabled={isAnimating || (selectedVariant && !selectedVariant.available && !!selectedSize)}
-                        >
-                            {isAnimating ? 'ADDING...' : (!selectedVariant?.available && selectedSize ? 'OUT OF STOCK' : 'ADD TO BAG')}
-                        </button>
+                        {/* When the chosen size is sold out, the primary action
+                            becomes the restock alert instead of a dead disabled
+                            button. The /contact/notify-stock endpoint already
+                            existed and nothing in the UI had ever called it. */}
+                        {selectedSoldOut ? (
+                            <button
+                                type="button"
+                                className="pd-add-bag-btn pd-notify-btn"
+                                onClick={() => { setNotifyResult(null); setNotifyOpen(true); }}
+                            >
+                                NOTIFY ME WHEN AVAILABLE
+                            </button>
+                        ) : (
+                            <button
+                                className="pd-add-bag-btn"
+                                onClick={handleAddToCart}
+                                disabled={isAnimating}
+                            >
+                                {isAnimating ? 'ADDING...' : 'ADD TO BAG'}
+                            </button>
+                        )}
                         <button
                             className="pd-wishlist-icon-btn"
                             onClick={handleToggleWishlist}
@@ -716,6 +810,42 @@ const ProductDetail = () => {
                         ))}
                     </div>
                 </div>
+            )}
+
+            <SizeGuide
+                open={showSizeGuide}
+                onClose={() => setShowSizeGuide(false)}
+                sizeGuideHtml={product.metafields?.sizeGuide}
+                productName={product.name}
+            />
+
+            {/* Restock alert. Guests can use this too — the endpoint is
+                unauthenticated and covered by the contact rate limit. */}
+            <Modal
+                open={notifyOpen}
+                title="NOTIFY ME"
+                message={`We'll email you once ${product.name}${selectedSize ? ` in size ${selectedSize}` : ''} is back in stock.`}
+                input
+                inputType="email"
+                inputPlaceholder="YOUR EMAIL"
+                validate={(v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim())
+                    ? null
+                    : 'PLEASE ENTER A VALID EMAIL')}
+                confirmLabel="NOTIFY ME"
+                cancelLabel="CANCEL"
+                onConfirm={submitNotify}
+                onClose={() => setNotifyOpen(false)}
+            />
+
+            {notifyResult && (
+                <Modal
+                    open
+                    title={notifyResult.ok ? "YOU'RE ON THE LIST" : 'SOMETHING WENT WRONG'}
+                    message={notifyResult.message}
+                    confirmLabel="CLOSE"
+                    onConfirm={() => setNotifyResult(null)}
+                    onClose={() => setNotifyResult(null)}
+                />
             )}
 
             {/* Lightbox Modal */}
