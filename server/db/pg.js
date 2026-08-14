@@ -10,6 +10,13 @@ export const pool = new Pool({
     connectionString,
     ssl: needsSsl ? { rejectUnauthorized: false } : false,
     max: 10,
+    // Without timeouts a single hung query holds one of only ten connections
+    // indefinitely; enough of them and the whole API stops responding while
+    // looking perfectly healthy.
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+    statement_timeout: 10000,
+    query_timeout: 10000,
 });
 
 // Without this, an error on an idle client (e.g. the DB restarting)
@@ -81,12 +88,21 @@ export async function initDB() {
         CREATE INDEX IF NOT EXISTS idx_orders_user ON orders (user_id);
         CREATE INDEX IF NOT EXISTS idx_orders_razorpay ON orders (razorpay_order_id);
 
+        -- The reconciler sweeps unsettled orders hourly; without this it table-scans.
+        CREATE INDEX IF NOT EXISTS idx_orders_unsettled ON orders (created_at)
+            WHERE status IN ('pending', 'processing');
+
         -- Records the Razorpay refund issued when an order is cancelled.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_id TEXT;
 
         -- Shopify's sequential, customer-facing order number (#1001, #1002…).
         -- shopify_order_id is the internal 13-digit id — never show that to customers.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS shopify_order_number BIGINT;
+
+        -- Bumping this invalidates every JWT already issued to the user.
+        -- Without it, logout only clears the client's copy and the token stays
+        -- valid server-side for its full lifetime.
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
         CREATE TABLE IF NOT EXISTS contact_submissions (
             id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -99,6 +115,13 @@ export async function initDB() {
             email TEXT UNIQUE NOT NULL,
             created_at TIMESTAMPTZ DEFAULT now()
         );
+        -- Consent provenance. Under the DPDP Act (and GDPR for any EU
+        -- subscriber) you have to be able to show when and how consent was
+        -- given, and honour its withdrawal — none of which the bare email
+        -- column supported.
+        ALTER TABLE newsletter ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'footer';
+        ALTER TABLE newsletter ADD COLUMN IF NOT EXISTS consent_ip TEXT;
+        ALTER TABLE newsletter ADD COLUMN IF NOT EXISTS unsubscribed_at TIMESTAMPTZ;
 
         CREATE TABLE IF NOT EXISTS wishlist (
             id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

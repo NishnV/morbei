@@ -1,28 +1,22 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useShop } from '../context/ShopContext';
-import { useCart } from '../hooks/useCart';
-import { contactAPI } from '../lib/api';
+import { useNewsletter } from '../hooks/useNewsletter';
 import './Footer.css';
 
+// The wishlist and cart subscriptions that used to live here were never
+// rendered — dropping them also stops the footer re-rendering on every cart change.
 const Footer = ({ minimal = false, showWordmark = false }) => {
     const [email, setEmail] = useState('');
-    const [subscribed, setSubscribed] = useState(false);
-    const { wishlist } = useShop();
-    const { cart } = useCart();
-    const cartCount = cart?.lines?.reduce((sum, l) => sum + l.quantity, 0) || 0;
+    const { subscribe, status, message } = useNewsletter('footer');
+
+    // 'already' counts as done — re-showing the form to someone who is on the
+    // list just invites them to submit again.
+    const done = status === 'success' || status === 'already';
 
     const handleNewsletterSubmit = async (e) => {
         e.preventDefault();
-        if (!email) return;
-        try {
-            await contactAPI.newsletter(email);
-        } catch (_) {
-            // Silently ignore — duplicate or network error
-        }
-        setSubscribed(true);
-        setEmail('');
-        setTimeout(() => setSubscribed(false), 4000);
+        const ok = await subscribe(email);
+        if (ok) setEmail('');
     };
 
     return (
@@ -31,13 +25,34 @@ const Footer = ({ minimal = false, showWordmark = false }) => {
                 {!minimal && <div className="footer-top-v2">
                     <div className="footer-member">
                         <h3>BE A MEMBER, <br /> GET PRE LAUNCH ACCESS</h3>
-                        {subscribed ? (
-                            <p style={{ letterSpacing: '0.15em', fontSize: '0.75rem', marginTop: '1rem' }}>THANK YOU FOR SUBSCRIBING!</p>
+                        {done ? (
+                            <p style={{ letterSpacing: '0.15em', fontSize: '0.75rem', marginTop: '1rem' }} aria-live="polite">
+                                {message}
+                            </p>
                         ) : (
-                            <form className="signup-form" onSubmit={handleNewsletterSubmit}>
-                                <input type="email" placeholder="EMAIL" required value={email} onChange={e => setEmail(e.target.value)} />
-                                <button type="submit">SIGN UP</button>
-                            </form>
+                            <>
+                                <form className="signup-form" onSubmit={handleNewsletterSubmit}>
+                                    <input
+                                        type="email"
+                                        placeholder="EMAIL"
+                                        required
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        disabled={status === 'loading'}
+                                    />
+                                    <button type="submit" disabled={status === 'loading'}>
+                                        {status === 'loading' ? 'SIGNING UP…' : 'SIGN UP'}
+                                    </button>
+                                </form>
+                                {status === 'error' && (
+                                    <p
+                                        role="alert"
+                                        style={{ letterSpacing: '0.12em', fontSize: '0.7rem', marginTop: '0.75rem', color: '#ff6b6b' }}
+                                    >
+                                        {message}
+                                    </p>
+                                )}
+                            </>
                         )}
                     </div>
 

@@ -253,6 +253,48 @@ export async function sendRestockRequest({ email, product }) {
 }
 
 /**
+ * Welcome a new newsletter subscriber.
+ *
+ * The footer promises "PRE LAUNCH ACCESS" and until now delivered silence —
+ * a subscriber who hears nothing assumes the form was broken. Carries an
+ * unsubscribe link because consent has to be withdrawable to be valid.
+ */
+export async function sendNewsletterWelcome(email, unsubscribeUrl) {
+    await transporter.sendMail({
+        from: STORE_FROM,
+        to: email,
+        subject: 'Welcome to MORBEI',
+        ...(unsubscribeUrl ? { list: { unsubscribe: { url: unsubscribeUrl } } } : {}),
+        html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
+            <div style="background:#0a0a0a;padding:32px;text-align:center;">
+                <h1 style="color:#fff;letter-spacing:0.3em;font-size:22px;margin:0;">MORBEI</h1>
+            </div>
+            <div style="padding:32px;">
+                <h2 style="font-size:15px;letter-spacing:0.2em;font-weight:500;">YOU'RE ON THE LIST</h2>
+                <p style="font-size:14px;color:#555;line-height:1.7;">
+                    Thank you for subscribing. You'll be first to hear about new arrivals,
+                    editorials and pre-launch access.
+                </p>
+                <p style="margin-top:32px;">
+                    <a href="https://morbei.com/shop/all"
+                       style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;
+                              padding:14px 32px;font-size:11px;letter-spacing:0.2em;">EXPLORE THE COLLECTION</a>
+                </p>
+            </div>
+            <div style="background:#f4f4f4;padding:16px;text-align:center;">
+                <p style="font-size:11px;color:#aaa;margin:0;">© ${new Date().getFullYear()} MORBEI. All rights reserved.</p>
+                ${unsubscribeUrl
+                    ? `<p style="font-size:11px;color:#aaa;margin:8px 0 0 0;">
+                         <a href="${esc(unsubscribeUrl)}" style="color:#aaa;">Unsubscribe</a>
+                       </p>`
+                    : ''}
+            </div>
+        </div>`,
+    });
+}
+
+/**
  * Alert the store when a payment was captured but Shopify order creation
  * failed — money is in hand with no order behind it, act immediately.
  */

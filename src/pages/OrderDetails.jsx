@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ordersAPI, shippingAPI } from '../lib/api';
 import Modal from '../components/ui/Modal';
 import './Checkout.css';
+import { shopifyImage } from '../utils/shopifyImage';
 
 const FULFILLMENT_STEPS = ['ORDER PLACED', 'PACKED', 'SHIPPED', 'OUT FOR DELIVERY', 'DELIVERED'];
 
@@ -123,7 +124,7 @@ const OrderDetails = () => {
                                     <div className="order-products-stack">
                                         {items.map((item, idx) => (
                                             <div key={idx} className="order-item-main-info">
-                                                <img src={item.image || '/placeholder.png'} alt={item.title} className="order-item-img" />
+                                                <img src={shopifyImage(item.image || '/placeholder.png', 200)} loading="lazy" decoding="async" alt={item.title} className="order-item-img" />
                                                 <div className="order-item-texts">
                                                     <h3 className="order-item-name">{item.title}</h3>
                                                     {item.selectedOptions && (

@@ -1,9 +1,33 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { run } from '../db/pg.js';
-import { sendContactNotification, sendRestockRequest } from '../services/email.js';
+import { sendContactNotification, sendRestockRequest, sendNewsletterWelcome } from '../services/email.js';
+import { subscribeToMarketing, setMarketingConsentRevoked } from '../services/shopify-admin.js';
 import { notifySlackError } from '../services/slack.js';
 
 const router = Router();
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 254; // RFC 5321
+
+/**
+ * Unsubscribe links must work from an email client with no session, so the
+ * token is an HMAC of the address rather than a stored secret — no lookup
+ * table, nothing to leak, and it can't be guessed or enumerated.
+ */
+function unsubscribeToken(email) {
+    return crypto
+        .createHmac('sha256', process.env.JWT_SECRET)
+        .update(`unsubscribe:${email}`)
+        .digest('hex')
+        .slice(0, 32);
+}
+
+function unsubscribeUrl(email) {
+    const base = (process.env.CLIENT_URL || '').split(',')[0].trim().replace(/\/$/, '');
+    if (!base) return null;
+    return `${base}/unsubscribe?email=${encodeURIComponent(email)}&token=${unsubscribeToken(email)}`;
+}
 
 // POST /api/contact — save submission and email store
 router.post('/', async (req, res) => {
@@ -35,19 +59,77 @@ router.post('/', async (req, res) => {
 // POST /api/contact/newsletter — subscribe email
 router.post('/newsletter', async (req, res) => {
     try {
-        const { email } = req.body;
-        if (!email?.trim()) return res.status(400).json({ error: 'email is required' });
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        // Previously any non-empty string was stored — the sibling
+        // /notify-stock route validated properly and this one didn't.
+        if (!EMAIL_RE.test(email) || email.length > MAX_EMAIL_LENGTH) {
+            return res.status(400).json({ error: 'A valid email is required' });
+        }
+        const source = String(req.body?.source || 'footer').slice(0, 40);
 
-        // Already subscribed → conflict is silently ignored, treat as success
-        await run(
-            'INSERT INTO newsletter (email) VALUES ($1) ON CONFLICT (email) DO NOTHING',
-            [email.trim().toLowerCase()]
+        // Local table is the durable consent log; Shopify is the marketing
+        // system of record. Re-subscribing clears a previous opt-out.
+        const inserted = await run(
+            `INSERT INTO newsletter (email, source, consent_ip) VALUES ($1, $2, $3)
+             ON CONFLICT (email) DO UPDATE SET unsubscribed_at = NULL
+             WHERE newsletter.unsubscribed_at IS NOT NULL`,
+            [email, source, req.ip]
         );
+        // rowCount 0 means the address was already actively subscribed.
+        const isNew = inserted.rowCount > 0;
 
-        res.json({ success: true });
+        // Both best-effort: a subscriber must never see an error because a
+        // downstream marketing system was slow or unreachable.
+        subscribeToMarketing(email).catch(err => {
+            console.error('Shopify marketing sync failed:', err.message);
+            notifySlackError('newsletter → Shopify sync failed', err).catch(() => {});
+        });
+        if (isNew) {
+            sendNewsletterWelcome(email, unsubscribeUrl(email))
+                .catch(err => console.error('Welcome email failed:', err.message));
+        }
+
+        res.json({ success: true, alreadySubscribed: !isNew });
     } catch (err) {
         console.error(err);
         notifySlackError('newsletter subscribe failed', err).catch(() => {});
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
+// GET /api/contact/unsubscribe — honour an unsubscribe link from an email.
+// Unauthenticated by necessity: the recipient has no session in their mail
+// client. The HMAC token proves they hold the link we sent.
+router.get('/unsubscribe', async (req, res) => {
+    try {
+        const email = String(req.query.email || '').trim().toLowerCase();
+        const token = String(req.query.token || '');
+        if (!EMAIL_RE.test(email) || !token) {
+            return res.status(400).json({ error: 'Invalid unsubscribe link' });
+        }
+
+        const expected = unsubscribeToken(email);
+        const a = Buffer.from(token);
+        const b = Buffer.from(expected);
+        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+            return res.status(400).json({ error: 'Invalid unsubscribe link' });
+        }
+
+        await run(
+            `UPDATE newsletter SET unsubscribed_at = now() WHERE email = $1 AND unsubscribed_at IS NULL`,
+            [email]
+        );
+        // Shopify holds the marketing consent that actually gates sending, so
+        // reflect it there too — best-effort, the local flag is already set.
+        setMarketingConsentRevoked(email).catch(err => {
+            console.error('Shopify unsubscribe sync failed:', err.message);
+            notifySlackError('newsletter unsubscribe → Shopify sync failed', err).catch(() => {});
+        });
+
+        res.json({ success: true, email });
+    } catch (err) {
+        console.error(err);
+        notifySlackError('newsletter unsubscribe failed', err).catch(() => {});
         res.status(500).json({ error: 'Something went wrong' });
     }
 });

@@ -19,7 +19,15 @@ export async function apiFetch(endpoint, options = {}) {
 
     const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
+    if (!res.ok) {
+        // Keep the status and the full body on the error — some responses carry
+        // structured detail (e.g. which cart lines went out of stock) that the
+        // message string alone can't express.
+        const err = new Error(data.error || `API error ${res.status}`);
+        err.status = res.status;
+        err.data = data;
+        throw err;
+    }
     return data;
 }
 
@@ -27,6 +35,9 @@ export async function apiFetch(endpoint, options = {}) {
 export const authAPI = {
     shopifyLogin: (customerAccessToken) =>
         apiFetch('/auth/shopify-login', { method: 'POST', body: JSON.stringify({ customerAccessToken }) }),
+    // Bumps the user's token_version server-side, invalidating every JWT
+    // already issued to them — not just the copy in this browser.
+    logout: () => apiFetch('/auth/logout', { method: 'POST' }),
 };
 
 // Payment
@@ -50,7 +61,10 @@ export const shippingAPI = {
 // Contact & Newsletter
 export const contactAPI = {
     submit: (body) => apiFetch('/contact', { method: 'POST', body: JSON.stringify(body) }),
-    newsletter: (email) => apiFetch('/contact/newsletter', { method: 'POST', body: JSON.stringify({ email }) }),
+    newsletter: (email, source = 'footer') =>
+        apiFetch('/contact/newsletter', { method: 'POST', body: JSON.stringify({ email, source }) }),
+    unsubscribe: (email, token) =>
+        apiFetch(`/contact/unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`),
     notifyStock: (email, product) => apiFetch('/contact/notify-stock', { method: 'POST', body: JSON.stringify({ email, product }) }),
 };
 

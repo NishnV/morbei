@@ -9,6 +9,8 @@ import { useCollection } from '../hooks/useCollection';
 import { useSearch } from '../hooks/useSearch';
 import { useProducts } from '../hooks/useProducts';
 import { useGlobalLoading } from '../context/LoadingContext';
+import Seo, { breadcrumbJsonLd } from '../components/Seo';
+import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Modal from '../components/ui/Modal';
 import './Shop.css';
@@ -239,8 +241,24 @@ const Shop = ({ category = "ALL" }) => {
         setPriceRange({ min: 0, max: 15000 });
     };
 
+    const categoryLabel = (category || 'ALL').replace(/-/g, ' ').toUpperCase();
+    const categoryPath = `/shop/${(category || 'all').toLowerCase()}`;
+
     return (
         <>
+            <Seo
+                title={categoryLabel === 'ALL' ? 'SHOP | MORBEI' : `${categoryLabel} | MORBEI`}
+                description={
+                    categoryLabel === 'ALL'
+                        ? 'Shop the full MORBEI collection — minimalist dresses, tops and bottoms crafted in India.'
+                        : `Shop MORBEI ${categoryLabel.toLowerCase()} — minimalist pieces crafted in India.`
+                }
+                path={categoryPath}
+                jsonLd={breadcrumbJsonLd([
+                    { name: 'Home', path: '/' },
+                    { name: categoryLabel === 'ALL' ? 'Shop' : categoryLabel, path: categoryPath },
+                ])}
+            />
             <div className="shop-page-v2">
             <div className="shop-controls-bar">
                 <div className="left-controls">
@@ -447,16 +465,45 @@ const Shop = ({ category = "ALL" }) => {
                                         onTouchStart={handleTouchStart}
                                         onTouchEnd={(e) => handleTouchEnd(e, product, idx)}
                                     >
-                                        <img loading="lazy"
-                                            className="img-primary"
-                                            src={product.images && product.images.length > 0
+                                        {(() => {
+                                            const primary = product.images?.length > 0
                                                 ? product.images[swipeIndices[product.id || idx] || 0]
-                                                : product.img}
-                                            alt={product.name}
-                                        />
-                                        {product.images && product.images.length > 1 && (
-                                            <img loading="lazy" className="img-hover" src={product.images[product.images.length - 1]} alt={product.name} />
-                                        )}
+                                                : product.img;
+                                            const hover = product.images?.length > 1
+                                                ? product.images[product.images.length - 1]
+                                                : null;
+                                            return (
+                                                <>
+                                                    <img
+                                                        // The first row is above the fold — lazy-loading it
+                                                        // delays the LCP instead of helping.
+                                                        loading={idx < 4 ? 'eager' : 'lazy'}
+                                                        fetchPriority={idx === 0 ? 'high' : undefined}
+                                                        decoding="async"
+                                                        width="800"
+                                                        height="1200"
+                                                        className="img-primary"
+                                                        src={shopifyImage(primary, 800)}
+                                                        srcSet={shopifySrcSet(primary)}
+                                                        sizes="(max-width: 768px) 50vw, 25vw"
+                                                        alt={product.name}
+                                                    />
+                                                    {hover && (
+                                                        <img
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                            width="800"
+                                                            height="1200"
+                                                            className="img-hover"
+                                                            src={shopifyImage(hover, 800)}
+                                                            srcSet={shopifySrcSet(hover)}
+                                                            sizes="(max-width: 768px) 50vw, 25vw"
+                                                            alt={product.name}
+                                                        />
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                         {product.isOnSale && (
                                             <div className="sale-badge-overlay">SALE</div>
                                         )}

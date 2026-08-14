@@ -8,7 +8,10 @@
 
 const domain = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
 const storefrontToken = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN;
-const apiVersion = import.meta.env.VITE_SHOPIFY_API_VERSION || '2024-01';
+// Keep in sync with SHOPIFY_API_VERSION in server/services/shopify-version.js.
+// Shopify serves requests to a retired version using the oldest accessible one
+// rather than failing, so a stale pin drifts silently — this was '2024-01'.
+const apiVersion = import.meta.env.VITE_SHOPIFY_API_VERSION || '2026-04';
 
 const endpoint = `https://${domain}/api/${apiVersion}/graphql.json`;
 

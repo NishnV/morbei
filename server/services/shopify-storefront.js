@@ -1,6 +1,7 @@
+import { SHOPIFY_API_VERSION } from './shopify-version.js';
+
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN;
-const API_VERSION = '2024-01';
 
 const CUSTOMER_QUERY = `
     query getCustomer($customerAccessToken: String!) {
@@ -19,7 +20,7 @@ const CUSTOMER_QUERY = `
  * Returns the customer object, or null if the token is invalid/expired.
  */
 export async function getCustomerByToken(customerAccessToken) {
-    const url = `https://${SHOPIFY_DOMAIN}/api/${API_VERSION}/graphql.json`;
+    const url = `https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
     const res = await fetch(url, {
         method: 'POST',
         headers: {

@@ -6,27 +6,39 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
+    <!--
+      SEO BLOCK — everything between the markers below is REPLACED per route by
+      scripts/prerender-og.mjs at build time, so crawlers that don't run JS
+      (WhatsApp, Instagram, Slack, X) get real per-page metadata.
+
+      <Seo> (react-helmet-async) emits the same tags at runtime for browsers.
+      Helmet appends rather than replaces markup it did not render, so these
+      static values MUST match what <Seo> produces for the same route —
+      otherwise a crawler reads the first (stale) copy and the per-page tags
+      are silently discarded. That is exactly what happened before prerendering
+      existed. Keep the two in sync.
+    -->
+    <!--seo:start-->
     <title>MORBEI | Minimalist Fashion</title>
     <meta name="description" content="MORBEI — minimalist fashion crafted in India. Dresses, tops and bottoms designed with restraint. Free shipping across India." />
-
-    <!-- Open Graph (Instagram, WhatsApp, Facebook link previews) -->
+    <link rel="canonical" href="https://morbei.vercel.app/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="MORBEI" />
     <meta property="og:title" content="MORBEI | Minimalist Fashion" />
     <meta property="og:description" content="Minimalist fashion crafted in India. Designed with restraint." />
     <meta property="og:image" content="https://morbei.vercel.app/og-image.jpg" />
     <meta property="og:url" content="https://morbei.vercel.app/" />
-
-    <!-- Twitter/X card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="MORBEI | Minimalist Fashion" />
     <meta name="twitter:description" content="Minimalist fashion crafted in India. Designed with restraint." />
     <meta name="twitter:image" content="https://morbei.vercel.app/og-image.jpg" />
+    <!--seo:end-->
 
-    <!-- Fonts: preconnect beats CSS @import (no serial request chain) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Nunito:wght@300;400;500&display=swap" rel="stylesheet" />
+    <!-- Fonts are self-hosted (src/styles/fonts.css) — no third-party round
+         trip on the critical path. Preload only the two latin files that render
+         above the fold; latin-ext loads on demand via unicode-range. -->
+    <link rel="preload" href="/fonts/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>

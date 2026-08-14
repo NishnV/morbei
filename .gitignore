@@ -39,3 +39,6 @@ test-results/
 *.tex
 resume*
 PROJECT_SUMMARY.md
+
+# Generated at build time by scripts/generate-sitemap.mjs
+public/sitemap.xml

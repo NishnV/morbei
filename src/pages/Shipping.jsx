@@ -1,4 +1,5 @@
 import React from 'react';
+import { DELIVERY_LIST, deliveryWindow } from '../data/delivery';
 import './SupportPage.css';
 
 const Shipping = () => {
@@ -13,22 +14,23 @@ const Shipping = () => {
                 <div className="support-content animate-fade">
                     <div className="support-section">
                         <h2>DOMESTIC SHIPPING (INDIA)</h2>
-                        <p>WE OFFER FREE STANDARD SHIPPING ON ALL DOMESTIC ORDERS ABOVE RS. 5000.</p>
+                        <p>WE OFFER FREE STANDARD SHIPPING ON ALL DOMESTIC ORDERS.</p>
+                        {/* Rendered from src/data/delivery.js so this page can never
+                            quote a different window than the checkout charges for. */}
                         <ul>
-                            <li>METRO CITIES: 3-5 BUSINESS DAYS.</li>
-                            <li>OTHER REGIONS: 5-7 BUSINESS DAYS.</li>
-                            <li>EXPRESS SHIPPING AVAILABLE AT CHECKOUT FOR NOMINAL FEE.</li>
+                            {DELIVERY_LIST.map(option => (
+                                <li key={option.key}>
+                                    {option.label}: {deliveryWindow(option).toUpperCase()} — {option.priceLabel}.
+                                </li>
+                            ))}
+                            <li>METRO CITIES TYPICALLY ARRIVE AT THE EARLIER END OF THESE WINDOWS.</li>
                         </ul>
                     </div>
 
                     <div className="support-section">
                         <h2>INTERNATIONAL SHIPPING</h2>
-                        <p>MORBEI SHIPS GLOBALLY VIA DHL AND FEDEX.</p>
-                        <ul>
-                            <li>SHIPPING COSTS CALCULATED AT CHECKOUT BASED ON WEIGHT AND DESTINATION.</li>
-                            <li>DELIVERY TIME: 7-12 BUSINESS DAYS.</li>
-                            <li>CUSTOMS AND IMPORT DUTIES ARE PAYABLE BY THE CUSTOMER UPON RECEIPT.</li>
-                        </ul>
+                        <p>MORBEI CURRENTLY SHIPS WITHIN INDIA ONLY.</p>
+                        <p>WE ARE WORKING ON INTERNATIONAL DELIVERY. JOIN OUR MAILING LIST BELOW TO HEAR WHEN IT LAUNCHES.</p>
                     </div>
 
                     <div className="support-section">

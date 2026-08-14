@@ -1,5 +1,6 @@
 import React from 'react';
 import './Editorials.css';
+import SiteImage from '../components/SiteImage';
 
 const Editorials = () => {
     return (
@@ -9,10 +10,13 @@ const Editorials = () => {
                 <div className="editorial-container">
                     <div className="editorial-image-wrapper">
                         <h1 className="editorial-overlap-title">CROSSWALK</h1>
-                        <img
-                            src="/edit1.webp"
+                        <SiteImage
+                            slot="editorial-crosswalk"
+                            fallback="/edit1.webp"
                             alt="Editorial Crosswalk"
                             className="editorial-main-image"
+                            width={1600} widths={[800, 1200, 1600]} sizes="100vw"
+                            priority
                         />
                         <div className="editorial-description-wrapper">
                             <p className="editorial-description">
@@ -26,14 +30,14 @@ const Editorials = () => {
             {/* Story 2: Large Feature (Trench) */}
             <div className="editorial-feature-full reveal reveal-up">
                 <div className="feature-image-container">
-                    <img loading="lazy" src="/hero-slide-3.webp" alt="Editorial Feature" className="feature-image-full" />
+                    <SiteImage slot="editorial-feature" fallback="/hero-slide-3.webp" alt="Editorial Feature" className="feature-image-full" width={1600} widths={[800, 1200, 1600]} sizes="100vw" />
                 </div>
             </div>
 
             {/* Story 3: Run Late Editorial */}
             <div className="editorial-split-run-late container reveal reveal-up">
                 <div className="split-left-column">
-                    <img loading="lazy" src="/edit3.webp" alt="Run Late Editorial" className="split-editorial-image" />
+                    <SiteImage slot="editorial-run-late" fallback="/edit3.webp" alt="Run Late Editorial" className="split-editorial-image" width={1200} widths={[600, 900, 1200]} sizes="50vw" />
                 </div>
                 <div className="split-right-column">
                     <div className="split-text-content">
@@ -52,7 +56,7 @@ const Editorials = () => {
             {/* Story 4: Merged Editorial Image */}
             <div className="editorial-story-v3 center full-width-story reveal reveal-up">
                 <div className="story-hero-merged">
-                    <img loading="lazy" src="/edit4.1.webp" alt="Merged Editorial Gallery" className="merged-editorial-image" />
+                    <SiteImage slot="editorial-gallery" fallback="/edit4.1.webp" alt="Merged Editorial Gallery" className="merged-editorial-image" width={1600} widths={[800, 1200, 1600]} sizes="100vw" />
                 </div>
             </div>
 
@@ -66,10 +70,12 @@ const Editorials = () => {
                         </h2>
                     </header>
                     <div className="frugal-image-wrapper reveal reveal-up">
-                        <img loading="lazy"
-                            src="/edit5.webp"
+                        <SiteImage
+                            slot="editorial-frugal-chic"
+                            fallback="/edit5.webp"
                             alt="Frugal Chic Editorial"
                             className="frugal-main-image"
+                            width={1200} widths={[600, 900, 1200]} sizes="100vw"
                         />
                     </div>
                     <div className="frugal-description-wrapper reveal reveal-up">
@@ -83,7 +89,7 @@ const Editorials = () => {
             {/* Story 6: Final Feature */}
             <div className="editorial-story-v3 full-width-story no-margin reveal reveal-up">
                 <div className="story-hero-large-v3">
-                    <img loading="lazy" src="/edit5.webp" alt="Final Feature" className="final-editorial-image" />
+                    <SiteImage slot="editorial-final" fallback="/edit5.webp" alt="Final Feature" className="final-editorial-image" width={1600} widths={[800, 1200, 1600]} sizes="100vw" />
                 </div>
             </div>
         </div>

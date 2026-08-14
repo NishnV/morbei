@@ -24,11 +24,42 @@ function serializeOrder(o) {
     };
 }
 
+// Shopify tracking rarely changes minute to minute, but the order list made one
+// Admin API call per order — a customer with 20 orders triggered 20 external
+// round-trips on every page load. Cache briefly, keyed by Shopify order id.
+const TRACKING_TTL_MS = 5 * 60 * 1000;
+const trackingCache = new Map(); // shopifyOrderId -> { at, value }
+
+// Orders delivered long ago will never change again; skip the lookup entirely.
+const TRACKING_MAX_AGE_DAYS = 60;
+
+async function getCachedTracking(shopifyOrderId) {
+    const hit = trackingCache.get(shopifyOrderId);
+    if (hit && Date.now() - hit.at < TRACKING_TTL_MS) return hit.value;
+
+    const value = await getOrderTracking(shopifyOrderId);
+    trackingCache.set(shopifyOrderId, { at: Date.now(), value });
+
+    // Bound the map — this process is long-lived and the cache is unbounded
+    // otherwise. Cheap eviction: drop expired entries once it gets large.
+    if (trackingCache.size > 500) {
+        const cutoff = Date.now() - TRACKING_TTL_MS;
+        for (const [k, v] of trackingCache) {
+            if (v.at < cutoff) trackingCache.delete(k);
+        }
+    }
+    return value;
+}
+
 // Attach live fulfillment/tracking from Shopify. Only paid orders that have a
 // Shopify order are worth looking up; anything else keeps local status only.
 async function withTracking(order) {
     if (!order.shopifyOrderId || order.status === 'cancelled') return order;
-    const tracking = await getOrderTracking(order.shopifyOrderId);
+
+    const ageDays = (Date.now() - new Date(order.createdAt).getTime()) / 86400000;
+    if (ageDays > TRACKING_MAX_AGE_DAYS) return order;
+
+    const tracking = await getCachedTracking(order.shopifyOrderId);
     return tracking ? { ...order, ...tracking } : order;
 }
 

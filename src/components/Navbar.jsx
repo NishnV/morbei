@@ -8,6 +8,7 @@ import { usePredictiveSearch } from '../hooks/useSearch';
 import { formatPrice } from '../utils/formatPrice';
 import { parseShopifyId } from '../utils/parseShopifyId';
 import './Navbar.css';
+import { shopifyImage } from '../utils/shopifyImage';
 
 const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -123,7 +124,7 @@ const Navbar = () => {
                                 {suggestions.map(p => (
                                     <Link key={p.id} to={`/product/${p.handle || p.id}`} className="suggestion-item" onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}>
                                         <div className="suggestion-img">
-                                            <img src={p.featuredImage?.url || p.images?.[0] || p.img} alt={p.title || p.name} />
+                                            <img src={shopifyImage(p.featuredImage?.url || p.images?.[0] || p.img, 200)} loading="lazy" decoding="async" alt={p.title || p.name} />
                                         </div>
                                         <div className="suggestion-info">
                                             <span className="suggestion-name">{p.title || p.name}</span>
@@ -253,7 +254,7 @@ const Navbar = () => {
                                             className="cart-item-img-wrap"
                                             onClick={() => setIsCartOpen(false)}
                                         >
-                                            <img src={imgUrl || '/placeholder.png'} alt={title} />
+                                            <img src={shopifyImage(imgUrl || '/placeholder.png', 200)} loading="lazy" decoding="async" alt={title} />
                                         </Link>
                                     </div>
                                 );

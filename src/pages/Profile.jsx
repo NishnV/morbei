@@ -4,6 +4,7 @@ import { useCart } from '../hooks/useCart';
 import { formatPrice } from '../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import './Profile.css';
+import SiteImage from '../components/SiteImage';
 
 const GOOGLE_ICON = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
 
@@ -271,7 +272,7 @@ const Profile = () => {
         <div className="profile-auth-page">
             {/* Left image panel */}
             <div className="profile-auth-image">
-                <img src="/login-side.webp" alt="MORBEI Fashion" />
+                <SiteImage slot="account-side" fallback="/login-side.webp" alt="MORBEI Fashion" width={1000} widths={[600, 800, 1000]} sizes="50vw" />
             </div>
 
             {/* Right form panel */}

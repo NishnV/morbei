@@ -1,9 +1,10 @@
+import { SHOPIFY_API_VERSION, warnOnVersionMismatch } from './shopify-version.js';
+
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
-const API_VERSION = '2024-01';
 
 async function adminFetch(endpoint, options = {}) {
-    const url = `https://${SHOPIFY_DOMAIN}/admin/api/${API_VERSION}/${endpoint}`;
+    const url = `https://${SHOPIFY_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/${endpoint}`;
     const res = await fetch(url, {
         ...options,
         headers: {
@@ -12,6 +13,7 @@ async function adminFetch(endpoint, options = {}) {
             ...options.headers,
         },
     });
+    warnOnVersionMismatch(res, endpoint);
     if (!res.ok) {
         const text = await res.text();
         throw new Error(`Shopify Admin API error ${res.status}: ${text}`);
@@ -19,8 +21,11 @@ async function adminFetch(endpoint, options = {}) {
     return res.json();
 }
 
-export async function createDraftOrder({ lineItems, shippingAddress, email, note }) {
+export async function createDraftOrder({ lineItems, shippingAddress, email, note, shippingLine }) {
     // lineItems: [{ variant_id (numeric), quantity }]
+    // shippingLine: { title, price } in rupees — omitted for free shipping.
+    // Without it the customer pays for priority delivery via Razorpay but the
+    // Shopify order records ₹0 shipping, so the totals never reconcile.
     const body = {
         draft_order: {
             line_items: lineItems.map(li => ({
@@ -28,6 +33,7 @@ export async function createDraftOrder({ lineItems, shippingAddress, email, note
                 quantity: li.quantity,
             })),
             shipping_address: shippingAddress,
+            ...(shippingLine ? { shipping_line: shippingLine } : {}),
             email,
             note: note || 'Order via MORBEI website',
         },
@@ -55,6 +61,70 @@ export async function cancelOrder(orderId, { restock = true, reason = 'customer'
 
 export async function listOrders(email) {
     return adminFetch(`orders.json?email=${encodeURIComponent(email)}&status=any&limit=50`);
+}
+
+/**
+ * Record marketing consent in Shopify.
+ *
+ * Shopify owns marketing state for the same reason it owns catalog and
+ * identity here: it already has campaign tooling and, more importantly, a
+ * compliant unsubscribe flow. Reimplementing that on top of a local email
+ * column would mean owning legal correctness we get for free.
+ *
+ * The local `newsletter` table stays as the durable log of who signed up,
+ * when, and from where.
+ */
+export async function subscribeToMarketing(email) {
+    const existing = await adminFetch(`customers/search.json?query=${encodeURIComponent(`email:${email}`)}`);
+    const found = existing.customers?.[0];
+
+    const consent = {
+        state: 'subscribed',
+        opt_in_level: 'single_opt_in',
+        consent_updated_at: new Date().toISOString(),
+    };
+
+    if (found) {
+        return adminFetch(`customers/${found.id}.json`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                customer: { id: found.id, email_marketing_consent: consent },
+            }),
+        });
+    }
+
+    return adminFetch('customers.json', {
+        method: 'POST',
+        body: JSON.stringify({
+            customer: { email, tags: 'newsletter,website', email_marketing_consent: consent },
+        }),
+    });
+}
+
+/**
+ * Withdraw marketing consent in Shopify. Called when someone uses an
+ * unsubscribe link — Shopify is what actually gates campaign sending, so the
+ * local flag alone would not stop mail going out.
+ * No-ops if the address was never synced to a Shopify customer.
+ */
+export async function setMarketingConsentRevoked(email) {
+    const existing = await adminFetch(`customers/search.json?query=${encodeURIComponent(`email:${email}`)}`);
+    const found = existing.customers?.[0];
+    if (!found) return null;
+
+    return adminFetch(`customers/${found.id}.json`, {
+        method: 'PUT',
+        body: JSON.stringify({
+            customer: {
+                id: found.id,
+                email_marketing_consent: {
+                    state: 'unsubscribed',
+                    opt_in_level: 'single_opt_in',
+                    consent_updated_at: new Date().toISOString(),
+                },
+            },
+        }),
+    });
 }
 
 // Fetch a variant's real price from Shopify — never trust client-sent prices

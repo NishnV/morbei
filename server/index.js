@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { initDB } from './db/pg.js';
@@ -10,6 +11,7 @@ import shippingRoutes from './routes/shipping.js';
 import contactRoutes from './routes/contact.js';
 import wishlistRoutes from './routes/wishlist.js';
 import { notifySlackError } from './services/slack.js';
+import { startReconciler } from './services/reconcile.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -41,6 +43,8 @@ if (!process.env.SLACK_WEBHOOK_URL) {
 app.set('trust proxy', 1);
 
 app.use(helmet());
+// Order list responses carry full item JSON per order and were going out uncompressed.
+app.use(compression());
 
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
@@ -66,13 +70,37 @@ app.use(express.json({
 // Rate limits: generous globally, strict where abuse hurts.
 // message must be JSON — the frontend parses every response as JSON.
 const limitMsg = { error: 'Too many requests, please try again shortly' };
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false, message: limitMsg });
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: limitMsg,
+  // Razorpay's webhook is the safety net for payments where the customer closed
+  // the tab before /verify ran. It arrives from a small pool of Razorpay IPs, so
+  // under load it would burn the shared per-IP budget and get 429'd — dropping
+  // exactly the notifications we most need during a sale.
+  skip: (req) => req.path === '/payment/webhook',
+});
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, message: limitMsg });
 const contactLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: limitMsg });
+
+// Checkout attempts are keyed per authenticated user rather than per IP —
+// shared office wifi and mobile-carrier NAT put many real shoppers behind one
+// address, and throttling them collectively would block genuine purchases.
+const checkoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: limitMsg,
+  keyGenerator: (req) => req.headers.authorization?.slice(7, 60) || req.ip,
+});
 
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/contact', contactLimiter);
+app.use('/api/payment/create-order', checkoutLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -99,6 +127,9 @@ app.use((err, _req, res, _next) => {
 initDB()
   .then(() => {
     app.listen(PORT, () => console.log(`MORBEI server running on port ${PORT}`));
+    // Safety net below the webhook: recovers orders where money was captured
+    // but fulfilment never completed. Runs shortly after boot, then hourly.
+    startReconciler();
   })
   .catch((err) => {
     console.error('Database init failed:', err);

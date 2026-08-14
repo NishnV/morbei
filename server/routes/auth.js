@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { get } from '../db/pg.js';
-import { signToken } from '../middleware/auth.js';
+import { get, run } from '../db/pg.js';
+import { signToken, authenticate } from '../middleware/auth.js';
 import { getCustomerByToken } from '../services/shopify-storefront.js';
 import { notifySlackError } from '../services/slack.js';
 
@@ -35,7 +35,7 @@ router.post('/shopify-login', async (req, res) => {
             [customer.email, '!shopify', customer.firstName || '', customer.lastName || '', customer.phone || '']
         );
 
-        const token = signToken(user.id, user.email);
+        const token = signToken(user.id, user.email, user.token_version);
         res.json({
             token,
             user: { id: user.id, email: user.email, firstName: customer.firstName, lastName: customer.lastName },
@@ -44,6 +44,21 @@ router.post('/shopify-login', async (req, res) => {
         console.error('shopify-login error:', err);
         notifySlackError('shopify-login failed', err).catch(() => {});
         res.status(500).json({ error: 'Login failed. Please try again.' });
+    }
+});
+
+// Revoke every backend token issued to the caller.
+// Clearing localStorage on the client does nothing to a bearer token that was
+// already copied elsewhere — bumping token_version is what actually ends the
+// session. Idempotent and safe to call with an already-expired token.
+router.post('/logout', authenticate, async (req, res) => {
+    try {
+        await run('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [req.user.id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('logout error:', err);
+        notifySlackError('logout failed', err).catch(() => {});
+        res.status(500).json({ error: 'Could not sign out. Please try again.' });
     }
 });
 

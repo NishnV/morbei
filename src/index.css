@@ -1,3 +1,6 @@
+/* Montserrat + Nunito, self-hosted — replaces the render-blocking Google Fonts
+   <link> that used to sit in index.html. */
+@import './styles/fonts.css';
 
 @font-face {
   font-family: 'Avenir';

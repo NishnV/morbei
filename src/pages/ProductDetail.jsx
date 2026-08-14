@@ -1,16 +1,29 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { useShop } from '../context/ShopContext';
 import { useProduct } from '../hooks/useProduct';
-import { useProducts } from '../hooks/useProducts';
+import { useProductRecommendations } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { useGlobalLoading } from '../context/LoadingContext';
 import { useCustomer } from '../hooks/useCustomer';
 import ErrorBoundary from '../components/ErrorBoundary';
+import Seo, { SITE_URL, breadcrumbJsonLd } from '../components/Seo';
+import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 import { isMobileViewport } from '../lib/viewport';
 import './ProductDetail.css';
 
 const LB_ZOOMS = [1, 2, 3.5, 5]; // lightbox zoom levels: 0=fit, then 2x/3.5x/5x
+
+// Product descriptions come from Shopify admin, so they're store-operator
+// content rather than attacker input — but this renders on a page where the
+// customer holds a session token, so a compromised Shopify staff account or a
+// third-party app with product write access would otherwise get stored XSS.
+// Allow the formatting a description legitimately needs, nothing else.
+const DESCRIPTION_HTML = {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'ul', 'ol', 'li', 'h3', 'h4', 'span', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+};
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -20,7 +33,11 @@ const ProductDetail = () => {
     const { customer } = useCustomer();
 
     const { data: product, loading } = useProduct(id);
-    const { data: allProducts } = useProducts(40);
+    // Shopify's own recommendation engine. This used to fetch 40 full products
+    // (each with 10 images and 50 variants) and shuffle them with Math.random()
+    // to fill four tiles — a large payload on every product view, results that
+    // reshuffled on re-render, and an impure call during render.
+    const { data: recommendations } = useProductRecommendations(product?.shopifyId);
     const { startLoading, stopLoading } = useGlobalLoading();
 
     useEffect(() => {
@@ -28,9 +45,8 @@ const ProductDetail = () => {
         else stopLoading();
     }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    useEffect(() => {
-        if (product?.name) document.title = `${product.name.toUpperCase()} | MORBEI`;
-    }, [product?.name]);
+    // Title/meta are now owned by <Seo> below — one source, and it carries the
+    // OG tags and structured data with it.
 
     const [selectedSize, setSelectedSize] = useState(searchParams.get('size') || '');
     const [sizeError, setSizeError] = useState(false);
@@ -218,31 +234,12 @@ const ProductDetail = () => {
         }
     }, [product]);
 
-    // Same-category recommendations: filter products with same productType, fallback to all products
+    // Shopify already excludes the current product from its recommendations;
+    // filter defensively anyway and cap at the four the grid is built for.
     const categoryRecs = useMemo(() => {
-        if (!product || !allProducts?.length) return [];
-
-        // Try to get products with same productType
-        const type = product.productType?.toLowerCase();
-        let recs = [];
-
-        if (type) {
-            recs = allProducts
-                .filter(p => p.id !== product.id && p.productType?.toLowerCase() === type)
-                .slice(0, 4);
-        }
-
-        // If we don't have enough (or any), add other products
-        if (recs.length < 4) {
-            const otherProducts = allProducts
-                .filter(p => p.id !== product.id && !recs.find(r => r.id === p.id))
-                .sort(() => Math.random() - 0.5)
-                .slice(0, 4 - recs.length);
-            recs = [...recs, ...otherProducts];
-        }
-
-        return recs.slice(0, 4);
-    }, [product, allProducts]);
+        if (!product || !recommendations?.length) return [];
+        return recommendations.filter(p => p.id !== product.id).slice(0, 4);
+    }, [product, recommendations]);
 
     if (loading) {
         return <div style={{ minHeight: '100vh', background: '#000' }} />;
@@ -350,8 +347,48 @@ const ProductDetail = () => {
         }
     };
 
+    const productUrl = `/product/${product.handle || product.id}`;
+    const inStock = product.variants?.some(v => v.available) ?? product.availableForSale;
+
     return (
         <div className="product-detail-page">
+            <Seo
+                title={product.seo?.title || `${product.name.toUpperCase()} | MORBEI`}
+                description={
+                    product.seo?.description
+                    || (product.description ? product.description.slice(0, 155) : undefined)
+                }
+                image={product.images?.[0]}
+                path={productUrl}
+                type="product"
+                jsonLd={[
+                    {
+                        '@context': 'https://schema.org',
+                        '@type': 'Product',
+                        name: product.name,
+                        image: product.images,
+                        description: product.description || undefined,
+                        sku: String(product.id),
+                        brand: { '@type': 'Brand', name: 'MORBEI' },
+                        ...(product.productType ? { category: product.productType } : {}),
+                        offers: {
+                            '@type': 'Offer',
+                            url: `${SITE_URL}${productUrl}`,
+                            priceCurrency: product.currency,
+                            price: product.priceNum,
+                            availability: inStock
+                                ? 'https://schema.org/InStock'
+                                : 'https://schema.org/OutOfStock',
+                            seller: { '@type': 'Organization', name: 'MORBEI' },
+                        },
+                    },
+                    breadcrumbJsonLd([
+                        { name: 'Home', path: '/' },
+                        { name: 'Shop', path: '/shop/all' },
+                        { name: product.name, path: productUrl },
+                    ]),
+                ]}
+            />
             <div className="pd-container">
                 {/* Column 1 — 50%: Main image — click to open lightbox */}
                 <div
@@ -362,16 +399,23 @@ const ProductDetail = () => {
                 >
                     {prevImageIndex !== null && (
                         <img
-                            src={product.images[prevImageIndex]}
+                            src={shopifyImage(product.images[prevImageIndex], 1200)}
                             alt=""
+                            decoding="async"
                             className={`pd-main-img pd-main-img-exit${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-out-up' : ' pd-main-img-slide-out-down') : ''}`}
                             style={{ position: 'absolute', inset: 0 }}
                         />
                     )}
                     <img
                         key={mainImageIndex}
-                        src={product.images[mainImageIndex]}
+                        src={shopifyImage(product.images[mainImageIndex], 1200)}
+                        srcSet={shopifySrcSet(product.images[mainImageIndex], [800, 1200, 1600, 2000])}
+                        sizes="(max-width: 768px) 100vw, 50vw"
                         alt={product.name}
+                        // This is the LCP element on every product page — never
+                        // lazy, and tell the browser to prioritise it.
+                        fetchPriority="high"
+                        decoding="async"
                         className={`pd-main-img${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-in-up' : ' pd-main-img-slide-in-down') : ''}`}
                         crossOrigin="anonymous"
                         onLoad={(e) => sampleImageBg(e.currentTarget)}
@@ -392,7 +436,7 @@ const ProductDetail = () => {
                                 style={{ cursor: 'pointer', display: idx === mainImageIndex ? 'none' : 'block', pointerEvents: idx === mainImageIndex ? 'none' : 'auto' }}
                                 onClick={() => handleImageSelect(idx)}
                             >
-                                <img loading="lazy" src={img} alt={`${product.name} view ${idx + 1}`} />
+                                <img loading="lazy" decoding="async" src={shopifyImage(img, 300)} alt={`${product.name} view ${idx + 1}`} />
                             </div>
                         ))}
                     </div>
@@ -428,7 +472,16 @@ const ProductDetail = () => {
                         >
                             {product.images.map((img, idx) => (
                                 <div className="pd-mobile-slide" key={idx}>
-                                    <img loading="lazy" src={img} alt={`${product.name} view ${idx + 1}`} />
+                                    <img
+                                        // First slide is the mobile LCP; the rest can wait.
+                                        loading={idx === 0 ? 'eager' : 'lazy'}
+                                        fetchPriority={idx === 0 ? 'high' : undefined}
+                                        decoding="async"
+                                        src={shopifyImage(img, 900)}
+                                        srcSet={shopifySrcSet(img, [600, 900, 1200])}
+                                        sizes="100vw"
+                                        alt={`${product.name} view ${idx + 1}`}
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -579,7 +632,9 @@ const ProductDetail = () => {
                         <h3 className='pd-description-heading'>DESCRIPTION</h3>
                         <div className='pd-description'>
                             {product.descriptionHtml ? (
-                                <div dangerouslySetInnerHTML={{ __html: product.descriptionHtml }} />
+                                <div dangerouslySetInnerHTML={{
+                                    __html: DOMPurify.sanitize(product.descriptionHtml, DESCRIPTION_HTML),
+                                }} />
                             ) : (
                                 <p>{product.description}</p>
                             )}
@@ -611,7 +666,7 @@ const ProductDetail = () => {
                             )}
                         </AccordionItem>
                         <AccordionItem title="SHIPPING" isOpen={activeAccordion === 'ship'} onClick={() => toggleAccordion('ship')}>
-                            <p>Free shipping on orders over RS. 10000. Returns accepted within 14 days.</p>
+                            <p>Free standard shipping on all orders. Returns accepted within 14 days.</p>
                         </AccordionItem>
                     </div>
                 </div>
@@ -626,7 +681,14 @@ const ProductDetail = () => {
                         {categoryRecs.map((prod, index) => (
                             <div className={`rec-product reveal reveal-up reveal-delay-${index + 1}`} key={prod.id}>
                                 <Link to={`/product/${prod.handle || prod.id}`} className="rec-image-wrapper">
-                                    <img loading="lazy" src={prod.images?.[0] || prod.img} alt={prod.name} />
+                                    <img
+                                        loading="lazy"
+                                        decoding="async"
+                                        src={shopifyImage(prod.images?.[0] || prod.img, 500)}
+                                        srcSet={shopifySrcSet(prod.images?.[0] || prod.img, [400, 600, 800])}
+                                        sizes="(max-width: 768px) 50vw, 25vw"
+                                        alt={prod.name}
+                                    />
                                 </Link>
                                 <div className="rec-details-row">
                                     <Link to={`/product/${prod.handle || prod.id}`} className="rec-info-text">
@@ -673,7 +735,7 @@ const ProductDetail = () => {
                                     className={`pd-lightbox-thumb${idx === lightboxIndex ? ' active' : ''}`}
                                     onClick={() => { setLightboxIndex(idx); setLightboxZoom(0); setLbOrigin({ x: 50, y: 50 }); lbNatRect.current = null; setLbMouse(m => ({ ...m, visible: false })); }}
                                 >
-                                    <img loading="lazy" src={img} alt={`${product.name} view ${idx + 1}`} />
+                                    <img loading="lazy" decoding="async" src={shopifyImage(img, 200)} alt={`${product.name} view ${idx + 1}`} />
                                 </div>
                             ))}
                         </div>
@@ -693,9 +755,13 @@ const ProductDetail = () => {
                                 setLightboxZoom(newZoom);
                             }}
                         >
-                            <img loading="lazy"
+                            <img
                                 ref={lbImgRef}
-                                src={product.images[lightboxIndex]}
+                                // The lightbox exists to inspect fabric detail —
+                                // it zooms to 5x, so this is the one place that
+                                // genuinely needs a large source.
+                                src={shopifyImage(product.images[lightboxIndex], 2048)}
+                                decoding="async"
                                 alt={product.name}
                                 style={{
                                     transform: `scale(${LB_ZOOMS[lightboxZoom]})`,

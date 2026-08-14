@@ -4,13 +4,14 @@ import { useCart } from '../hooks/useCart';
 import { useCustomer } from '../hooks/useCustomer';
 import { formatPrice } from '../utils/formatPrice';
 import { paymentAPI, authAPI, setToken } from '../lib/api';
-import { COUNTRY_LIST, getStatesForCountry } from '../data/countries';
+import { SHIPPABLE_COUNTRIES, getStatesForCountry } from '../data/countries';
+import { DELIVERY_OPTIONS, getDeliveryOption, deliveryWindow } from '../data/delivery';
 import './Checkout.css';
 
 const STEPS = ['INFORMATION', 'DELIVERY', 'PAYMENT'];
 
 // Every field the information step requires — later steps are gated on these
-const REQUIRED_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'address', 'state', 'zip'];
+const REQUIRED_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'address', 'city', 'state', 'zip'];
 const isFormComplete = (f) =>
     !!f && REQUIRED_FIELDS.every(k => typeof f[k] === 'string' && f[k].trim());
 
@@ -54,9 +55,9 @@ const Checkout = () => {
     const [deliveryMethod, setDeliveryMethod] = useState(() =>
         sessionStorage.getItem('morbei_checkout_delivery') || 'standard'
     );
-    const [paymentMethod, setPaymentMethod] = useState('card');
     const [paying, setPaying] = useState(false);
     const [validationError, setValidationError] = useState('');
+    const [paymentError, setPaymentError] = useState('');
 
 
     const defaultAddr = customer?.addresses?.[0] || customer?.defaultAddress;
@@ -76,6 +77,7 @@ const Checkout = () => {
             country: defaultAddr?.country || 'India',
             state: defaultAddr?.province || '',
             address: defaultAddr?.address1 || '',
+            city: defaultAddr?.city || '',
             zip: defaultAddr?.zip || '',
         };
     });
@@ -87,12 +89,7 @@ const Checkout = () => {
         } catch { /* storage full/blocked — non-critical */ }
     }, [form, deliveryMethod]);
 
-    const [cardForm, setCardForm] = useState({
-        number: '', name: '', expiry: '', cvv: '',
-    });
-
     const handleForm = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-    const handleCard = (e) => setCardForm({ ...cardForm, [e.target.name]: e.target.value });
 
     const validateStep0 = () => {
         if (!form.firstName.trim()) {
@@ -115,12 +112,26 @@ const Checkout = () => {
             setValidationError('PLEASE ENTER ADDRESS');
             return false;
         }
+        if (!form.city.trim()) {
+            setValidationError('PLEASE ENTER CITY');
+            return false;
+        }
         if (!form.state.trim()) {
             setValidationError('PLEASE SELECT STATE / PROVINCE');
             return false;
         }
         if (!form.zip.trim()) {
-            setValidationError('PLEASE ENTER PIN / ZIP CODE');
+            setValidationError('PLEASE ENTER PIN CODE');
+            return false;
+        }
+        // Mirror the server's checks so the customer is corrected here rather
+        // than after they've committed to paying.
+        if (!/^\d{6}$/.test(form.zip.trim())) {
+            setValidationError('PIN CODE MUST BE 6 DIGITS');
+            return false;
+        }
+        if (!/^(\+?91[-\s]?)?[6-9]\d{9}$/.test(form.phone.replace(/[\s-]/g, ''))) {
+            setValidationError('PLEASE ENTER A VALID 10-DIGIT MOBILE NUMBER');
             return false;
         }
         setValidationError('');
@@ -142,6 +153,7 @@ const Checkout = () => {
             return;
         }
         setPaying(true);
+        setPaymentError('');
         try {
             // Payment requires a backend session. If the exchange failed earlier
             // (e.g. flaky network), retry it here before giving up.
@@ -265,7 +277,22 @@ const Checkout = () => {
             });
             rzp.open();
         } catch (err) {
-            alert('Payment error: ' + err.message);
+            // 409 = the server re-checked stock and something sold out between
+            // adding to bag and paying. Name the items so the fix is obvious.
+            const outOfStock = err.data?.outOfStock;
+            if (err.status === 409 && outOfStock?.length) {
+                setPaymentError(
+                    outOfStock
+                        .map(i => {
+                            const name = (i.title || 'An item').toUpperCase();
+                            if (i.remaining > 0) return `${name} — ONLY ${i.remaining} LEFT`;
+                            return `${name} — SOLD OUT`;
+                        })
+                        .join(' · ') + ' · PLEASE UPDATE YOUR BAG'
+                );
+            } else {
+                setPaymentError(err.message || 'SOMETHING WENT WRONG. PLEASE TRY AGAIN.');
+            }
             setPaying(false);
         }
     };
@@ -286,8 +313,9 @@ const Checkout = () => {
         );
     }
 
-    const estStart = new Date(); estStart.setDate(estStart.getDate() + 7);
-    const estEnd = new Date(); estEnd.setDate(estEnd.getDate() + 14);
+    const delivery = getDeliveryOption(deliveryMethod);
+    const estStart = new Date(); estStart.setDate(estStart.getDate() + delivery.minDays);
+    const estEnd = new Date(); estEnd.setDate(estEnd.getDate() + delivery.maxDays);
     const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
 
     const headerRight = () => {
@@ -295,7 +323,7 @@ const Checkout = () => {
             return (
                 <div className="checkout-total-info">
                     <span className="total-value-v3">
-                        {fmt(estStart)} - {fmt(estEnd)} [{deliveryMethod === 'standard' ? 'STANDARD' : 'PRIORITY'}] {cartCount} {cartCount === 1 ? 'ITEM' : 'ITEMS'}
+                        {fmt(estStart)} - {fmt(estEnd)} [{delivery.label}] {cartCount} {cartCount === 1 ? 'ITEM' : 'ITEMS'}
                     </span>
                 </div>
             );
@@ -364,7 +392,7 @@ const Checkout = () => {
                                             onChange={(e) => setForm({ ...form, country: e.target.value, state: '' })}
                                         >
                                             <option value="" disabled>COUNTRY / REGION</option>
-                                            {COUNTRY_LIST.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
+                                            {SHIPPABLE_COUNTRIES.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
                                         </select>
                                         <select
                                             className="checkout-input-v3"
@@ -377,7 +405,10 @@ const Checkout = () => {
                                         </select>
                                     </div>
                                     <input className="checkout-input-v3" name="address" placeholder="ADDRESS" value={form.address} onChange={handleForm} />
-                                    <input className="checkout-input-v3" name="zip" placeholder="PIN/ ZIP CODE" value={form.zip} onChange={handleForm} />
+                                    <div className="form-row-v3">
+                                        <input className="checkout-input-v3" name="city" placeholder="CITY" value={form.city} onChange={handleForm} />
+                                        <input className="checkout-input-v3" name="zip" placeholder="PIN CODE" inputMode="numeric" maxLength={6} value={form.zip} onChange={handleForm} />
+                                    </div>
                                 </div>
 
                             </div>
@@ -418,7 +449,7 @@ const Checkout = () => {
                                                 <div className="address-details">
                                                     <strong>{form.firstName} {form.lastName}</strong>
                                                     <p>{form.address}</p>
-                                                    <p>{form.state} {form.zip}, {form.country}</p>
+                                                    <p>{[form.city, form.state].filter(Boolean).join(', ')} {form.zip}, {form.country}</p>
                                                     {form.phone && <p>{form.phone}</p>}
                                                     {form.email && <p style={{ textTransform: 'lowercase' }}>{form.email}</p>}
                                                 </div>
@@ -433,24 +464,26 @@ const Checkout = () => {
                                                         <div className="delivery-option-left">
                                                             <div className={`option-radio ${deliveryMethod === 'standard' ? 'selected' : ''}`}></div>
                                                             <div className="option-text">
-                                                                <span className="option-name">STANDARD</span>
-                                                                <span className="option-desc">7-14 business days</span>
+                                                                <span className="option-name">{DELIVERY_OPTIONS.standard.label}</span>
+                                                                <span className="option-desc">{deliveryWindow(DELIVERY_OPTIONS.standard)}</span>
                                                             </div>
                                                         </div>
-                                                        <span className="option-price">FREE</span>
+                                                        <span className="option-price">{DELIVERY_OPTIONS.standard.priceLabel}</span>
                                                     </div>
                                                     <div className="delivery-option-item" onClick={() => setDeliveryMethod('priority')}>
                                                         <div className="delivery-option-left">
                                                             <div className={`option-radio ${deliveryMethod === 'priority' ? 'selected' : ''}`}></div>
                                                             <div className="option-text">
-                                                                <span className="option-name">PRIORITY</span>
-                                                                <span className="option-desc">3-5 business days</span>
+                                                                <span className="option-name">{DELIVERY_OPTIONS.priority.label}</span>
+                                                                <span className="option-desc">{deliveryWindow(DELIVERY_OPTIONS.priority)}</span>
                                                             </div>
                                                         </div>
-                                                        <span className="option-price">RS. 200</span>
+                                                        <span className="option-price">{DELIVERY_OPTIONS.priority.priceLabel}</span>
                                                     </div>
                                                 </div>
-                                                <p className="delivery-footnote">*free standard delivery for all orders above Rs.6790</p>
+                                                {/* Must match SHIPPING_COST_RUPEES in server/routes/payment.js —
+                                                    that constant is what the customer is actually charged. */}
+                                                <p className="delivery-footnote">*free standard delivery on all orders</p>
                                             </div>
 
 
@@ -485,6 +518,16 @@ const Checkout = () => {
                                                             </>
                                                         )}
                                                     </button>
+                                                    {paymentError && (
+                                                        <div role="alert" style={{ marginTop: '1rem', textAlign: 'center' }}>
+                                                            <p style={{ color: '#ff4444', fontSize: '0.7rem', letterSpacing: '0.1em', margin: 0, textTransform: 'uppercase', lineHeight: 1.6 }}>
+                                                                {paymentError}
+                                                            </p>
+                                                            <Link to="/cart" style={{ display: 'inline-block', marginTop: '0.75rem', textDecoration: 'underline', fontSize: '0.7rem', letterSpacing: '0.15em' }}>
+                                                                GO TO SHOPPING BAG
+                                                            </Link>
+                                                        </div>
+                                                    )}
                                                     <p className="razorpay-note">YOU WILL BE REDIRECTED TO RAZORPAY'S SECURE PAYMENT GATEWAY</p>
                                                     <button
                                                         type="button"

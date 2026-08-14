@@ -2,6 +2,7 @@ import React from 'react';
 import { useFullpageSections } from '../hooks/useFullpageSections';
 import '../styles/fullpage.css';
 import './About.css';
+import SiteImage from '../components/SiteImage';
 
 const TOTAL_SECTIONS = 3;
 
@@ -21,7 +22,7 @@ const About = () => {
                 <div className="ab-design-inner">
                     <h2 className="ab-design-heading">Our Design</h2>
                     <div className="ab-design-image">
-                        <img src="/about-our-design.jpg" alt="Hands hand-stitching a garment seam" loading="lazy" />
+                        <SiteImage slot="about-design" fallback="/about-our-design.jpg" alt="Hands hand-stitching a garment seam" width={1200} widths={[600, 900, 1200]} sizes="(max-width: 768px) 100vw, 50vw" />
                     </div>
                     <p className="ab-design-copy">
                         MORBEI creates timeless clothing with a focus on proportion, fit, and craftsmanship.
@@ -39,7 +40,7 @@ const About = () => {
                         {/* TODO: source photo has a visible "Saint Laurent Paris" garment
                             label — placeholder from Figma per request, swap before this
                             page is considered final. */}
-                        <img src="/about-our-craft.jpg" alt="Hands finishing a garment seam" loading="lazy" />
+                        <SiteImage slot="about-craft" fallback="/about-our-craft.jpg" alt="Hands finishing a garment seam" width={1200} widths={[600, 900, 1200]} sizes="(max-width: 768px) 100vw, 50vw" />
                     </div>
                     <p className="ab-design-copy">
                         Every piece is crafted in our atelier and undergoes multiple fittings and quality
@@ -57,7 +58,7 @@ const About = () => {
                         {/* TODO: source photo shows a large "Saint Laurent" hanger/tag —
                             placeholder from Figma per request, swap before this page is
                             considered final. */}
-                        <img src="/about-our-standards.jpg" alt="A finished garment on a hanger" loading="lazy" />
+                        <SiteImage slot="about-standards" fallback="/about-our-standards.jpg" alt="A finished garment on a hanger" width={1200} widths={[600, 900, 1200]} sizes="(max-width: 768px) 100vw, 50vw" />
                     </div>
                     <p className="ab-design-copy">
                         Honesty is central to MORBEI. What you see is what you get. We choose our fabrics

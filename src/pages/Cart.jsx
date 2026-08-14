@@ -6,6 +6,7 @@ import { formatPrice } from '../utils/formatPrice';
 import { parseShopifyId } from '../utils/parseShopifyId';
 import { Link } from 'react-router-dom';
 import './Cart.css';
+import { shopifyImage } from '../utils/shopifyImage';
 
 const Cart = () => {
     const { toggleWishlist, isInWishlist } = useShop();
@@ -83,7 +84,7 @@ const Cart = () => {
                             <div className="cart-product-card" key={line.id}>
                                 <div className="cart-card-image">
                                     <Link to={`/product/${productHandle || merch.product?.id}`}>
-                                        <img src={imgUrl} alt={title} />
+                                        <img src={shopifyImage(imgUrl, 300)} loading="lazy" decoding="async" alt={title} />
                                     </Link>
                                     <button
                                         className="cart-card-remove"

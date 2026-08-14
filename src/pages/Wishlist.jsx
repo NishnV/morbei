@@ -5,6 +5,7 @@ import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import './Wishlist.css';
 import './ProductDetail.css';
+import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 
 const Wishlist = () => {
     const { wishlist, toggleWishlist, isInWishlist } = useShop();
@@ -146,7 +147,7 @@ const Wishlist = () => {
                         <div key={item.id} className="wishlist-item">
                             <div className="wishlist-img-wrapper">
                                 <Link to={`/product/${item.handle || item.id}`}>
-                                    <img loading="lazy" src={item.img} alt={item.name} />
+                                    <img loading="lazy" decoding="async" src={shopifyImage(item.img, 500)} srcSet={shopifySrcSet(item.img, [400, 600, 800])} sizes="(max-width: 768px) 50vw, 25vw" alt={item.name} />
                                 </Link>
                                 <button
                                     className="wishlist-remove-icon"

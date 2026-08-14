@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Transactional and account routes — no value in the index, and they can
+# expose order state in search results.
+Disallow: /checkout
+Disallow: /order-confirmed
+Disallow: /order-failed
+Disallow: /order-details
+Disallow: /profile
+Disallow: /unsubscribe
+
+# Must match SITE_URL in src/components/Seo.jsx.
+Sitemap: https://morbei.com/sitemap.xml

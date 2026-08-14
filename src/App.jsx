@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useParams, useLocation, Navigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { ShopProvider } from './context/ShopContext';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -12,27 +13,35 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
 // Pages
+//
+// Home is eager — it is the most common entry point and lazy-loading it would
+// add a chunk round-trip to the very first paint. Everything else is split:
+// all 22 pages used to be in one bundle, so a visitor landing on the homepage
+// downloaded Checkout, Profile, the lightbox and every policy page first.
+// Each page imports its own CSS, so this splits the stylesheet too.
 import Home from './pages/Home';
-import Shop from './pages/Shop';
-import Editorials from './pages/Editorials';
-import About from './pages/About';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import ProductDetail from './pages/ProductDetail';
-import FAQ from './pages/FAQ';
-import Contact from './pages/Contact';
-import TrackOrder from './pages/TrackOrder';
-import Shipping from './pages/Shipping';
-import Returns from './pages/Returns';
-import Wishlist from './pages/Wishlist';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import Terms from './pages/Terms';
-import CookiePolicy from './pages/CookiePolicy';
-import OrderDetails from './pages/OrderDetails';
-import OrderConfirmed from './pages/OrderConfirmed';
-import OrderFailed from './pages/OrderFailed';
-import Profile from './pages/Profile';
-import NotFound from './pages/NotFound';
+
+const Shop = lazy(() => import('./pages/Shop'));
+const Editorials = lazy(() => import('./pages/Editorials'));
+const About = lazy(() => import('./pages/About'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const FAQ = lazy(() => import('./pages/FAQ'));
+const Contact = lazy(() => import('./pages/Contact'));
+const TrackOrder = lazy(() => import('./pages/TrackOrder'));
+const Shipping = lazy(() => import('./pages/Shipping'));
+const Returns = lazy(() => import('./pages/Returns'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const Terms = lazy(() => import('./pages/Terms'));
+const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
+const OrderDetails = lazy(() => import('./pages/OrderDetails'));
+const OrderConfirmed = lazy(() => import('./pages/OrderConfirmed'));
+const OrderFailed = lazy(() => import('./pages/OrderFailed'));
+const Profile = lazy(() => import('./pages/Profile'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 import ErrorBoundary from './components/ErrorBoundary';
 import { useCustomer } from './hooks/useCustomer';
 import { useCart } from './hooks/useCart';
@@ -58,6 +67,7 @@ const ROUTE_TITLES = [
   [/^\/privacy/, 'PRIVACY POLICY | MORBEI'],
   [/^\/terms/, 'TERMS | MORBEI'],
   [/^\/cookies/, 'COOKIE POLICY | MORBEI'],
+  [/^\/unsubscribe/, 'EMAIL PREFERENCES | MORBEI'],
 ];
 
 function titleForPath(pathname) {
@@ -136,6 +146,10 @@ const AppContent = () => {
       <div className="app">
         <Navbar />
       <main>
+        {/* Lazy routes suspend on first visit. LoadingScreen is the same
+            component the data-fetching pages already use, so a chunk fetch and
+            a product fetch look identical to the user. */}
+        <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/shop/:category" element={<ShopWrapper />} />
@@ -159,8 +173,10 @@ const AppContent = () => {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<CookiePolicy />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </main>
       {location.pathname !== '/profile' && location.pathname !== '/' && location.pathname !== '/about' && location.pathname !== '/checkout' && location.pathname !== '/cart' && location.pathname !== '/wishlist' && <Footer />}
       </div>
@@ -170,6 +186,7 @@ const AppContent = () => {
 
 function App() {
   return (
+    <HelmetProvider>
     <AuthProvider>
       <CartProvider>
         <ShopProvider>
@@ -184,6 +201,7 @@ function App() {
         </ShopProvider>
       </CartProvider>
     </AuthProvider>
+    </HelmetProvider>
   );
 }
 

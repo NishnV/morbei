@@ -34,10 +34,14 @@ const TOKEN_EXPIRY_KEY = 'morbei_customer_token_expiry';
 /**
  * Shopify saves every order's shipping address into the customer's address
  * book, so repeat orders to a saved address accumulate duplicate entries.
- * Checkout-created copies mangle city (state-as-city) and phone (+91 prefix),
- * so the match key is only name + street + zip + country — enough that truly
+ * The match key is only name + street + zip + country — enough that truly
  * different addresses still show separately. The default address's entry is
  * preferred so the DEFAULT badge and set-default actions keep working.
+ *
+ * city is deliberately excluded from the key: checkout now collects it
+ * properly, but addresses created before that fix carry the state name in the
+ * city field, and phone formatting still varies (+91 prefix or not), so
+ * including either would stop old and new copies of the same address matching.
  */
 function dedupeAddresses(addresses, defaultAddress) {
   const seen = new Map();
@@ -257,14 +261,20 @@ export function AuthProvider({ children }) {
       setError(null);
       const token = tokenRef.current;
 
-      if (token) {
-        await shopifyFetch({
-          query: CUSTOMER_ACCESS_TOKEN_DELETE_MUTATION,
-          variables: { customerAccessToken: token },
-        });
-      }
+      // Revoke both sessions. The backend JWT is the one that authorises
+      // payments and refunds — dropping it from localStorage alone leaves it
+      // valid server-side for its full lifetime, so tell the server too.
+      await Promise.allSettled([
+        token
+          ? shopifyFetch({
+              query: CUSTOMER_ACCESS_TOKEN_DELETE_MUTATION,
+              variables: { customerAccessToken: token },
+            })
+          : Promise.resolve(),
+        localStorage.getItem('morbei_token') ? authAPI.logout() : Promise.resolve(),
+      ]);
     } catch {
-      // Proceed with local logout even if API call fails
+      // Proceed with local logout even if either call fails
     } finally {
       clearAuth();
     }

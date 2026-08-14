@@ -2,16 +2,93 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { authenticate } from '../middleware/auth.js';
 import { createRazorpayOrder, verifyPaymentSignature, fetchPayment } from '../services/razorpay.js';
-import { createDraftOrder, completeDraftOrder, getOrder, getVariant, gidToNumeric } from '../services/shopify-admin.js';
-import { sendOrderConfirmation, sendFulfillmentFailureAlert } from '../services/email.js';
+import { getVariant, gidToNumeric } from '../services/shopify-admin.js';
+import { fulfillPaidOrder, SHIPPING_COST_RUPEES } from '../services/fulfillment.js';
 import { notifySlackError } from '../services/slack.js';
 import { get, run } from '../db/pg.js';
 
 const router = Router();
 
-const SHIPPING_COST_RUPEES = { standard: 0, priority: 200 };
 const MAX_QUANTITY_PER_LINE = 20;
 const MAX_CART_LINES = 30;
+
+/**
+ * A variant's tracked stock level, or null when Shopify isn't reporting one.
+ *
+ * Number(null) and Number('') are both 0, not NaN, so the empty values have to
+ * be rejected before coercion — otherwise "unknown" silently becomes "zero".
+ */
+function trackedQuantity(variant) {
+    const raw = variant.inventory_quantity;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Whether Shopify has enough stock of a variant to cover the requested quantity.
+ *
+ * Deliberately fails *open*: it only reports insufficient stock when Shopify
+ * gave us a real number and a real deny policy. Blocking a legitimate order
+ * because an API version stopped returning a field is worse than the oversell
+ * this guards against — the client-side availability flag still fronts it.
+ */
+function hasSufficientStock(variant, quantity) {
+    // 'continue' means the store explicitly permits overselling this variant
+    // (made-to-order, preorder). That's a merchandising decision, not a bug.
+    if (variant.inventory_policy === 'continue') return true;
+
+    // null = the store isn't tracking stock for this variant. Only trust an
+    // *explicit* null; an absent field means the API didn't tell us, so fall
+    // through to the quantity check rather than silently skipping it.
+    if (variant.inventory_management === null) return true;
+
+    // No usable number means we have nothing to block on.
+    const available = trackedQuantity(variant);
+    if (available === null) return true;
+
+    return available >= quantity;
+}
+
+// Countries we ship to. Fulfilment is manual and shipping is priced as a flat
+// INR domestic rate, so a foreign address would be charged ₹0 delivery for a
+// parcel we have no rate card to send. The checkout dropdown offers India only;
+// this is the enforcement — clients can post anything.
+// Mirrors SHIPPABLE_COUNTRIES in src/data/countries.js.
+const SHIPPABLE_COUNTRIES = ['india'];
+
+const INDIA_PIN = /^\d{6}$/;
+const INDIA_MOBILE = /^(\+?91[-\s]?)?[6-9]\d{9}$/;
+
+/**
+ * Validate a shipping address hard enough that the resulting label is actually
+ * deliverable. Returns an error string, or null when the address is usable.
+ *
+ * These used to be enforced client-side only (and `city` not at all — the
+ * server substituted the state, so every label carried the state as the city).
+ */
+function validateShippingAddress(addr) {
+    const required = ['firstName', 'lastName', 'phone', 'address', 'city', 'state', 'zip'];
+    for (const field of required) {
+        if (typeof addr[field] !== 'string' || !addr[field].trim() || addr[field].length > 300) {
+            return `Invalid shipping address: ${field}`;
+        }
+    }
+
+    const country = (addr.country || 'India').trim();
+    if (!SHIPPABLE_COUNTRIES.includes(country.toLowerCase())) {
+        return 'We currently ship within India only';
+    }
+
+    if (!INDIA_PIN.test(addr.zip.trim())) {
+        return 'Invalid shipping address: PIN code must be 6 digits';
+    }
+    if (!INDIA_MOBILE.test(addr.phone.replace(/[\s-]/g, ''))) {
+        return 'Invalid shipping address: enter a valid 10-digit mobile number';
+    }
+
+    return null;
+}
 
 // Step 1: Create Razorpay order — prices come from Shopify, never from the client
 router.post('/create-order', authenticate, async (req, res) => {
@@ -28,15 +105,15 @@ router.post('/create-order', authenticate, async (req, res) => {
         // The address ends up on the Shopify order and shipping label — make
         // sure the essentials are present and sane before taking money.
         const addr = shippingAddress || {};
-        const requiredAddr = ['address', 'state', 'zip'];
-        for (const field of requiredAddr) {
-            if (typeof addr[field] !== 'string' || !addr[field].trim() || addr[field].length > 300) {
-                return res.status(400).json({ error: `Invalid shipping address: ${field}` });
-            }
+        const addrError = validateShippingAddress(addr);
+        if (addrError) {
+            return res.status(400).json({ error: addrError });
         }
 
-        // Validate and re-price every line against Shopify
-        const pricedLines = await Promise.all(cartLines.map(async (line) => {
+        // Validate, re-price AND stock-check every line against Shopify.
+        // Availability is as authoritative as price: the client's `available`
+        // flag is a snapshot from page load and says nothing about now.
+        const checked = await Promise.all(cartLines.map(async (line) => {
             const numericId = gidToNumeric(line.variantId);
             const quantity = Number(line.quantity);
             if (!numericId || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY_PER_LINE) {
@@ -44,19 +121,59 @@ router.post('/create-order', authenticate, async (req, res) => {
             }
             const variant = await getVariant(numericId);
             return {
-                variantId: line.variantId,
-                title: line.title,
-                quantity,
-                price: parseFloat(variant.price), // authoritative price in rupees
-                image: line.image,
-                selectedOptions: line.selectedOptions,
+                inStock: hasSufficientStock(variant, quantity),
+                remaining: trackedQuantity(variant),
+                priced: {
+                    variantId: line.variantId,
+                    title: line.title,
+                    quantity,
+                    price: parseFloat(variant.price), // authoritative price in rupees
+                    image: line.image,
+                    selectedOptions: line.selectedOptions,
+                },
             };
         }));
 
+        // Report every unavailable line at once — drip-feeding them one refresh
+        // at a time is how you lose a customer who has already filled in an address.
+        const unavailable = checked.filter(c => !c.inStock);
+        if (unavailable.length > 0) {
+            throw Object.assign(
+                new Error(
+                    unavailable.length === 1
+                        ? `${unavailable[0].priced.title || 'An item'} is no longer available in the quantity requested`
+                        : 'Some items in your bag are no longer available in the quantity requested'
+                ),
+                {
+                    statusCode: 409,
+                    outOfStock: unavailable.map(c => ({
+                        variantId: c.priced.variantId,
+                        title: c.priced.title,
+                        requested: c.priced.quantity,
+                        remaining: c.remaining,
+                    })),
+                }
+            );
+        }
+
+        const pricedLines = checked.map(c => c.priced);
+
         const method = shippingMethod === 'priority' ? 'priority' : 'standard';
         const shippingCost = SHIPPING_COST_RUPEES[method];
-        const itemsTotal = pricedLines.reduce((sum, l) => sum + l.price * l.quantity, 0);
-        const totalPaise = Math.round((itemsTotal + shippingCost) * 100);
+
+        // Total in integer paise throughout: round each unit price to paise
+        // (exact for two-decimal INR), multiply by an integer quantity, then sum
+        // integers. Accumulating rupee floats and rounding once at the end also
+        // works today, but it stops being safe the moment per-line discounts or
+        // percentage tax land on this path.
+        // NOTE: pricedLines[].price stays in RUPEES — it is persisted in
+        // orders.items and rendered by the emails and order pages. Changing that
+        // shape would make every existing order row display 100x too high.
+        const itemsPaise = pricedLines.reduce(
+            (sum, l) => sum + Math.round(l.price * 100) * l.quantity,
+            0
+        );
+        const totalPaise = itemsPaise + shippingCost * 100;
 
         // Save pending order in DB with server-verified prices
         const inserted = await get(
@@ -82,98 +199,12 @@ router.post('/create-order', authenticate, async (req, res) => {
         if (!err.statusCode) notifySlackError('create-order failed', err).catch(() => {});
         res.status(err.statusCode || 500).json({
             error: err.statusCode ? err.message : 'Could not create order. Please try again.',
+            // Lets the checkout name the specific lines to fix instead of
+            // sending the customer back to the bag to guess.
+            ...(err.outOfStock ? { outOfStock: err.outOfStock } : {}),
         });
     }
 });
-
-/**
- * Fulfill a paid order: create + complete the Shopify order, mark paid, email.
- * Idempotent — claims the order atomically so /verify and the webhook can
- * both call this without creating duplicate Shopify orders.
- */
-async function fulfillPaidOrder(order, razorpayPaymentId) {
-    const claimed = await run(
-        `UPDATE orders SET status = 'processing', razorpay_payment_id = $1 WHERE id = $2 AND status = 'pending'`,
-        [razorpayPaymentId, order.id]
-    );
-    if (claimed.rowCount === 0) {
-        // The other caller may have finished after our stale read — refetch
-        const fresh = await get('SELECT shopify_order_id, shopify_order_number FROM orders WHERE id = $1', [order.id]);
-        return {
-            alreadyProcessed: true,
-            shopifyOrderId: fresh?.shopify_order_id || order.shopify_order_id,
-            orderNumber: fresh?.shopify_order_number || null,
-        };
-    }
-
-    try {
-        const cartLines = JSON.parse(order.items);
-        const shippingAddress = JSON.parse(order.shipping_address);
-        const user = await get('SELECT * FROM users WHERE id = $1', [order.user_id]);
-
-        const shopifyLineItems = cartLines.map(l => ({
-            variant_id: gidToNumeric(l.variantId),
-            quantity: l.quantity,
-        }));
-
-        const shopifyAddr = {
-            first_name: shippingAddress.firstName || user.first_name,
-            last_name: shippingAddress.lastName || user.last_name,
-            address1: shippingAddress.address,
-            city: shippingAddress.city || shippingAddress.state,
-            province: shippingAddress.state,
-            zip: shippingAddress.zip,
-            country: shippingAddress.country || 'India',
-            phone: shippingAddress.phone || user.phone,
-        };
-
-        const draft = await createDraftOrder({
-            lineItems: shopifyLineItems,
-            shippingAddress: shopifyAddr,
-            email: user.email,
-            note: `Razorpay Payment: ${razorpayPaymentId}`,
-        });
-        const completed = await completeDraftOrder(draft.draft_order.id);
-        const shopifyOrderId = completed.draft_order.order_id;
-
-        // Shopify's sequential order number is the customer-facing one; if the
-        // lookup fails, emails/pages fall back to the local id rather than block
-        let shopifyOrderNumber = null;
-        try {
-            const orderData = await getOrder(shopifyOrderId);
-            shopifyOrderNumber = orderData?.order?.order_number ?? null;
-        } catch (numErr) {
-            console.error('Could not fetch Shopify order number:', numErr.message);
-        }
-
-        await run(`UPDATE orders SET shopify_order_id = $1, shopify_order_number = $2, status = 'paid' WHERE id = $3`,
-            [String(shopifyOrderId), shopifyOrderNumber, order.id]);
-
-        const updatedOrder = await get('SELECT * FROM orders WHERE id = $1', [order.id]);
-        sendOrderConfirmation({
-            order: updatedOrder,
-            user,
-            cartLines,
-            shippingAddress,
-            shopifyOrderId,
-        }).catch(emailErr => console.error('Order email error (non-blocking):', emailErr.message));
-
-        return { alreadyProcessed: false, shopifyOrderId, orderNumber: shopifyOrderNumber };
-    } catch (err) {
-        // Payment is captured but Shopify order creation failed — flag for manual follow-up,
-        // and let the webhook retry by not leaving it stuck in 'processing'.
-        await run(`UPDATE orders SET status = 'pending' WHERE id = $1 AND status = 'processing'`, [order.id]);
-        const owner = await get('SELECT email FROM users WHERE id = $1', [order.user_id]).catch(() => null);
-        sendFulfillmentFailureAlert({
-            orderId: order.id,
-            razorpayPaymentId,
-            userEmail: owner?.email || 'unknown',
-            amountPaise: order.total_amount,
-            errorMessage: err.message,
-        }).catch(alertErr => console.error('Fulfillment alert email failed:', alertErr.message));
-        throw err;
-    }
-}
 
 // Step 2: Verify payment + create Shopify order
 router.post('/verify', authenticate, async (req, res) => {
@@ -194,7 +225,10 @@ router.post('/verify', authenticate, async (req, res) => {
         }
 
         const payment = await fetchPayment(razorpayPaymentId);
-        if (payment.status !== 'captured' && payment.status !== 'authorized') {
+        // Only 'captured' is money in the account. An 'authorized' payment is a
+        // hold that can still expire or fail to capture — fulfilling against it
+        // ships goods for a payment that may never settle.
+        if (payment.status !== 'captured') {
             return res.status(400).json({ error: `Payment status: ${payment.status}` });
         }
         // The payment must belong to this Razorpay order and cover the full amount
@@ -238,9 +272,30 @@ router.post('/webhook', async (req, res) => {
                 ? await get('SELECT * FROM orders WHERE razorpay_order_id = $1', [payment.order_id])
                 : null;
 
-            if (order && order.status === 'pending' && payment.amount === Number(order.total_amount)) {
-                await fulfillPaidOrder(order, payment.id);
-                console.log(`Webhook fulfilled order ${order.id} (payment ${payment.id})`);
+            if (order && payment.amount === Number(order.total_amount)) {
+                // 'processing' means a previous attempt claimed the order and
+                // died before it could revert (deploy, OOM, restart). Release
+                // the stale claim so this delivery can finish the job — but only
+                // once it is old enough that no live request is still working
+                // on it. fulfillPaidOrder re-claims atomically, so a genuine
+                // concurrent caller still can't double-fulfil.
+                const STALE_CLAIM_MS = 5 * 60 * 1000;
+                if (order.status === 'processing'
+                    && Date.now() - new Date(order.created_at).getTime() > STALE_CLAIM_MS) {
+                    const released = await run(
+                        `UPDATE orders SET status = 'pending' WHERE id = $1 AND status = 'processing'`,
+                        [order.id]
+                    );
+                    if (released.rowCount > 0) {
+                        console.warn(`Webhook released stale 'processing' claim on order ${order.id}`);
+                        order.status = 'pending';
+                    }
+                }
+
+                if (order.status === 'pending') {
+                    await fulfillPaidOrder(order, payment.id);
+                    console.log(`Webhook fulfilled order ${order.id} (payment ${payment.id})`);
+                }
             }
         }
 

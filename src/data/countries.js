@@ -212,6 +212,20 @@ const COUNTRIES = {
 
 export const COUNTRY_LIST = Object.keys(COUNTRIES).sort();
 
+/**
+ * Countries the storefront currently accepts orders for.
+ *
+ * Fulfilment is manual and there is no international rate card — shipping is
+ * priced in INR as a flat domestic rate, so accepting a foreign address would
+ * charge the customer ₹0 delivery for a parcel we have no way to quote or send.
+ * The full COUNTRIES map is kept for the state/province lists and for when
+ * international shipping is switched on.
+ *
+ * The server enforces this independently in server/routes/payment.js — a
+ * dropdown is not a security control.
+ */
+export const SHIPPABLE_COUNTRIES = ['India'];
+
 export function getStatesForCountry(country) {
   return COUNTRIES[country] || [];
 }
