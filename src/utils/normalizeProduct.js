@@ -20,6 +20,7 @@
  *   img: string,
  *   sizes: string[],
  *   colors: string[],
+ *   taxonomyColors: Array<{ label, hex, handle }>,
  *   variants: Array<{ id, title, size, color, price, priceNum, compareAtPrice,
  *                      available, quantityAvailable, image }>,
  *   vendor: string,
@@ -50,6 +51,32 @@ export function flattenEdges(connection) {
  * @param {Object} product - Raw product from Shopify Storefront API
  * @returns {Object} Normalized product object compatible with MORBEI components
  */
+/**
+ * Shopify's standard `shopify.color-pattern` taxonomy metafield.
+ *
+ * Each reference is a built-in metaobject with a `label` ("Black") and a
+ * `color` hex ("#000000") — so the swatch shows the merchant's actual colour
+ * instead of one inferred from the name. Only present on the single-product
+ * queries; returns [] everywhere else.
+ */
+function normalizeTaxonomyColors(colorPattern) {
+  const nodes = flattenEdges(colorPattern?.references);
+  return nodes
+    .map((node) => {
+      const fields = Object.fromEntries((node?.fields || []).map((f) => [f.key, f.value]));
+      const label = fields.label?.trim();
+      if (!label) return null;
+      return {
+        label,
+        // `color` is a hex from Shopify. Absent for some pattern-only entries,
+        // in which case the UI falls back to matching the label by name.
+        hex: fields.color?.trim() || null,
+        handle: node.handle || null,
+      };
+    })
+    .filter(Boolean);
+}
+
 export function normalizeProduct(product) {
   if (!product) return null;
 
@@ -141,6 +168,10 @@ export function normalizeProduct(product) {
     img: images[0] || '/placeholder.png',
     sizes: sizes.length > 0 ? sizes : ['S', 'M', 'L'],
     colors,
+    // Colour from Shopify's product taxonomy, used when the product has no
+    // Colour variant option (the common case here — every product is a single
+    // colourway sized S-XL). [] when the merchant hasn't set it.
+    taxonomyColors: normalizeTaxonomyColors(product.colorPattern),
     variants: variants.map((v) => ({
       id: v.id,
       title: v.title,

@@ -387,6 +387,14 @@ const ProductDetail = () => {
     // a restock alert rather than a dead disabled button.
     const selectedSoldOut = !!selectedSize && !!selectedVariant && !selectedVariant.available;
 
+    // Shopify's taxonomy colour, shown when the product has no Colour variant
+    // option. Prefer the hex the merchant actually set; fall back to matching
+    // the label against the palette (covers pattern entries with no hex).
+    const taxonomyColor = product.taxonomyColors?.[0] || null;
+    const taxonomySwatch = taxonomyColor
+        ? (taxonomyColor.hex || colorToSwatch(taxonomyColor.label))
+        : null;
+
     const submitNotify = async (email) => {
         try {
             await contactAPI.notifyStock(
@@ -616,11 +624,14 @@ const ProductDetail = () => {
                         <p className="pd-tax-text">MRP INCL. OF ALL TAXES</p>
                     </div>
 
-                    {/* Colour. Only rendered when the product actually has a
-                        Colour option — this used to fall back to a hardcoded
-                        "Ecru" swatch on every product, which asserted a colour
-                        the garment may not be. */}
-                    {product.colors?.length > 0 && (
+                    {/* Colour.
+                        - Products with a Colour variant option get selectable swatches.
+                        - Products without one (all of them today — each is a single
+                          colourway sized S-XL) show the colour from Shopify's product
+                          taxonomy metafield, read-only.
+                        - Neither set: render nothing. This used to hard-code an "Ecru"
+                          swatch on every product regardless of its actual colour. */}
+                    {product.colors?.length > 0 ? (
                         <div className="pd-color-selector">
                             <div className="pd-color-swatches">
                                 {product.colors.map(color => {
@@ -641,7 +652,20 @@ const ProductDetail = () => {
                             </div>
                             <span className="color-label-right" style={{ marginTop: '8px' }}>{selectedColor || product.colors[0]}</span>
                         </div>
-                    )}
+                    ) : taxonomyColor ? (
+                        <div className="pd-color-selector">
+                            <div className="pd-color-swatches">
+                                <div
+                                    className={`color-swatch${taxonomySwatch ? '' : ' color-swatch--unknown'}`}
+                                    style={taxonomySwatch ? { background: taxonomySwatch } : undefined}
+                                    title={taxonomyColor.label}
+                                    role="img"
+                                    aria-label={`Colour: ${taxonomyColor.label}`}
+                                />
+                            </div>
+                            <span className="color-label-right" style={{ marginTop: '8px' }}>{taxonomyColor.label}</span>
+                        </div>
+                    ) : null}
 
                     {/* Sizes - hidden on mobile, shown on desktop */}
                     <div className="pd-size-selector pd-size-selector-desktop">
@@ -672,12 +696,16 @@ const ProductDetail = () => {
 
                     {/* Scarcity. quantityAvailable was already being fetched and
                         normalised, just never shown. Only surfaced once a size is
-                        picked, so it refers to something specific. */}
-                    {selectedSize && lowStockCount != null && (
-                        <p className="pd-low-stock" role="status">
-                            {lowStockCount === 1 ? 'LAST ONE LEFT' : `ONLY ${lowStockCount} LEFT`}
-                        </p>
-                    )}
+                        picked, so it refers to something specific.
+                        Always rendered — CSS reserves the space and toggles
+                        visibility so ADD TO BAG never shifts underneath. */}
+                    <p
+                        className={`pd-low-stock${selectedSize && lowStockCount != null ? ' visible' : ''}`}
+                        role="status"
+                        aria-hidden={!(selectedSize && lowStockCount != null)}
+                    >
+                        {lowStockCount === 1 ? 'LAST ONE LEFT' : `ONLY ${lowStockCount} LEFT`}
+                    </p>
                     
                     {/* Add to Bag + Wishlist */}
                     <div className="pd-actions">

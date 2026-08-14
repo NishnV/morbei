@@ -401,13 +401,24 @@
     border-radius: 0;
     background: #e5ddd3;
     cursor: pointer;
-    border: 1.5px solid transparent;
-    transition: border-color 0.2s ease;
+    /* Outlined rather than transparent-bordered: real colours from Shopify
+       include #000000, and a black chip on this near-black page was completely
+       invisible. A faint outline keeps both ends of the range legible; the
+       active/hover state still reads as a distinctly brighter border. */
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .color-swatch.active,
 .color-swatch:hover {
     border-color: #fff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+/* Read-only swatch: the product has a taxonomy colour but no Colour option to
+   choose between, so it shouldn't invite a click. */
+.pd-color-selector .color-swatch[role='img'] {
+    cursor: default;
 }
 
 .color-label,
@@ -524,10 +535,19 @@
 .pd-low-stock {
     order: 3;
     font-size: 0.62rem;
+    line-height: 1;
     letter-spacing: 0.14em;
     color: #c98a3c;
     text-transform: uppercase;
     margin: 0.9rem 0 0 0;
+    /* Always occupies its space and toggles visibility, so ADD TO BAG does not
+       jump down the moment a size is picked. Same approach as .pd-size-error
+       above — a button that moves under the cursor is worth avoiding. */
+    visibility: hidden;
+}
+
+.pd-low-stock.visible {
+    visibility: visible;
 }
 
 /* Restock alert replaces ADD TO BAG when the chosen size is sold out. Outlined

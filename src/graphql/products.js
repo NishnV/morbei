@@ -126,11 +126,37 @@ export const PRODUCTS_QUERY = `
  * Fetch a single product by its handle (URL slug).
  * Used on the Product Detail Page.
  */
+/**
+ * Shopify's standard product-taxonomy colour, set in the admin under
+ * Product → Metafields → "Color". It resolves to a built-in metaobject that
+ * carries both a display label ("Black") and the actual hex ("#000000"), so
+ * the swatch is the merchant's real colour rather than a guess from the name.
+ *
+ * Requested only on the single-product queries: the swatch renders on the
+ * product page, and resolving metaobject references for every tile in a 40-item
+ * grid would multiply the query cost for nothing.
+ */
+const COLOR_PATTERN_FIELDS = `
+  colorPattern: metafield(namespace: "shopify", key: "color-pattern") {
+    references(first: 5) {
+      edges {
+        node {
+          ... on Metaobject {
+            handle
+            fields { key value }
+          }
+        }
+      }
+    }
+  }
+`;
+
 export const PRODUCT_BY_HANDLE_QUERY = `
   ${PRODUCT_FRAGMENT}
   query ProductByHandle($handle: String!) {
     productByHandle(handle: $handle) {
       ...ProductFields
+      ${COLOR_PATTERN_FIELDS}
     }
   }
 `;
@@ -144,6 +170,7 @@ export const PRODUCT_BY_ID_QUERY = `
   query ProductById($id: ID!) {
     product(id: $id) {
       ...ProductFields
+      ${COLOR_PATTERN_FIELDS}
     }
   }
 `;
