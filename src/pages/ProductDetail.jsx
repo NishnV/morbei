@@ -382,6 +382,7 @@ const ProductDetail = () => {
         selectedVariant?.available && typeof qty === 'number' && qty > 0 && qty <= LOW_STOCK_THRESHOLD
             ? qty
             : null;
+    const showLowStock = !!selectedSize && lowStockCount != null;
 
     // A size is picked and that exact variant is sold out — the moment to offer
     // a restock alert rather than a dead disabled button.
@@ -700,22 +701,29 @@ const ProductDetail = () => {
                         <button type="button" className="pd-guide-link" onClick={() => setShowSizeGuide(true)}>Size Guide</button>
                     </div>
 
-                    {/* Scarcity. quantityAvailable was already being fetched and
-                        normalised, just never shown. Only surfaced once a size is
-                        picked, so it refers to something specific.
-                        Always rendered — CSS reserves the space and toggles
-                        visibility so ADD TO BAG never shifts underneath. */}
-                    <p
-                        className={`pd-low-stock${selectedSize && lowStockCount != null ? ' visible' : ''}`}
-                        role="status"
-                        aria-hidden={!(selectedSize && lowStockCount != null)}
-                    >
-                        {lowStockCount === 1 ? 'LAST ONE LEFT' : `ONLY ${lowStockCount} LEFT`}
-                    </p>
-                    
                     {/* Add to Bag + Wishlist */}
                     <div className="pd-actions">
-                        <p className={`pd-size-error${sizeError ? ' visible' : ''}`}>PLEASE SELECT A SIZE</p>
+                        {/* One reserved line directly above the button, shared by both
+                            notes. They can never appear together — the size prompt only
+                            fires when nothing is selected, the stock count only when
+                            something is — so giving each its own row just stacked two
+                            permanently-reserved gaps above the CTA. Always rendered so
+                            the button never shifts as the message changes. */}
+                        <p
+                            className={
+                                sizeError ? 'pd-actions-note pd-size-error visible'
+                                    : showLowStock ? 'pd-actions-note pd-low-stock visible'
+                                        : 'pd-actions-note'
+                            }
+                            role="status"
+                            aria-hidden={!sizeError && !showLowStock}
+                        >
+                            {sizeError
+                                ? 'PLEASE SELECT A SIZE'
+                                : lowStockCount === 1
+                                    ? 'LAST ONE LEFT'
+                                    : `ONLY ${lowStockCount} LEFT`}
+                        </p>
                         <div className="pd-actions-row">
                         {/* When the chosen size is sold out, the primary action
                             becomes the restock alert instead of a dead disabled

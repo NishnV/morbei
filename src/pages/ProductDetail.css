@@ -517,44 +517,37 @@
     width: calc(75% + 5.5rem);
 }
 
-.pd-size-error {
+/* The single note line directly above ADD TO BAG, shared by the size prompt and
+   the stock count. Always occupies its space and toggles visibility, so the
+   button never shifts as the message changes — a button that moves under the
+   cursor is worth avoiding.
+
+   The two notes are mutually exclusive (the prompt fires only with no size
+   selected, the count only with one), so they share this slot instead of each
+   reserving a row and stacking dead space above the CTA. */
+.pd-actions-note {
     font-size: 0.65rem;
+    line-height: 1.2;
     letter-spacing: 0.12em;
-    color: #e03131;
     margin: 0 0 0.6rem 0;
     text-transform: uppercase;
     visibility: hidden;
 }
 
-.pd-size-error.visible {
+.pd-actions-note.visible {
     visibility: visible;
 }
 
-/* Remaining-stock notice. Deliberately quiet — this is information, not a
-   countdown timer, and the stock levels here are genuinely low.
+/* Colour only — position and spacing come from .pd-actions-note above. */
+.pd-size-error {
+    color: #e03131;
+}
 
-   NOTE: .pd-info-section is a flex column where EVERY child sets an explicit
-   `order` (header 1, colour 2, sizes 3, actions 4 …), so DOM position does not
-   determine visual position. Without this rule the element defaults to order 0
-   and renders above the product title. Matching the size selector's order (3)
-   places it directly after — equal `order` values fall back to DOM order — and
-   still ahead of .pd-actions at 4, on both breakpoints. */
+/* Deliberately quiet: this is information, not a countdown timer, and the stock
+   levels here are genuinely low. */
 .pd-low-stock {
-    order: 3;
-    font-size: 0.62rem;
-    line-height: 1;
-    letter-spacing: 0.14em;
     color: #c98a3c;
-    text-transform: uppercase;
-    margin: 0.9rem 0 0 0;
-    /* Always occupies its space and toggles visibility, so ADD TO BAG does not
-       jump down the moment a size is picked. Same approach as .pd-size-error
-       above — a button that moves under the cursor is worth avoiding. */
-    visibility: hidden;
-}
-
-.pd-low-stock.visible {
-    visibility: visible;
+    letter-spacing: 0.14em;
 }
 
 /* Restock alert replaces ADD TO BAG when the chosen size is sold out. Outlined
@@ -782,25 +775,18 @@
 
     .pd-size-selector {
         margin-top: 1rem;
-        /* The spacer before the CTA lives on .pd-low-stock below, so this only
-           needs to clear the SIZE GUIDE link. */
+        /* The spacer before the CTA lives on .pd-actions, so this only needs to
+           clear the SIZE GUIDE link. */
         margin-bottom: 0;
     }
 
-    /* Spacer between the size block and the CTA group.
-       Originally this sat on .pd-actions as `max(0px, 31.25vw - 403px)` to line
-       the button up with the seam between the two stacked secondary images
-       (each 25vw wide at 4/5 aspect → seam at 31.25vw). That offset is
-       unbounded, so on a wide screen it grew without limit — roughly 220px at
-       2000px — leaving a chasm mid-column. Capped, and moved onto the stock
-       line so the whole CTA group travels together and the message stays
-       attached to the button it describes. */
-    .pd-low-stock {
-        margin-top: clamp(1.5rem, calc(31.25vw - 403px), 3.5rem);
-    }
-
+    /* Spacer between the size block and the CTA group. Lines the button up with
+       the seam between the two stacked secondary images (each 25vw wide at 4/5
+       aspect → seam at 31.25vw), capped so a wide viewport doesn't open a
+       chasm. See the ≥1025px block for the full reasoning; this range is below
+       the point where the formula goes positive, so it resolves to the floor. */
     .pd-actions {
-        margin-top: 0.5rem;
+        margin-top: clamp(1.5rem, calc(31.25vw - 403px), 3.5rem);
     }
 
     /* Keep the CTA clear of the DESCRIPTION block below it. */
@@ -2073,7 +2059,7 @@
 
     .pd-size-selector {
         margin-top: 0.85rem;
-        /* The spacer before the CTA lives on .pd-low-stock; this only needs to
+        /* The spacer before the CTA lives on .pd-actions; this only needs to
            clear the SIZE GUIDE link. */
         margin-bottom: 0;
     }
@@ -2102,14 +2088,11 @@
        drifts above the seam, which reads far better than the alternative.
        Raise the 150px ceiling to trade dead space for alignment on wide screens.
 
-       Lives on .pd-low-stock rather than .pd-actions so the stock message
-       travels with the button it describes. */
-    .pd-low-stock {
-        margin-top: clamp(1.25rem, calc(31.25vw - 324px), 150px);
-    }
-
+       Sits on .pd-actions so the note line and the button move as one block —
+       the note is inside .pd-actions and is always present, so it counts toward
+       the constant either way. */
     .pd-actions {
-        margin-top: 0.5rem;
+        margin-top: clamp(1.25rem, calc(31.25vw - 307px), 150px);
     }
 
     .pd-description-section {
