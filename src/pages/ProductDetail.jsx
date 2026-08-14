@@ -652,20 +652,26 @@ const ProductDetail = () => {
                             </div>
                             <span className="color-label-right" style={{ marginTop: '8px' }}>{selectedColor || product.colors[0]}</span>
                         </div>
-                    ) : taxonomyColor ? (
-                        <div className="pd-color-selector">
+                    ) : (
+                        /* Always rendered, even with no colour to show. ADD TO BAG is
+                           positioned to land on the seam between the two side images
+                           via a fixed offset, so the stack above it has to be a
+                           constant height — otherwise products with a colour push the
+                           button 76px below the seam and products without it sit 76px
+                           above. CSS hides this when empty but keeps its space. */
+                        <div className={`pd-color-selector${taxonomyColor ? ' has-colour' : ''}`} aria-hidden={!taxonomyColor}>
                             <div className="pd-color-swatches">
                                 <div
                                     className={`color-swatch${taxonomySwatch ? '' : ' color-swatch--unknown'}`}
                                     style={taxonomySwatch ? { background: taxonomySwatch } : undefined}
-                                    title={taxonomyColor.label}
+                                    title={taxonomyColor?.label}
                                     role="img"
-                                    aria-label={`Colour: ${taxonomyColor.label}`}
+                                    aria-label={taxonomyColor ? `Colour: ${taxonomyColor.label}` : ''}
                                 />
                             </div>
-                            <span className="color-label-right" style={{ marginTop: '8px' }}>{taxonomyColor.label}</span>
+                            <span className="color-label-right" style={{ marginTop: '8px' }}>{taxonomyColor?.label || ''}</span>
                         </div>
-                    ) : null}
+                    )}
 
                     {/* Sizes - hidden on mobile, shown on desktop */}
                     <div className="pd-size-selector pd-size-selector-desktop">

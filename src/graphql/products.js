@@ -87,7 +87,9 @@ const PRODUCT_FRAGMENT = `
       { namespace: "custom", key: "material" },
       { namespace: "custom", key: "care_instructions" },
       { namespace: "custom", key: "fit_type" },
-      { namespace: "custom", key: "badge" }
+      { namespace: "custom", key: "badge" },
+      { namespace: "custom", key: "model_info" },
+      { namespace: "custom", key: "measurements" }
     ]) {
       key
       value

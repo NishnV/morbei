@@ -27,7 +27,8 @@
  *   productType: string,
  *   tags: string[],
  *   availableForSale: boolean,
- *   metafields: { sizeGuide, material, careInstructions, fitType, badge },
+ *   metafields: { sizeGuide, material, careInstructions, fitType, badge,
+ *                 modelInfo, measurements },
  *   seo: { title, description }
  * }
  */
@@ -102,6 +103,16 @@ export function normalizeProduct(product) {
         break;
       case 'badge':
         metafields.badge = mf.value;
+        break;
+      // Both of these were already read by ProductDetail — the model line under
+      // ADD TO BAG and the PRODUCT MEASUREMENTS accordion — but were never
+      // requested from Shopify or mapped here, so they silently resolved to
+      // undefined and the UI always showed its fallback.
+      case 'model_info':
+        metafields.modelInfo = mf.value;
+        break;
+      case 'measurements':
+        metafields.measurements = mf.value;
         break;
     }
   }

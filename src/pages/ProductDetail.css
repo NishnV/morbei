@@ -421,6 +421,13 @@
     cursor: default;
 }
 
+/* A product with no colour set still reserves this row's height, so the stack
+   above ADD TO BAG stays a constant height and the button keeps landing on the
+   image seam. Same reserved-space approach as .pd-size-error and .pd-low-stock. */
+.pd-color-selector[aria-hidden='true'] {
+    visibility: hidden;
+}
+
 .color-label,
 .color-label-right {
     font-size: 0.7rem;
@@ -2072,14 +2079,33 @@
     }
 
     /* Spacer between the size block and the CTA group.
-       This was `max(0px, 31.25vw - 419px)` on .pd-actions, lining the button up
-       with the seam between the two stacked secondary images (each 25vw at 4/5
-       aspect → seam at 31.25vw). Unbounded, so it kept growing with viewport
-       width — ~220px at 2000px — leaving a chasm mid-column. Capped, and moved
-       onto the stock line so the CTA group travels together and the message
-       stays attached to the button it describes. */
+
+       Per the Figma (node 3308:763), ADD TO BAG's top edge sits exactly on the
+       seam between the two stacked secondary images — image bottom and button
+       top are both y=492 in the 1440px frame. Those images are 25vw wide at 4/5
+       aspect, so the seam is at 31.25vw.
+
+       The subtracted constant is the height of everything above the button in
+       this column. It was 419px, which put the button 171px above the seam at
+       the 1440px design width — it had drifted as the column's contents
+       changed. Measured against the design and corrected.
+
+       This only works because that stack is now a fixed height: the colour row
+       reserves its space even when a product has no colour, so the constant
+       holds for every product rather than only the ones that happen to match
+       whatever was on screen when it was last tuned.
+
+       Capped, because the alignment cannot survive a wide viewport: the images
+       grow with the window, so holding it at 2000px would mean a ~300px gap —
+       the chasm this was reported for. Exact alignment holds from the 1440px
+       design width to ~1520px; above that the offset is pinned and the button
+       drifts above the seam, which reads far better than the alternative.
+       Raise the 150px ceiling to trade dead space for alignment on wide screens.
+
+       Lives on .pd-low-stock rather than .pd-actions so the stock message
+       travels with the button it describes. */
     .pd-low-stock {
-        margin-top: clamp(1.25rem, calc(31.25vw - 419px), 3rem);
+        margin-top: clamp(1.25rem, calc(31.25vw - 324px), 150px);
     }
 
     .pd-actions {
