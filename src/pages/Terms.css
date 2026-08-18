@@ -1,4 +1,4 @@
-.pp-page {
+.tc-page {
     background: #000;
     color: #fff;
     min-height: 100dvh;
@@ -9,95 +9,95 @@
 }
 
 /* ── Header ── */
-.pp-header {
+.tc-header {
     margin-bottom: 3.5rem;
 }
 
-.pp-rule {
+.tc-rule {
     height: 1px;
     background: #fff;
     margin-bottom: 2.5rem;
 }
 
-.pp-title {
+.tc-title {
     font-family: 'Castoro Titling', serif;
     font-weight: 400;
     font-size: 16px;
     letter-spacing: 1.6px;
     line-height: 25px;
     text-align: center;
-    margin: 0 0 0.6rem;
-}
-
-.pp-updated {
-    font-family: 'Avenir', sans-serif;
-    font-weight: 300;
-    font-size: 10px;
-    letter-spacing: 1px;
-    line-height: 25px;
-    text-align: center;
     margin: 0;
-    opacity: 0.75;
 }
 
-/* ── Intro ── */
-.pp-intro {
-    font-size: 10px;
-    line-height: 25px;
-    letter-spacing: 1px;
-    margin: 0 0 4rem;
-}
-
-/* ── Sections ── */
-.pp-section {
-    margin-bottom: 3rem;
-}
-
-.pp-section-title {
+/* ── Group titles (A. General Terms / B. Access & Website Use) ── */
+.tc-group-title {
     font-family: 'Castoro Titling', serif;
     font-weight: 400;
     font-size: 14px;
     letter-spacing: 1.4px;
     line-height: 25px;
-    margin: 0 0 1.5rem;
+    margin: 0 0 2rem;
 }
 
-.pp-sub-title {
+.tc-group-title + .tc-section {
+    margin-top: 0;
+}
+
+/* ── Sections ── */
+.tc-section {
+    margin-bottom: 2.5rem;
+}
+
+.tc-section-title {
     font-family: 'Castoro Titling', serif;
     font-weight: 400;
     font-size: 12px;
     letter-spacing: 1.2px;
     line-height: 25px;
-    margin: 0 0 0.75rem;
+    margin: 0 0 1rem;
 }
 
-.pp-body {
+/* ── Body text ── */
+.tc-body {
     font-size: 10px;
     line-height: 25px;
     letter-spacing: 1px;
-    margin: 0 0 1rem;
+    margin: 0 0 0.75rem;
     opacity: 0.85;
 }
 
-.pp-body:last-child {
+.tc-body:last-child {
     margin-bottom: 0;
 }
 
-.pp-contact {
+/* ── Defined terms (bold in definitions section) ── */
+.tc-term {
+    font-weight: 500;
     font-style: normal;
+}
+
+/* ── Inline links ── */
+.tc-link {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 /* ── Mobile ── */
 @media (--mobile) {
-    .pp-page {
+    .tc-page {
         padding: 80px 1.5rem 5rem;
     }
 
-    .pp-title {
+    .tc-title {
         font-size: 14px;
     }
 
-    .pp-section-title {
+    .tc-group-title {
         font-size: 12px;
+    }
+
+    .tc-section-title {
+        font-size: 11px;
     }
 }

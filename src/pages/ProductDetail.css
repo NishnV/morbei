@@ -107,6 +107,17 @@
     animation: pd-thumb-fadein 1.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* 2-image layout: both images shown in col2. Dim the inactive one so the active
+   image reads as selected without a hard border. */
+.pd-two-images .pd-secondary-img img {
+    opacity: 0.45;
+    transition: opacity 0.35s ease;
+}
+
+.pd-two-images .pd-secondary-img.active img {
+    opacity: 1;
+}
+
 @keyframes pd-thumb-fadein {
     from { opacity: 0; }
     to   { opacity: 1; }
@@ -255,6 +266,15 @@
     .pd-lb-cursor {
         display: none;
     }
+}
+
+/* ---- Single-image: hide thumbnail strip, let main image expand ---- */
+.pd-container.pd-single-image {
+    grid-template-columns: 3fr 1fr;
+}
+
+.pd-container.pd-single-image .pd-col2-wrapper {
+    display: none;
 }
 
 /* ---- Column 2: Thumbnail panel ---- */
@@ -2097,12 +2117,7 @@
 
     .pd-description-section {
         order: 5;
-        /* Was `margin-top: auto`, which absorbed whatever height was spare in
-           the sticky column. That made the gap swing with the viewport: ~330px
-           on a tall screen, and exactly 0 once the content filled the column —
-           which is when ADD TO BAG ended up sitting against DESCRIPTION. A
-           fixed value is less clever and reads the same at every size. */
-        margin-top: 4rem;
+        margin-top: auto;
         margin-bottom: 0;
         padding-bottom: 0;
     }

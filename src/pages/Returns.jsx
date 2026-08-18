@@ -1,51 +1,78 @@
 import React from 'react';
-import './SupportPage.css';
+import './Returns.css';
 
 const Returns = () => {
     return (
-        <div className="support-page">
-            <div className="support-container">
-                <div className="support-header">
-                    <h1>RETURNS & EXCHANGES</h1>
-                    <p>YOUR SATISFACTION IS OUR PRIORITY</p>
-                </div>
-
-                <div className="support-content animate-fade">
-                    <div className="support-section">
-                        <h2>EASY RETURNS</h2>
-                        <p>IF YOU ARE NOT ENTIRELY SATISFIED WITH YOUR PURCHASE, WE ARE HERE TO HELP.</p>
-                        <ul>
-                            <li>YOU HAVE 14 CALENDAR DAYS TO RETURN AN ITEM FROM THE DATE YOU RECEIVED IT.</li>
-                            <li>TO BE ELIGIBLE FOR A RETURN, YOUR ITEM MUST BE UNUSED AND IN THE SAME CONDITION THAT YOU RECEIVED IT.</li>
-                            <li>ITEM MUST BE IN THE ORIGINAL PACKAGING WITH ALL TAGS ATTACHED.</li>
-                        </ul>
-                    </div>
-
-                    <div className="support-section">
-                        <h2>EXCHANGE POLICY</h2>
-                        <p>WE OFFER SIZE EXCHANGES FREE OF CHARGE, SUBJECT TO AVAILABILITY.</p>
-                        <ul>
-                            <li>ONCE THE EXCHANGE REQUEST IS APPROVED, WE WILL ARRANGE A REVERSE PICKUP.</li>
-                            <li>AFTER WE RECEIVE AND INSPECT THE ORIGINAL ITEM, THE NEW SIZE WILL BE DISPATCHED.</li>
-                        </ul>
-                    </div>
-
-                    <div className="support-section">
-                        <h2>REFUNDS</h2>
-                        <p>ONCE WE RECEIVE YOUR ITEM, WE WILL INSPECT IT AND NOTIFY YOU THAT WE HAVE RECEIVED YOUR RETURNED ITEM.</p>
-                        <p>IF YOUR RETURN IS APPROVED, WE WILL INITIATE A REFUND TO YOUR ORIGINAL METHOD OF PAYMENT. CREDITS WILL APPEAR WITHIN 5-10 BUSINESS DAYS.</p>
-                    </div>
-
-                    <div className="support-section">
-                        <h2>NON-RETURNABLE ITEMS</h2>
-                        <ul>
-                            <li>ITEMS PURCHASED ON FINAL SALE.</li>
-                            <li>CUSTOMIZED OR ALTERED GARMENTS.</li>
-                            <li>INTIMATES AND ACCESSORIES FOR HYGIENE REASONS.</li>
-                        </ul>
-                    </div>
-                </div>
+        <div className="re-page">
+            <div className="re-header">
+                <div className="re-rule" />
+                <h1 className="re-title">Returns &amp; Exchanges</h1>
             </div>
+
+            <p className="re-intro">
+                At MORBEI, we want you to love every purchase you made. If you're not completely
+                satisfied, we're here to help with an easy return or exchange process.
+            </p>
+
+            <section className="re-section">
+                <h2 className="re-section-title">Return &amp; Exchange Eligibility</h2>
+                <p className="re-body">– Returns and exchanges can be requested within 7 days of receiving your order.</p>
+                <p className="re-body">– Items must be unused, unwashed, unworn, and in their original condition with all tags and original packaging intact.</p>
+                <p className="re-body">– Products that are damaged due to misuse, washing, or normal wear and tear are not eligible for return or exchange.</p>
+                <p className="re-body">– Items purchased during clearance sales, promotional offers, or marked as Final Sale are not eligible for return or exchange unless they arrive damaged or incorrect.</p>
+            </section>
+
+            <section className="re-section">
+                <h2 className="re-section-title">How to Request a Return or Exchange</h2>
+                <p className="re-body">To request a return or exchange:</p>
+                <p className="re-body">1. Contact us within 7 days of delivery via:<br />Email: info@morbei.com</p>
+                <p className="re-body">2. Share your order number and the reason for the return or exchange.</p>
+                <p className="re-body">3. If approved, we'll provide the next steps for returning your item.</p>
+            </section>
+
+            <section className="re-section">
+                <h2 className="re-section-title">Exchanges</h2>
+                <p className="re-body">Exchanges are subject to product availability. If your requested size or item is unavailable, you may choose:</p>
+                <p className="re-body">– Store credit, or</p>
+                <p className="re-body">– A refund (if applicable).</p>
+            </section>
+
+            <section className="re-section">
+                <h2 className="re-section-title">Refunds</h2>
+                <p className="re-body">– Once we receive and inspect the returned item, we will notify you of the approval status.</p>
+                <p className="re-body">– Approved refunds will be processed to your original payment method within 5–7 business days.</p>
+            </section>
+
+            <section className="re-section">
+                <h2 className="re-section-title">Damaged or Incorrect Items</h2>
+                <p className="re-body">
+                    If you receive a damaged, defective, or incorrect item, please contact us
+                    within 48 hours of delivery with clear photos or an unboxing video. We will
+                    resolve the issue by offering a replacement or refund after verification.
+                </p>
+            </section>
+
+            <section className="re-section">
+                <h2 className="re-section-title">Cancellation Policy</h2>
+                <p className="re-body">
+                    Orders can be cancelled only before they are shipped. Once an order has been
+                    dispatched, it cannot be cancelled.
+                </p>
+            </section>
+
+            <section className="re-section">
+                <h2 className="re-section-title">Contact Us</h2>
+                <p className="re-body">For any questions regarding returns or exchanges, please contact us:</p>
+                <p className="re-body re-contact">
+                    Email: info@morbei.com<br />
+                    Phone: +91 9952228533<br />
+                    Instagram: @morbei
+                </p>
+                <p className="re-body">
+                    We're committed to making your shopping experience with MORBEI simple,
+                    transparent, and enjoyable.
+                </p>
+            </section>
         </div>
     );
 };

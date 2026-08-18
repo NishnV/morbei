@@ -103,8 +103,9 @@ const ProductDetail = () => {
     // Desktop: scrolling over the main image slides vertically to the next/previous
     // image, mirroring the mobile touch-swipe slider but wheel-driven. Locked for the
     // animation's duration so one wheel gesture only advances one image at a time.
+    // Disabled for 2-image products — col2 shows both images as a slider there.
     const handleMainImageWheel = (e) => {
-        if (!product.images || product.images.length <= 1) return;
+        if (!product.images || product.images.length <= 2) return;
         if (Math.abs(e.deltaY) < 12) return;
         e.preventDefault();
         if (mainImgWheelLock.current) return;
@@ -454,7 +455,7 @@ const ProductDetail = () => {
                     ]),
                 ]}
             />
-            <div className="pd-container">
+            <div className={`pd-container${product.images.length <= 1 ? ' pd-single-image' : ''}`}>
                 {/* Column 1 — 50%: Main image — click to open lightbox */}
                 <div
                     className="pd-main-image-col"
@@ -475,7 +476,7 @@ const ProductDetail = () => {
                         key={mainImageIndex}
                         src={shopifyImage(product.images[mainImageIndex], 1200)}
                         srcSet={shopifySrcSet(product.images[mainImageIndex], [800, 1200, 1600, 2000])}
-                        sizes="(max-width: 768px) 100vw, 50vw"
+                        sizes={product.images.length <= 1 ? "(max-width: 768px) 100vw, 75vw" : "(max-width: 768px) 100vw, 50vw"}
                         alt={product.name}
                         // This is the LCP element on every product page — never
                         // lazy, and tell the browser to prioritise it.
@@ -488,7 +489,7 @@ const ProductDetail = () => {
                 </div>
 
                 {/* Column 2 — 25%: Scrollable thumbnail strip — all images, active one highlighted */}
-                <div className="pd-col2-wrapper">
+                <div className={`pd-col2-wrapper${product.images.length === 2 ? ' pd-two-images' : ''}`}>
                     <div className="pd-secondary-images-col" ref={col2Ref} onScroll={() => {
                         const el = col2Ref.current;
                         if (!el) return;
@@ -498,10 +499,23 @@ const ProductDetail = () => {
                             <div
                                 className={`pd-secondary-img${idx === mainImageIndex ? ' active' : ''}${idx === prevImageIndex ? ' pd-secondary-img-enter' : ''}`}
                                 key={idx}
-                                style={{ cursor: 'pointer', display: idx === mainImageIndex ? 'none' : 'block', pointerEvents: idx === mainImageIndex ? 'none' : 'auto' }}
+                                style={{
+                                    cursor: idx === mainImageIndex ? 'default' : 'pointer',
+                                    // 2-image products: show all in col2 (col2 is the slider).
+                                    // 3+ image products: hide the active image (it's shown large in col1).
+                                    display: (product.images.length <= 2 || idx !== mainImageIndex) ? 'block' : 'none',
+                                    pointerEvents: idx === mainImageIndex ? 'none' : 'auto',
+                                }}
                                 onClick={() => handleImageSelect(idx)}
                             >
-                                <img loading="lazy" decoding="async" src={shopifyImage(img, 300)} alt={`${product.name} view ${idx + 1}`} />
+                                <img
+                                    loading="lazy"
+                                    decoding="async"
+                                    src={shopifyImage(img, 800)}
+                                    srcSet={shopifySrcSet(img, [400, 600, 800, 1200])}
+                                    sizes="25vw"
+                                    alt={`${product.name} view ${idx + 1}`}
+                                />
                             </div>
                         ))}
                     </div>
@@ -543,7 +557,7 @@ const ProductDetail = () => {
                                         fetchPriority={idx === 0 ? 'high' : undefined}
                                         decoding="async"
                                         src={shopifyImage(img, 900)}
-                                        srcSet={shopifySrcSet(img, [600, 900, 1200])}
+                                        srcSet={shopifySrcSet(img, [600, 900, 1200, 1600])}
                                         sizes="100vw"
                                         alt={`${product.name} view ${idx + 1}`}
                                     />

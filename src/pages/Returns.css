@@ -1,4 +1,4 @@
-.pp-page {
+.re-page {
     background: #000;
     color: #fff;
     min-height: 100dvh;
@@ -9,51 +9,41 @@
 }
 
 /* ── Header ── */
-.pp-header {
+.re-header {
     margin-bottom: 3.5rem;
 }
 
-.pp-rule {
+.re-rule {
     height: 1px;
     background: #fff;
     margin-bottom: 2.5rem;
 }
 
-.pp-title {
+.re-title {
     font-family: 'Castoro Titling', serif;
     font-weight: 400;
     font-size: 16px;
     letter-spacing: 1.6px;
     line-height: 25px;
     text-align: center;
-    margin: 0 0 0.6rem;
-}
-
-.pp-updated {
-    font-family: 'Avenir', sans-serif;
-    font-weight: 300;
-    font-size: 10px;
-    letter-spacing: 1px;
-    line-height: 25px;
-    text-align: center;
     margin: 0;
-    opacity: 0.75;
 }
 
 /* ── Intro ── */
-.pp-intro {
+.re-intro {
     font-size: 10px;
     line-height: 25px;
     letter-spacing: 1px;
     margin: 0 0 4rem;
+    opacity: 0.85;
 }
 
 /* ── Sections ── */
-.pp-section {
+.re-section {
     margin-bottom: 3rem;
 }
 
-.pp-section-title {
+.re-section-title {
     font-family: 'Castoro Titling', serif;
     font-weight: 400;
     font-size: 14px;
@@ -62,42 +52,33 @@
     margin: 0 0 1.5rem;
 }
 
-.pp-sub-title {
-    font-family: 'Castoro Titling', serif;
-    font-weight: 400;
-    font-size: 12px;
-    letter-spacing: 1.2px;
-    line-height: 25px;
-    margin: 0 0 0.75rem;
-}
-
-.pp-body {
+.re-body {
     font-size: 10px;
     line-height: 25px;
     letter-spacing: 1px;
-    margin: 0 0 1rem;
+    margin: 0 0 0.75rem;
     opacity: 0.85;
 }
 
-.pp-body:last-child {
+.re-body:last-child {
     margin-bottom: 0;
 }
 
-.pp-contact {
+.re-contact {
     font-style: normal;
 }
 
 /* ── Mobile ── */
 @media (--mobile) {
-    .pp-page {
+    .re-page {
         padding: 80px 1.5rem 5rem;
     }
 
-    .pp-title {
+    .re-title {
         font-size: 14px;
     }
 
-    .pp-section-title {
+    .re-section-title {
         font-size: 12px;
     }
 }

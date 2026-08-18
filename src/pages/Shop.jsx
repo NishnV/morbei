@@ -482,7 +482,7 @@ const Shop = ({ category = "ALL" }) => {
                                                         decoding="async"
                                                         width="800"
                                                         height="1200"
-                                                        className="img-primary"
+                                                        className={`img-primary${hover ? '' : ' img-primary--only'}`}
                                                         src={shopifyImage(primary, 800)}
                                                         srcSet={shopifySrcSet(primary)}
                                                         sizes="(max-width: 768px) 50vw, 25vw"
