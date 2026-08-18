@@ -79,15 +79,39 @@ const Shop = ({ category = "ALL" }) => {
     const filterRef = useRef(null);
     const sortRef = useRef(null);
 
-    // Mobile swipe-to-change-image
+    // Mobile swipe-to-change-image + long-press to preview alternate image
     const [swipeIndices, setSwipeIndices] = React.useState({});
+    const [heldProductKey, setHeldProductKey] = React.useState(null);
     const touchStartX = useRef(null);
+    const longPressTimer = useRef(null);
+    const touchHasMoved = useRef(false);
 
-    const handleTouchStart = (e) => {
+    const handleTouchStart = (e, product, idx) => {
         touchStartX.current = e.touches[0].clientX;
+        touchHasMoved.current = false;
+        if (product.images?.length > 1) {
+            const key = product.id || idx;
+            // Kick off a prefetch so the alternate image is in cache when the hold fires
+            const altSrc = shopifyImage(product.images[product.images.length - 1], 800);
+            const preload = new window.Image();
+            preload.src = altSrc;
+            longPressTimer.current = setTimeout(() => {
+                if (!touchHasMoved.current) setHeldProductKey(key);
+            }, 350);
+        }
+    };
+
+    const handleTouchMove = (e) => {
+        if (touchStartX.current === null) return;
+        if (Math.abs(e.touches[0].clientX - touchStartX.current) > 8) {
+            touchHasMoved.current = true;
+            clearTimeout(longPressTimer.current);
+        }
     };
 
     const handleTouchEnd = (e, product, idx) => {
+        clearTimeout(longPressTimer.current);
+        setHeldProductKey(null);
         if (touchStartX.current === null) return;
         const delta = e.changedTouches[0].clientX - touchStartX.current;
         touchStartX.current = null;
@@ -462,16 +486,20 @@ const Shop = ({ category = "ALL" }) => {
                                 <Link to={`/product/${product.handle || product.id}`} className="product-link">
                                     <div
                                         className="product-image-container"
-                                        onTouchStart={handleTouchStart}
+                                        onTouchStart={(e) => handleTouchStart(e, product, idx)}
+                                        onTouchMove={handleTouchMove}
                                         onTouchEnd={(e) => handleTouchEnd(e, product, idx)}
                                     >
                                         {(() => {
-                                            const primary = product.images?.length > 0
-                                                ? product.images[swipeIndices[product.id || idx] || 0]
-                                                : product.img;
+                                            const key = product.id || idx;
+                                            const isHeld = heldProductKey === key;
+                                            const currentIdx = swipeIndices[key] || 0;
                                             const hover = product.images?.length > 1
                                                 ? product.images[product.images.length - 1]
                                                 : null;
+                                            const primary = product.images?.length > 0
+                                                ? product.images[isHeld && hover ? product.images.length - 1 : currentIdx]
+                                                : product.img;
                                             return (
                                                 <>
                                                     <img
@@ -490,7 +518,7 @@ const Shop = ({ category = "ALL" }) => {
                                                     />
                                                     {hover && (
                                                         <img
-                                                            loading="lazy"
+                                                            loading={idx < 4 ? 'eager' : 'lazy'}
                                                             decoding="async"
                                                             width="800"
                                                             height="1200"

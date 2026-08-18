@@ -983,6 +983,10 @@
         margin-bottom: 2rem;
     }
 
+    .pd-container.pd-single-image {
+        grid-template-columns: 1fr;
+    }
+
     .pd-main-image-col {
         display: none;
     }
@@ -1195,6 +1199,10 @@
         row-gap: 0;
         column-gap: 0;
         background: var(--bg);
+    }
+
+    .pd-container.pd-single-image {
+        grid-template-columns: 1fr;
     }
 
     /* Hide desktop image columns on mobile */

@@ -1387,7 +1387,7 @@
         display: none;
     }
 
-    .product-item:hover .product-image-container .img-primary {
+    .product-item:hover .product-image-container .img-primary:not(.img-primary--only) {
         opacity: 1;
     }
 
