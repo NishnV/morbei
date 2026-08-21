@@ -98,6 +98,18 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
                 // and alert the owner to refund manually.
                 console.error(`Refund failed for order ${order.id}:`, err.message);
                 await run(`UPDATE orders SET status = $1 WHERE id = $2 AND status = 'cancelling'`, [order.status, order.id]);
+                // Alert on BOTH channels. This is the one failure where the
+                // customer has been told "our team has been notified" — if the
+                // only notification is an email and SMTP is having a bad day,
+                // that sentence is a lie and someone is owed money nobody knows
+                // about. Slack carries the Razorpay code so the cause is visible
+                // without opening the dashboard: an unfunded account and a
+                // payment that doesn't exist need completely different fixes.
+                notifySlackError(
+                    `REFUND FAILED for order ${order.id} — ₹${Number(order.total_amount) / 100} is still owed to the customer`
+                    + (err.code ? ` [${err.code}${err.reason && err.reason !== 'NA' ? `/${err.reason}` : ''}]` : ''),
+                    err
+                ).catch(() => {});
                 sendRefundFailureAlert({
                     orderId: order.id,
                     paymentId: payment.id,
