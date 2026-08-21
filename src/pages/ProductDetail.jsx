@@ -476,7 +476,7 @@ const ProductDetail = () => {
                         key={mainImageIndex}
                         src={shopifyImage(product.images[mainImageIndex], 1200)}
                         srcSet={shopifySrcSet(product.images[mainImageIndex], [800, 1200, 1600, 2000])}
-                        sizes={product.images.length <= 1 ? "(max-width: 768px) 100vw, 75vw" : "(max-width: 768px) 100vw, 50vw"}
+                        sizes={product.images.length <= 1 ? "(max-width: 1024px) 100vw, 75vw" : "(max-width: 1024px) 100vw, 50vw"}
                         alt={product.name}
                         // This is the LCP element on every product page — never
                         // lazy, and tell the browser to prioritise it.
@@ -836,7 +836,7 @@ const ProductDetail = () => {
                                         decoding="async"
                                         src={shopifyImage(prod.images?.[0] || prod.img, 500)}
                                         srcSet={shopifySrcSet(prod.images?.[0] || prod.img, [400, 600, 800])}
-                                        sizes="(max-width: 768px) 50vw, 25vw"
+                                        sizes="(max-width: 1024px) 50vw, 25vw"
                                         alt={prod.name}
                                     />
                                 </Link>
