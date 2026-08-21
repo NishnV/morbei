@@ -147,7 +147,7 @@ const Wishlist = () => {
                         <div key={item.id} className="wishlist-item">
                             <div className="wishlist-img-wrapper">
                                 <Link to={`/product/${item.handle || item.id}`}>
-                                    <img loading="lazy" decoding="async" src={shopifyImage(item.img, 500)} srcSet={shopifySrcSet(item.img, [400, 600, 800])} sizes="(max-width: 768px) 50vw, 25vw" alt={item.name} />
+                                    <img loading="lazy" decoding="async" src={shopifyImage(item.img, 500)} srcSet={shopifySrcSet(item.img, [400, 600, 800])} sizes="(max-width: 600px) 100vw, (orientation: portrait) and (max-width: 1200px) 50vw, 25vw" alt={item.name} />
                                 </Link>
                                 <button
                                     className="wishlist-remove-icon"

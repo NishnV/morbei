@@ -500,11 +500,14 @@ const Shop = ({ category = "ALL" }) => {
                                             const primary = product.images?.length > 0
                                                 ? product.images[isHeld && hover ? product.images.length - 1 : currentIdx]
                                                 : product.img;
+                                            const imgSizes = viewMode === 4
+                                                ? '(orientation: portrait) and (max-width: 1200px) 34vw, (max-width: 600px) 34vw, 17vw'
+                                                : viewMode === 1
+                                                    ? '(orientation: portrait) and (max-width: 1200px) 100vw, (max-width: 600px) 100vw, 50vw'
+                                                    : '(orientation: portrait) and (max-width: 1200px) 100vw, (max-width: 600px) 100vw, 25vw';
                                             return (
                                                 <>
                                                     <img
-                                                        // The first row is above the fold — lazy-loading it
-                                                        // delays the LCP instead of helping.
                                                         loading={idx < 4 ? 'eager' : 'lazy'}
                                                         fetchPriority={idx === 0 ? 'high' : undefined}
                                                         decoding="async"
@@ -513,7 +516,7 @@ const Shop = ({ category = "ALL" }) => {
                                                         className={`img-primary${hover ? '' : ' img-primary--only'}`}
                                                         src={shopifyImage(primary, 800)}
                                                         srcSet={shopifySrcSet(primary)}
-                                                        sizes="(max-width: 1024px) 50vw, 25vw"
+                                                        sizes={imgSizes}
                                                         alt={product.name}
                                                     />
                                                     {hover && (
@@ -525,7 +528,7 @@ const Shop = ({ category = "ALL" }) => {
                                                             className="img-hover"
                                                             src={shopifyImage(hover, 800)}
                                                             srcSet={shopifySrcSet(hover)}
-                                                            sizes="(max-width: 1024px) 50vw, 25vw"
+                                                            sizes={imgSizes}
                                                             alt={product.name}
                                                         />
                                                     )}
