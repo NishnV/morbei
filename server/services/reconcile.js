@@ -60,13 +60,22 @@ export async function reconcileStuckOrders() {
             if (!paymentId) continue; // abandoned checkout — nothing owed, nothing to do
 
             // A stranded claim has to be released before fulfillPaidOrder can
-            // re-claim it. Safe here: this row is >30min old, so no live request
-            // is still working on it.
+            // re-claim it — but only if the claim itself is old, not merely the
+            // order. This row being >30min old says nothing: a customer can sit
+            // in the Razorpay flow for an hour and have /verify claim the order
+            // seconds before this sweep reads it. Releasing a live claim lets
+            // two callers fulfil the same payment, which is exactly the
+            // duplicate-order bug this guard exists to avoid.
             if (order.status === 'processing') {
-                await run(
-                    `UPDATE orders SET status = 'pending' WHERE id = $1 AND status = 'processing'`,
-                    [order.id]
+                const released = await run(
+                    `UPDATE orders SET status = 'pending'
+                     WHERE id = $1
+                       AND status = 'processing'
+                       AND (claimed_at IS NULL OR claimed_at < now() - make_interval(mins => $2::int))`,
+                    [order.id, STUCK_AFTER_MINUTES]
                 );
+                // Someone is actively working on it — leave it for the next sweep.
+                if (released.rowCount === 0) continue;
                 order.status = 'pending';
             }
 

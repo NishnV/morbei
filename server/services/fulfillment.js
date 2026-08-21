@@ -20,7 +20,8 @@ export const SHIPPING_COST_RUPEES = { standard: 0, priority: 200 };
  */
 export async function fulfillPaidOrder(order, razorpayPaymentId) {
     const claimed = await run(
-        `UPDATE orders SET status = 'processing', razorpay_payment_id = $1 WHERE id = $2 AND status = 'pending'`,
+        `UPDATE orders SET status = 'processing', razorpay_payment_id = $1, claimed_at = now()
+         WHERE id = $2 AND status = 'pending'`,
         [razorpayPaymentId, order.id]
     );
     if (claimed.rowCount === 0) {

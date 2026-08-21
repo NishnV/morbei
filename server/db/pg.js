@@ -95,6 +95,13 @@ export async function initDB() {
         -- Records the Razorpay refund issued when an order is cancelled.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_id TEXT;
 
+        -- When fulfillPaidOrder last claimed this order (status → 'processing').
+        -- Staleness of a claim MUST be measured from this, never from created_at:
+        -- a customer can spend 10 minutes in the Razorpay flow, so created_at
+        -- says nothing about whether a claim is still being worked on. NULL on
+        -- rows claimed before this column existed — treated as "don't fast-release".
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+
         -- Shopify's sequential, customer-facing order number (#1001, #1002…).
         -- shopify_order_id is the internal 13-digit id — never show that to customers.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS shopify_order_number BIGINT;

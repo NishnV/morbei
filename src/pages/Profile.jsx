@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useCustomer } from '../hooks/useCustomer';
 import { useCart } from '../hooks/useCart';
 import { formatPrice } from '../utils/formatPrice';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './Profile.css';
 import SiteImage from '../components/SiteImage';
 
@@ -15,8 +15,23 @@ const Profile = () => {
         updateProfile, addAddress, updateAddress, deleteAddress, setDefaultAddress
     } = useCustomer();
     const { cart } = useCart();
+    const navigate = useNavigate();
+    const location = useLocation();
 
-    const [view, setView] = useState('signup'); // login | signup | recover | google-coming-soon
+    // Set when we redirected someone here mid-task (checkout needs a session).
+    // Send them back the moment they're signed in rather than stranding them
+    // on the account page to find their own way.
+    const returnTo = location.state?.from || null;
+    const returnToRef = React.useRef(returnTo);
+    React.useEffect(() => {
+        if (customer && returnToRef.current) {
+            const dest = returnToRef.current;
+            returnToRef.current = null;
+            navigate(dest, { replace: true });
+        }
+    }, [customer, navigate]);
+
+    const [view, setView] = useState(() => (location.state?.from ? 'login' : 'signup')); // login | signup | recover | google-coming-soon
     const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', notify: false });
     const [message, setMessage] = useState('');
     const [addrForm, setAddrForm] = useState({ firstName: '', lastName: '', address1: '', address2: '', city: '', province: '', zip: '', country: 'India', phone: '' });

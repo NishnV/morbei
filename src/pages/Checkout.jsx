@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { useCustomer } from '../hooks/useCustomer';
 import { formatPrice } from '../utils/formatPrice';
-import { paymentAPI, authAPI, setToken } from '../lib/api';
+import { paymentAPI, ensureBackendSession } from '../lib/api';
 import { SHIPPABLE_COUNTRIES, getStatesForCountry } from '../data/countries';
 import { DELIVERY_OPTIONS, getDeliveryOption, deliveryWindow } from '../data/delivery';
 import './Checkout.css';
@@ -30,8 +30,19 @@ function loadRazorpayScript() {
 
 const Checkout = () => {
     const { cart, loading: cartLoading } = useCart();
-    const { customer } = useCustomer();
+    const { customer, loading: customerLoading } = useCustomer();
     const navigate = useNavigate();
+
+    // Paying requires a backend session, which is derived from the Shopify one.
+    // Establish that up front: this used to be discovered at the Pay button,
+    // after the shopper had filled in name, phone, address and PIN, and it
+    // announced itself with a browser alert() before dumping them on the
+    // account page. Checking on entry costs them nothing and loses no work.
+    useEffect(() => {
+        if (!customerLoading && !customer) {
+            navigate('/profile', { state: { from: '/checkout' }, replace: true });
+        }
+    }, [customer, customerLoading, navigate]);
 
     const lines = cart?.lines || [];
     const cost = cart?.cost;
@@ -155,21 +166,13 @@ const Checkout = () => {
         setPaying(true);
         setPaymentError('');
         try {
-            // Payment requires a backend session. If the exchange failed earlier
-            // (e.g. flaky network), retry it here before giving up.
-            if (!localStorage.getItem('morbei_token')) {
-                const shopifyToken = localStorage.getItem('morbei_customer_token');
-                if (shopifyToken) {
-                    try {
-                        const session = await authAPI.shopifyLogin(shopifyToken);
-                        setToken(session.token);
-                    } catch { /* handled below */ }
-                }
-            }
-            if (!localStorage.getItem('morbei_token')) {
-                alert('Please log in to complete your purchase. Your cart is saved.');
+            // Defence in depth: the route guard above should have caught this,
+            // but /checkout/payment can be deep-linked and a session can lapse
+            // while the form is open. ensureBackendSession re-exchanges the
+            // Shopify token when the backend JWT is missing or expired.
+            if (!(await ensureBackendSession())) {
                 setPaying(false);
-                navigate('/profile');
+                navigate('/profile', { state: { from: '/checkout' } });
                 return;
             }
 

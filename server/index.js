@@ -2,8 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import { initDB } from './db/pg.js';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { initDB, pool } from './db/pg.js';
 import authRoutes from './routes/auth.js';
 import paymentRoutes from './routes/payment.js';
 import orderRoutes from './routes/orders.js';
@@ -72,7 +72,12 @@ app.use(express.json({
 const limitMsg = { error: 'Too many requests, please try again shortly' };
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  // Generous on purpose. Browsing never touches this server (the storefront
+  // talks to Shopify directly), so this budget is only spent on real intent —
+  // and Indian mobile carriers run large-scale CGNAT, which can put a whole
+  // city's shoppers behind one address. 300 was low enough to start 429-ing
+  // paying customers during a busy hour.
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: limitMsg,
@@ -94,7 +99,11 @@ const checkoutLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: limitMsg,
-  keyGenerator: (req) => req.headers.authorization?.slice(7, 60) || req.ip,
+  // ipKeyGenerator, not a bare req.ip: it collapses an IPv6 address to its /64
+  // subnet. A raw IPv6 address is effectively unlimited — a client can source
+  // each request from a different address in a range it already owns and never
+  // hit the limit. express-rate-limit rejects a bare req.ip here for that reason.
+  keyGenerator: (req) => req.headers.authorization?.slice(7, 60) || ipKeyGenerator(req.ip),
 });
 
 app.use('/api', apiLimiter);
@@ -110,8 +119,23 @@ app.use('/api/shipping', shippingRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 
-// Health check
+// Liveness — the process is up and serving. This is what Railway's deploy
+// healthcheck gates on, so it must not depend on anything that could make a
+// good deploy look bad.
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Readiness — the process is up AND can reach its database. Point external
+// uptime monitoring at this one: a server that has lost Postgres answers every
+// real request with a 500 while /api/health cheerfully reports 'ok'.
+app.get('/api/health/ready', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'ok' });
+  } catch (err) {
+    console.error('Readiness check failed:', err.message);
+    res.status(503).json({ status: 'degraded', db: 'unreachable' });
+  }
+});
 
 // Central error handler — never leak internals to clients
 app.use((err, _req, res, _next) => {
@@ -126,10 +150,38 @@ app.use((err, _req, res, _next) => {
 // Ensure tables exist before accepting traffic
 initDB()
   .then(() => {
-    app.listen(PORT, () => console.log(`MORBEI server running on port ${PORT}`));
+    const server = app.listen(PORT, () => console.log(`MORBEI server running on port ${PORT}`));
     // Safety net below the webhook: recovers orders where money was captured
     // but fulfilment never completed. Runs shortly after boot, then hourly.
     startReconciler();
+
+    // Every redeploy sends SIGTERM. Without a handler the process dies
+    // instantly, killing whatever was in flight — including a /verify that has
+    // taken the customer's money and is partway through creating the Shopify
+    // order. The reconciler would eventually recover that, but finishing the
+    // request is better than recovering from it.
+    let shuttingDown = false;
+    const shutdown = (signal) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      console.log(`${signal} received — draining in-flight requests`);
+
+      server.close(() => {
+        pool.end()
+          .catch((err) => console.error('Error closing Postgres pool:', err.message))
+          .finally(() => process.exit(0));
+      });
+
+      // A wedged connection must not hold the deploy open until the platform
+      // SIGKILLs us; give real work a window, then go.
+      setTimeout(() => {
+        console.error('Shutdown timed out — exiting with requests still open');
+        process.exit(1);
+      }, 15000).unref();
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   })
   .catch((err) => {
     console.error('Database init failed:', err);

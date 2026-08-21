@@ -12,6 +12,11 @@ const router = Router();
 const MAX_QUANTITY_PER_LINE = 20;
 const MAX_CART_LINES = 30;
 
+// How long after a fulfilment claim we assume the claimer is dead rather than
+// slow. Fulfilment is three sequential Shopify calls — seconds, not minutes —
+// so this is generous by an order of magnitude.
+const STALE_CLAIM_SECONDS = 5 * 60;
+
 /**
  * A variant's tracked stock level, or null when Shopify isn't reporting one.
  *
@@ -273,23 +278,42 @@ router.post('/webhook', async (req, res) => {
                 : null;
 
             if (order && payment.amount === Number(order.total_amount)) {
-                // 'processing' means a previous attempt claimed the order and
-                // died before it could revert (deploy, OOM, restart). Release
-                // the stale claim so this delivery can finish the job — but only
-                // once it is old enough that no live request is still working
-                // on it. fulfillPaidOrder re-claims atomically, so a genuine
-                // concurrent caller still can't double-fulfil.
-                const STALE_CLAIM_MS = 5 * 60 * 1000;
-                if (order.status === 'processing'
-                    && Date.now() - new Date(order.created_at).getTime() > STALE_CLAIM_MS) {
-                    const released = await run(
-                        `UPDATE orders SET status = 'pending' WHERE id = $1 AND status = 'processing'`,
-                        [order.id]
-                    );
-                    if (released.rowCount > 0) {
-                        console.warn(`Webhook released stale 'processing' claim on order ${order.id}`);
-                        order.status = 'pending';
-                    }
+                // 'processing' means someone claimed this order for fulfilment.
+                // Usually that someone is /verify, running RIGHT NOW: Razorpay
+                // fires this webhook at the same moment it returns to the
+                // browser, so the two arrive within a second of each other.
+                //
+                // Occasionally the claimer died mid-flight (deploy, OOM,
+                // restart) and nothing will ever retry, so a stale claim does
+                // need releasing. The distinction is how long ago the claim was
+                // made — which is what claimed_at records.
+                //
+                // This previously measured from created_at, i.e. when the
+                // customer started checking out. Anyone who spent more than
+                // five minutes in the Razorpay flow (netbanking, UPI with OTP —
+                // routine) had their live /verify claim torn out from under it
+                // mid-fulfilment, and both callers went on to create a Shopify
+                // order: two orders, two stock decrements, two confirmation
+                // emails, one payment.
+                //
+                // Done as one conditional UPDATE rather than read-then-write so
+                // there is no window between deciding and acting, and so the
+                // comparison uses the database's clock rather than this process's.
+                const released = await run(
+                    `UPDATE orders SET status = 'pending'
+                     WHERE id = $1
+                       AND status = 'processing'
+                       AND claimed_at IS NOT NULL
+                       AND claimed_at < now() - make_interval(secs => $2::int)`,
+                    [order.id, STALE_CLAIM_SECONDS]
+                );
+                if (released.rowCount > 0) {
+                    console.warn(`Webhook released stale 'processing' claim on order ${order.id}`);
+                    notifySlackError(
+                        `Order ${order.id}: released a stale fulfilment claim — a previous attempt died mid-flight`,
+                        new Error('stale claim released')
+                    ).catch(() => {});
+                    order.status = 'pending';
                 }
 
                 if (order.status === 'pending') {

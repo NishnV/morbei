@@ -5,5 +5,8 @@ builder = "nixpacks"
 # Env vars come from the Railway dashboard (reference DATABASE_URL from the Postgres service)
 startCommand = "node index.js"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 10
+# initDB runs before the server listens, and a cold Postgres can take a while to
+# accept connections — 10s was tight enough that a slow-starting database would
+# fail an otherwise-good deploy.
+healthcheckTimeout = 120
 restartPolicyType = "on_failure"
