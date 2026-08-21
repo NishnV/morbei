@@ -525,11 +525,33 @@ const Shop = ({ category = "ALL" }) => {
                                             const primary = product.images?.length > 0
                                                 ? product.images[isHeld && hover ? product.images.length - 1 : currentIdx]
                                                 : product.img;
+                                            // In landscape the 4-up grid promotes every 3rd and 6th
+                                            // tile to span two columns (Shop.css, nth-child(6n+3) and
+                                            // 6n), so those render at 50vw while their neighbours
+                                            // render at 25vw. `sizes` is per-element and this one was
+                                            // shared: the browser was told 25vw for a slot laid out at
+                                            // 50vw, so it fetched an 800px image for a 1440px slot and
+                                            // scaled it up. That is the blur — only ever on the big
+                                            // tiles, which is what made it look intermittent.
+                                            const isWideTile = viewMode === 2
+                                                && ((idx + 1) % 6 === 3 || (idx + 1) % 6 === 0);
                                             const imgSizes = viewMode === 4
                                                 ? '(orientation: portrait) and (max-width: 1200px) 34vw, (max-width: 600px) 34vw, 17vw'
                                                 : viewMode === 1
                                                     ? '(orientation: portrait) and (max-width: 1200px) 100vw, (max-width: 600px) 100vw, 50vw'
-                                                    : '(orientation: portrait) and (max-width: 1200px) 100vw, (max-width: 600px) 100vw, 25vw';
+                                                    // Portrait is 2 columns at every width this grid is
+                                                    // used at (measured at 390px and 834px), so the tile
+                                                    // is 50vw — not the 100vw previously declared, which
+                                                    // made phones download 2-4x more image than they
+                                                    // could display. Wide tiles only span in landscape;
+                                                    // in portrait they are ordinary 50vw tiles.
+                                                    : isWideTile
+                                                        ? '(orientation: portrait) and (max-width: 1200px) 50vw, (max-width: 600px) 50vw, 50vw'
+                                                        : '(orientation: portrait) and (max-width: 1200px) 50vw, (max-width: 600px) 50vw, 25vw';
+                                            // A wide tile on a 1920px retina display needs ~1920px;
+                                            // the default ladder stops at 1600.
+                                            const imgWidths = isWideTile ? [600, 900, 1200, 1600, 2000] : undefined;
+                                            const imgFallbackWidth = isWideTile ? 1200 : 800;
                                             return (
                                                 <>
                                                     <img
@@ -539,8 +561,8 @@ const Shop = ({ category = "ALL" }) => {
                                                         width="800"
                                                         height="1200"
                                                         className={`img-primary${hover ? '' : ' img-primary--only'}`}
-                                                        src={shopifyImage(primary, 800)}
-                                                        srcSet={shopifySrcSet(primary)}
+                                                        src={shopifyImage(primary, imgFallbackWidth)}
+                                                        srcSet={shopifySrcSet(primary, imgWidths)}
                                                         sizes={imgSizes}
                                                         alt={product.name}
                                                     />
@@ -551,8 +573,8 @@ const Shop = ({ category = "ALL" }) => {
                                                             width="800"
                                                             height="1200"
                                                             className="img-hover"
-                                                            src={shopifyImage(hover, 800)}
-                                                            srcSet={shopifySrcSet(hover)}
+                                                            src={shopifyImage(hover, imgFallbackWidth)}
+                                                            srcSet={shopifySrcSet(hover, imgWidths)}
                                                             sizes={imgSizes}
                                                             alt={product.name}
                                                         />
