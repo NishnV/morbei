@@ -31,6 +31,10 @@ export const AuthContext = createContext(null);
 const TOKEN_KEY = 'morbei_customer_token';
 const TOKEN_EXPIRY_KEY = 'morbei_customer_token_expiry';
 
+// Checkout state to drop on sign-out. Includes the key an older build used, so
+// a blob written before the ownership fix cannot outlive this deploy.
+const CHECKOUT_SESSION_KEYS = ['morbei_checkout_form', 'morbei_checkout_delivery'];
+
 // Renew a Shopify customer session only inside this window before it lapses.
 const RENEW_BEFORE_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
@@ -118,6 +122,14 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     tokenRef.current = null;
     clearBackendToken();
+    // Signing out must take the in-progress checkout with it. It holds the
+    // customer's name, phone number and home address, and sessionStorage
+    // outlives a sign-out — so on a shared device the next person to sign in
+    // was shown the previous one's details. Checkout also scopes the saved
+    // form to its owner, but the data should not linger here at all.
+    CHECKOUT_SESSION_KEYS.forEach((key) => {
+      try { sessionStorage.removeItem(key); } catch { /* blocked — non-critical */ }
+    });
     setCustomer(null);
   }, []);
 

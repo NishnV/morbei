@@ -15,6 +15,51 @@ const REQUIRED_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'address', '
 const isFormComplete = (f) =>
     !!f && REQUIRED_FIELDS.every(k => typeof f[k] === 'string' && f[k].trim());
 
+// Keep in sync with CHECKOUT_SESSION_KEYS in context/AuthContext.jsx, which
+// clears this on sign-out.
+const CHECKOUT_KEY = 'morbei_checkout_form';
+
+const EMPTY_FORM = {
+    firstName: '', lastName: '', phone: '', email: '',
+    country: 'India', state: '', address: '', city: '', zip: '',
+};
+
+/** Prefill from the customer's Shopify profile and saved address. */
+function formFromCustomer(customer) {
+    const addr = customer?.addresses?.[0] || customer?.defaultAddress;
+    return {
+        firstName: customer?.firstName || '',
+        lastName: customer?.lastName || '',
+        phone: customer?.phone || '',
+        email: customer?.email || '',
+        country: addr?.country || 'India',
+        state: addr?.province || '',
+        address: addr?.address1 || '',
+        city: addr?.city || '',
+        zip: addr?.zip || '',
+    };
+}
+
+/**
+ * An in-progress checkout, but only if it belongs to this customer.
+ *
+ * A failed payment shouldn't cost someone their typed address, which is why
+ * this is kept at all — but it must never be handed to a different account.
+ * Anything without a matching owner is ignored (and includes the unscoped
+ * blobs written before this was fixed).
+ */
+function readSavedCheckout(customerId) {
+    if (!customerId) return null;
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(CHECKOUT_KEY) || 'null');
+        if (!saved || saved.owner !== customerId) return null;
+        if (!saved.form?.address) return null;
+        return saved;
+    } catch {
+        return null; // corrupted — treat as absent
+    }
+}
+
 function loadRazorpayScript() {
     return new Promise((resolve) => {
         if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
@@ -49,56 +94,56 @@ const Checkout = () => {
     const totalFormatted = cost?.totalAmount ? formatPrice(cost.totalAmount) : '—';
     const cartCount = lines.reduce((sum, l) => sum + l.quantity, 0);
 
-    // /checkout/payment (used by the payment-failed page's TRY AGAIN) jumps
-    // straight to the payment step — only when the saved form from the earlier
-    // attempt is actually complete (the key alone proves nothing: an empty form
-    // is saved the moment checkout mounts), otherwise start at information.
     const { step: stepParam } = useParams();
-    const [currentStep, setCurrentStep] = useState(() => {
-        if (stepParam !== 'payment') return 0;
-        try {
-            const saved = JSON.parse(sessionStorage.getItem('morbei_checkout_form') || 'null');
-            return isFormComplete(saved) ? 2 : 0;
-        } catch {
-            return 0;
-        }
-    });
-    const [deliveryMethod, setDeliveryMethod] = useState(() =>
-        sessionStorage.getItem('morbei_checkout_delivery') || 'standard'
-    );
+    const [currentStep, setCurrentStep] = useState(0);
+    const [deliveryMethod, setDeliveryMethod] = useState('standard');
     const [paying, setPaying] = useState(false);
     const [validationError, setValidationError] = useState('');
     const [paymentError, setPaymentError] = useState('');
+    const [form, setForm] = useState(EMPTY_FORM);
 
+    // Which customer the state above belongs to. Seeding is driven by this
+    // rather than by a useState initialiser, which fixed two bugs at once:
+    //
+    //  1. The saved form was restored to whoever opened checkout next. Sign
+    //     out, sign in as someone else, and the previous customer's name,
+    //     phone and home address were sitting in the form — their data shown
+    //     to a different person on the same device.
+    //
+    //  2. A useState initialiser runs on the FIRST render, which on a direct
+    //     load of /checkout is before the Shopify customer has finished
+    //     loading. It seeded from `customer` while `customer` was still null
+    //     and never ran again, so the saved-address prefill silently did
+    //     nothing — a race that made it look intermittent.
+    //
+    // Re-seeding keys on the customer id, so it happens on mount and on an
+    // account switch, but never mid-typing for the same person.
+    const customerId = customer?.id || null;
+    const [seededFor, setSeededFor] = useState(null);
 
-    const defaultAddr = customer?.addresses?.[0] || customer?.defaultAddress;
-
-    const [form, setForm] = useState(() => {
-        // A failed payment shouldn't cost the user their filled-in address —
-        // restore the form from this tab's session if present.
-        try {
-            const saved = JSON.parse(sessionStorage.getItem('morbei_checkout_form') || 'null');
-            if (saved && typeof saved === 'object' && saved.address) return saved;
-        } catch { /* corrupted — fall through to defaults */ }
-        return {
-            firstName: customer?.firstName || '',
-            lastName: customer?.lastName || '',
-            phone: customer?.phone || '',
-            email: customer?.email || '',
-            country: defaultAddr?.country || 'India',
-            state: defaultAddr?.province || '',
-            address: defaultAddr?.address1 || '',
-            city: defaultAddr?.city || '',
-            zip: defaultAddr?.zip || '',
-        };
-    });
+    if (customerId && seededFor !== customerId) {
+        const saved = readSavedCheckout(customerId);
+        const nextForm = saved ? saved.form : formFromCustomer(customer);
+        setSeededFor(customerId);
+        setForm(nextForm);
+        setDeliveryMethod(saved?.delivery === 'priority' ? 'priority' : 'standard');
+        // /checkout/payment (the payment-failed page's TRY AGAIN) may jump
+        // straight to payment — but only against a genuinely complete form,
+        // since an empty one is saved the moment checkout mounts.
+        setCurrentStep(stepParam === 'payment' && isFormComplete(nextForm) ? 2 : 0);
+    }
 
     useEffect(() => {
+        // Only persist once seeded, and always stamped with the owner — an
+        // unowned blob is what leaked between accounts.
+        if (!customerId || seededFor !== customerId) return;
         try {
-            sessionStorage.setItem('morbei_checkout_form', JSON.stringify(form));
-            sessionStorage.setItem('morbei_checkout_delivery', deliveryMethod);
+            sessionStorage.setItem(
+                CHECKOUT_KEY,
+                JSON.stringify({ owner: customerId, form, delivery: deliveryMethod })
+            );
         } catch { /* storage full/blocked — non-critical */ }
-    }, [form, deliveryMethod]);
+    }, [customerId, seededFor, form, deliveryMethod]);
 
     const handleForm = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
