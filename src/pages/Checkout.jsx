@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { useCustomer } from '../hooks/useCustomer';
 import { formatPrice } from '../utils/formatPrice';
-import { paymentAPI, ensureBackendSession } from '../lib/api';
+import { paymentAPI, ordersAPI, ensureBackendSession } from '../lib/api';
+import { rememberPendingOrder } from '../lib/pendingOrder';
 import { SHIPPABLE_COUNTRIES, getStatesForCountry } from '../data/countries';
 import { DELIVERY_OPTIONS, getDeliveryOption, deliveryWindow } from '../data/delivery';
 import './Checkout.css';
@@ -60,6 +61,35 @@ function readSavedCheckout(customerId) {
     }
 }
 
+// How long to wait for the webhook to finish fulfilling an order whose /verify
+// call failed. The webhook normally lands within a couple of seconds; this is
+// generous enough to cover a slow Shopify call without stranding the customer
+// on a spinner.
+const SETTLE_TIMEOUT_MS = 25000;
+const SETTLE_POLL_MS = 2000;
+
+/**
+ * Poll an order until the backend reports it paid.
+ *
+ * Resolves with the order once it settles, or null if it hasn't within the
+ * window (or the customer navigated away — `isAlive` lets the caller stop).
+ * Network errors are ignored rather than fatal: the whole point is that the
+ * customer's connection is already proving unreliable.
+ */
+async function waitForOrderToSettle(orderId, isAlive) {
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, SETTLE_POLL_MS));
+        if (!isAlive()) return null;
+        try {
+            const order = await ordersAPI.get(orderId);
+            if (order?.status === 'paid') return order;
+            if (order?.status === 'cancelled') return null;
+        } catch { /* transient — keep waiting */ }
+    }
+    return null;
+}
+
 function loadRazorpayScript() {
     return new Promise((resolve) => {
         if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
@@ -100,6 +130,12 @@ const Checkout = () => {
     const [paying, setPaying] = useState(false);
     const [validationError, setValidationError] = useState('');
     const [paymentError, setPaymentError] = useState('');
+    // True while we're waiting on the webhook after a failed verification.
+    const [confirming, setConfirming] = useState(false);
+
+    // Polling must stop if the customer leaves the page mid-wait.
+    const aliveRef = useRef(true);
+    useEffect(() => () => { aliveRef.current = false; }, []);
     const [form, setForm] = useState(EMPTY_FORM);
 
     // Which customer the state above belongs to. Seeding is driven by this
@@ -241,6 +277,12 @@ const Checkout = () => {
                 shippingMethod: deliveryMethod,
             });
 
+            // Record the attempt BEFORE the gateway opens. If the customer
+            // closes the tab after paying, this note is the only trace the
+            // browser keeps — it is what lets the next visit clear the bag and
+            // show them the confirmation they never saw.
+            rememberPendingOrder(orderData.orderId);
+
             // 2. Open Razorpay popup
             const options = {
                 key: orderData.keyId,
@@ -256,46 +298,59 @@ const Checkout = () => {
                 },
                 theme: { color: '#000000' },
                 handler: async (response) => {
+                    // The money is captured by the time Razorpay calls this.
+                    // Everything from here is about telling the customer so.
+                    const shippingCost = deliveryMethod === 'priority' ? 200 : 0;
+                    const confirmation = {
+                        orderId: orderData.orderId,
+                        items: cartLines,
+                        shippingAddress: form,
+                        deliveryMethod,
+                        subtotal: Math.round(orderData.amount / 100) - shippingCost,
+                        shippingCost,
+                        total: Math.round(orderData.amount / 100),
+                    };
+                    // The confirmation page clears the cart itself once mounted.
+                    // Clearing here would empty the cart while still on
+                    // /checkout, and RequireCart would redirect to /cart before
+                    // the navigation lands.
+                    const confirm = (orderNumber, shopifyOrderId) =>
+                        navigate('/order-confirmed', {
+                            state: { order: { ...confirmation, orderNumber, shopifyOrderId } },
+                        });
+
                     try {
-                        // 3. Verify payment on backend → creates Shopify order + Shiprocket shipment
+                        // 3. Verify payment on backend → creates the Shopify order
                         const result = await paymentAPI.verify({
                             razorpayOrderId: response.razorpay_order_id,
                             razorpayPaymentId: response.razorpay_payment_id,
                             razorpaySignature: response.razorpay_signature,
                             orderId: orderData.orderId,
                         });
-                        // Snapshot the placed order for the confirmation page —
-                        // the cart is cleared right after, so capture it now.
-                        const shippingCost = deliveryMethod === 'priority' ? 200 : 0;
-                        const confirmation = {
-                            orderId: orderData.orderId,
-                            orderNumber: result?.orderNumber,
-                            shopifyOrderId: result?.shopifyOrderId,
-                            items: cartLines,
-                            shippingAddress: form,
-                            deliveryMethod,
-                            subtotal: Math.round(orderData.amount / 100) - shippingCost,
-                            shippingCost,
-                            total: Math.round(orderData.amount / 100),
-                        };
-                        // 4. Navigate to the confirmation page. The cart is
-                        // intentionally NOT cleared here — clearing it while
-                        // still on /checkout empties the cart and RequireCart
-                        // redirects to /cart before navigation lands. The
-                        // confirmation page clears the cart itself once mounted.
-                        navigate('/order-confirmed', { state: { order: confirmation } });
+                        confirm(result?.orderNumber, result?.shopifyOrderId);
                     } catch (err) {
-                        // Payment may have been captured even though verification
-                        // failed — the webhook will settle it (paid or refunded).
-                        console.error('Payment verification failed:', err);
-                        navigate('/order-failed', {
-                            state: {
-                                failure: {
-                                    kind: 'verification',
-                                    orderId: orderData.orderId,
-                                },
-                            },
-                        });
+                        // Verification failed, but the payment was already
+                        // captured — this is a lost response, not lost money.
+                        // The webhook is fulfilling the order right now and
+                        // normally finishes within seconds, so wait for it
+                        // rather than sending a paying customer to a page that
+                        // reads like something went wrong.
+                        console.error('Payment verification failed, waiting for the webhook:', err);
+                        setConfirming(true);
+                        const settled = await waitForOrderToSettle(orderData.orderId, () => aliveRef.current);
+                        setConfirming(false);
+                        if (!aliveRef.current) return;
+
+                        if (settled) {
+                            confirm(settled.orderNumber, settled.shopifyOrderId);
+                        } else {
+                            // Still unsettled. The reconciler is the backstop;
+                            // /order-failed's 'verification' copy explains that
+                            // without claiming the payment failed.
+                            navigate('/order-failed', {
+                                state: { failure: { kind: 'verification', orderId: orderData.orderId } },
+                            });
+                        }
                     } finally {
                         setPaying(false);
                     }
@@ -552,7 +607,7 @@ const Checkout = () => {
                                                         disabled={paying}
                                                     >
                                                         {paying ? (
-                                                            <span>PROCESSING...</span>
+                                                            <span>{confirming ? 'CONFIRMING YOUR ORDER...' : 'PROCESSING...'}</span>
                                                         ) : (
                                                             <>
                                                                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -566,6 +621,13 @@ const Checkout = () => {
                                                             </>
                                                         )}
                                                     </button>
+                                                    {confirming && (
+                                                        <div role="status" style={{ marginTop: '1rem', textAlign: 'center' }}>
+                                                            <p style={{ fontSize: '0.7rem', letterSpacing: '0.1em', margin: 0, textTransform: 'uppercase', lineHeight: 1.6 }}>
+                                                                PAYMENT RECEIVED. CONFIRMING YOUR ORDER — PLEASE DON&apos;T CLOSE THIS PAGE OR PAY AGAIN.
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                     {paymentError && (
                                                         <div role="alert" style={{ marginTop: '1rem', textAlign: 'center' }}>
                                                             <p style={{ color: '#ff4444', fontSize: '0.7rem', letterSpacing: '0.1em', margin: 0, textTransform: 'uppercase', lineHeight: 1.6 }}>

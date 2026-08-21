@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import './Checkout.css';
+import { forgetPendingOrder } from '../lib/pendingOrder';
 
 const rs = (n) => `RS. ${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -15,7 +16,11 @@ const OrderConfirmed = () => {
     // confirmation page can load. By the time we're here the order is placed,
     // so it's safe to empty the cart.
     useEffect(() => {
-        if (order && clearCart) clearCart();
+        if (!order) return;
+        if (clearCart) clearCart();
+        // A confirmation has now been shown, so the recovery marker has done
+        // its job — otherwise the next load would try to show this again.
+        forgetPendingOrder();
     }, [order, clearCart]);
 
     // Reached without an order in state (refresh, direct visit, back button) —

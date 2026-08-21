@@ -48,6 +48,7 @@ const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 import ErrorBoundary from './components/ErrorBoundary';
 import { useCustomer } from './hooks/useCustomer';
 import { useCart } from './hooks/useCart';
+import { useOrderRecovery } from './hooks/useOrderRecovery';
 
 // Per-route document titles — ProductDetail overrides with the product name once loaded
 const ROUTE_TITLES = [
@@ -104,6 +105,9 @@ const RequireCart = ({ children }) => {
 const AppContent = () => {
   const location = useLocation();
   const { loading } = useGlobalLoading();
+
+  // Close the loop on any payment the browser never saw confirmed.
+  useOrderRecovery();
 
   useEffect(() => {
     document.title = titleForPath(location.pathname);
