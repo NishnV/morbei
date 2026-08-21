@@ -9,6 +9,7 @@
  */
 
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useCustomer } from '../hooks/useCustomer';
 import { shopifyFetch, handleUserErrors } from '../lib/shopify';
 import {
   CART_CREATE_MUTATION,
@@ -49,6 +50,9 @@ function normalizeCart(cart) {
 }
 
 export function CartProvider({ children }) {
+  const { customer } = useCustomer();
+  const customerId = customer?.id || null;
+
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -291,6 +295,26 @@ export function CartProvider({ children }) {
     cartIdRef.current = null;
     setCart(null);
   }, []);
+
+  // A Shopify cart is anonymous — it belongs to whoever holds its id, and the
+  // id outlived sign-out in localStorage. Signing out and signing in as
+  // someone else handed the new customer the previous one's bag, which both
+  // leaks what they were buying and is baffling to arrive at checkout with.
+  //
+  // Only a sign-out clears it: a guest who fills a bag and then signs in must
+  // keep it, which is the whole point of a persistent cart. That is why this
+  // watches for a customer disappearing rather than simply changing.
+  const hadCustomer = useRef(false);
+  useEffect(() => {
+    if (customerId) {
+      hadCustomer.current = true;
+      return;
+    }
+    if (hadCustomer.current) {
+      hadCustomer.current = false;
+      clearCart();
+    }
+  }, [customerId, clearCart]);
 
   const value = {
     cart,
