@@ -1,4 +1,5 @@
 import { SHOPIFY_API_VERSION, warnOnVersionMismatch } from './shopify-version.js';
+import { notifySlackError } from './slack.js';
 
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
@@ -127,10 +128,91 @@ export async function setMarketingConsentRevoked(email) {
     });
 }
 
+/**
+ * Short-lived cache of variant reads.
+ *
+ * getVariant has exactly one caller — the checkout's re-pricing/stock loop in
+ * routes/payment.js — and it is the hottest path against Shopify's Admin API.
+ * Shopify Basic allows ~2 REST requests/second (burst 40) per app, per store.
+ * A drop is the worst case for that budget and the best case for a cache:
+ * everyone buys the same handful of variants at the same moment, so 300
+ * concurrent lookups collapse into one call per distinct variant per window.
+ *
+ * Caching the *price* is free — we set prices, they don't move mid-drop.
+ * Caching the *stock* number looks riskier than it is: nothing reserves
+ * inventory between create-order and payment, so that check is already a
+ * snapshot that goes stale over the minutes a customer spends in the Razorpay
+ * flow. A 20-second TTL makes an already-advisory check negligibly looser,
+ * and the real oversell guard is Shopify's own inventory at draft completion.
+ */
+const VARIANT_TTL_MS = Number(process.env.VARIANT_CACHE_TTL_MS || 20 * 1000);
+// How long a cached copy may still be served *after* it expires, when Shopify
+// itself is failing. A one-minute-old price beats losing the sale to a 429.
+const VARIANT_STALE_IF_ERROR_MS = 60 * 1000;
+const VARIANT_CACHE_MAX = 300;
+
+const variantCache = new Map();    // numeric variant id -> { at, variant }
+const inFlightVariants = new Map(); // numeric variant id -> Promise
+
+function cacheVariant(variantId, variant) {
+    // Re-insert so Map iteration order is least-recently-written first.
+    variantCache.delete(variantId);
+    variantCache.set(variantId, { at: Date.now(), variant });
+
+    if (variantCache.size > VARIANT_CACHE_MAX) {
+        const excess = variantCache.size - VARIANT_CACHE_MAX;
+        let dropped = 0;
+        for (const key of variantCache.keys()) {
+            variantCache.delete(key);
+            if (++dropped >= excess) break;
+        }
+    }
+}
+
 // Fetch a variant's real price from Shopify — never trust client-sent prices
 export async function getVariant(variantId) {
-    const data = await adminFetch(`variants/${variantId}.json`);
-    return data.variant; // { id, price: "1999.00", title, product_id, ... }
+    const hit = variantCache.get(variantId);
+    if (hit && Date.now() - hit.at < VARIANT_TTL_MS) {
+        return hit.variant;
+    }
+
+    // A TTL alone doesn't help the case that matters most. When a drop opens,
+    // every shopper checks out within the same few seconds — they all miss the
+    // cache simultaneously, so a plain cache would still send one request per
+    // shopper per variant. Sharing the in-flight promise collapses that
+    // thundering herd into a single Admin API call.
+    const pending = inFlightVariants.get(variantId);
+    if (pending) return pending;
+
+    const request = (async () => {
+        try {
+            const data = await adminFetch(`variants/${variantId}.json`);
+            cacheVariant(variantId, data.variant);
+            return data.variant; // { id, price: "1999.00", title, product_id, ... }
+        } catch (err) {
+            // Shopify is rate-limiting or down. Serving a slightly stale variant
+            // is far better than failing a checkout — but say so loudly, because
+            // it means we are over the API budget and the next customer may not
+            // be so lucky.
+            if (hit && Date.now() - hit.at < VARIANT_STALE_IF_ERROR_MS) {
+                const ageMs = Date.now() - hit.at;
+                console.warn(
+                    `getVariant(${variantId}) failed (${err.message}) — serving cached copy ${ageMs}ms old`
+                );
+                notifySlackError(
+                    'Shopify variant fetch failed — served stale price/stock from cache',
+                    err
+                ).catch(() => {});
+                return hit.variant;
+            }
+            throw err;
+        } finally {
+            inFlightVariants.delete(variantId);
+        }
+    })();
+
+    inFlightVariants.set(variantId, request);
+    return request;
 }
 
 /**

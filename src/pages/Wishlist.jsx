@@ -10,7 +10,7 @@ import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 const Wishlist = () => {
     const { wishlist, toggleWishlist, isInWishlist } = useShop();
     const { addToCart: shopifyAddToCart } = useCart();
-    const { products: allProducts, loading: productsLoading } = useProducts(100);
+    const { data: allProducts, loading: productsLoading } = useProducts(100);
     const [movingToBagId, setMovingToBagId] = useState(null);
     const [bagError, setBagError] = useState(null);
     // sizePicker: { itemId, sizes: [{label, variantId, available}] } | null

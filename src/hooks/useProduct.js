@@ -1,14 +1,24 @@
 /**
- * Hook to fetch a single product by handle from Shopify Storefront API.
+ * Hooks to fetch a single product from the Shopify Storefront API.
  *
  * Used on the Product Detail Page. Returns the normalized product with
  * all variants, images, metafields, and SEO data.
+ *
+ * Results are cached in-memory (see lib/shopifyCache): revisiting a product
+ * renders instantly from cache while a fresh copy revalidates behind it. The
+ * TTL is deliberately short — this page shows live stock counts.
  */
 
-import { useState, useEffect } from 'react';
-import { shopifyFetch } from '../lib/shopify';
 import { PRODUCT_BY_HANDLE_QUERY, PRODUCT_BY_ID_QUERY } from '../graphql/products';
 import { normalizeProduct } from '../utils/normalizeProduct';
+import { keyFor, prefetch, TTL } from '../lib/shopifyCache';
+import { useCachedQuery } from './useCachedQuery';
+
+const byHandleKey = (handle) => keyFor('product', handle);
+const byIdKey = (id) => keyFor('productById', id);
+
+const fromHandle = (result) => normalizeProduct(result.productByHandle);
+const fromId = (result) => normalizeProduct(result.product);
 
 /**
  * Fetch a single product by its handle (URL slug).
@@ -17,45 +27,14 @@ import { normalizeProduct } from '../utils/normalizeProduct';
  * @returns {{ data: Object|null, loading: boolean, error: Error|null }}
  */
 export function useProduct(handle) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!handle) {
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetch() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const result = await shopifyFetch({
-          query: PRODUCT_BY_HANDLE_QUERY,
-          variables: { handle },
-        });
-
-        if (!cancelled) {
-          setData(normalizeProduct(result.productByHandle));
-        }
-      } catch (err) {
-        if (!cancelled) setError(err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    fetch();
-    return () => {
-      cancelled = true;
-    };
-  }, [handle]);
-
-  return { data, loading, error };
+  return useCachedQuery({
+    key: byHandleKey(handle),
+    query: PRODUCT_BY_HANDLE_QUERY,
+    variables: { handle },
+    transform: fromHandle,
+    ttl: TTL.PRODUCT,
+    skip: !handle,
+  });
 }
 
 /**
@@ -65,43 +44,31 @@ export function useProduct(handle) {
  * @returns {{ data: Object|null, loading: boolean, error: Error|null }}
  */
 export function useProductById(id) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  return useCachedQuery({
+    key: byIdKey(id),
+    query: PRODUCT_BY_ID_QUERY,
+    variables: { id },
+    transform: fromId,
+    ttl: TTL.PRODUCT,
+    skip: !id,
+  });
+}
 
-  useEffect(() => {
-    if (!id) {
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetch() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const result = await shopifyFetch({
-          query: PRODUCT_BY_ID_QUERY,
-          variables: { id },
-        });
-
-        if (!cancelled) {
-          setData(normalizeProduct(result.product));
-        }
-      } catch (err) {
-        if (!cancelled) setError(err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    fetch();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  return { data, loading, error };
+/**
+ * Warm the cache for a product the shopper has signalled interest in but not
+ * opened yet — hovering a grid tile, or the touchstart before a tap completes.
+ * By the time the route transition and the lazy-loaded page chunk are ready,
+ * the data is usually already there.
+ *
+ * Safe to call on every pointer event: it no-ops when the entry is cached or
+ * a request is already in flight, and it never throws.
+ */
+export function prefetchProduct(handle) {
+  if (!handle) return;
+  prefetch({
+    key: byHandleKey(handle),
+    query: PRODUCT_BY_HANDLE_QUERY,
+    variables: { handle },
+    transform: fromHandle,
+  });
 }

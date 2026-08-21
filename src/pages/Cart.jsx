@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useCart } from '../hooks/useCart';
-import { useProducts } from '../hooks/useProducts';
 import { formatPrice } from '../utils/formatPrice';
 import { parseShopifyId } from '../utils/parseShopifyId';
 import { Link } from 'react-router-dom';
@@ -11,7 +10,6 @@ import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 const Cart = () => {
     const { toggleWishlist, isInWishlist } = useShop();
     const { cart, removeFromCart, updateQuantity, loading: cartLoading } = useCart();
-    const { products: allProducts } = useProducts(20);
 
     const lines = cart?.lines || [];
     const cost = cart?.cost;

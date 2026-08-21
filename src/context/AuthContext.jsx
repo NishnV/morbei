@@ -31,6 +31,9 @@ export const AuthContext = createContext(null);
 const TOKEN_KEY = 'morbei_customer_token';
 const TOKEN_EXPIRY_KEY = 'morbei_customer_token_expiry';
 
+// Renew a Shopify customer session only inside this window before it lapses.
+const RENEW_BEFORE_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
 /**
  * Shopify saves every order's shipping address into the customer's address
  * book, so repeat orders to a saved address accumulate duplicate entries.
@@ -128,6 +131,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
+   * Whether the session is close enough to expiry to be worth renewing.
+   * Shopify issues customer tokens with a long life, so renewing on every page
+   * load bought nothing and cost a blocking round-trip each time.
+   */
+  const needsRenewal = useCallback(() => {
+    const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+    if (!expiry) return true;
+    return new Date(expiry).getTime() - Date.now() < RENEW_BEFORE_EXPIRY_MS;
+  }, []);
+
+  /**
    * Fetch the current customer profile using the stored access token.
    */
   const fetchCustomer = useCallback(async () => {
@@ -155,13 +169,19 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        // Try to renew the token first
-        const renewData = await shopifyFetch({
-          query: CUSTOMER_ACCESS_TOKEN_RENEW_MUTATION,
-          variables: { customerAccessToken: token },
-        });
+        // Renew only when the session is actually close to expiring. This ran
+        // on every single page load, spending a Storefront round-trip before
+        // the customer query could even start — for a token with three weeks
+        // of life left.
+        let renewed = null;
+        if (needsRenewal()) {
+          const renewData = await shopifyFetch({
+            query: CUSTOMER_ACCESS_TOKEN_RENEW_MUTATION,
+            variables: { customerAccessToken: token },
+          });
+          renewed = renewData.customerAccessTokenRenew?.customerAccessToken;
+        }
 
-        const renewed = renewData.customerAccessTokenRenew?.customerAccessToken;
         if (renewed) {
           saveToken(renewed.accessToken, renewed.expiresAt);
         } else if (!localStorage.getItem('morbei_token')) {
@@ -182,7 +202,7 @@ export function AuthProvider({ children }) {
     }
 
     initAuth();
-  }, [clearAuth, fetchCustomer, isTokenExpired, saveToken]);
+  }, [clearAuth, fetchCustomer, isTokenExpired, needsRenewal, saveToken]);
 
   /**
    * Create a new customer account.

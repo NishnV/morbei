@@ -34,6 +34,17 @@
     <meta name="twitter:image" content="https://morbei.vercel.app/og-image.jpg" />
     <!--seo:end-->
 
+    <!--
+      Every page's first data fetch goes to the Shopify Storefront API, and
+      every product image comes from Shopify's CDN — two origins the browser
+      would otherwise only discover once React has booted and issued the
+      request. Opening the DNS + TLS connections up front takes that handshake
+      (100-300ms on mobile) off the critical path.
+    -->
+    <link rel="preconnect" href="https://cdn.shopify.com" crossorigin />
+    <link rel="preconnect" href="https://%VITE_SHOPIFY_STORE_DOMAIN%" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.shopify.com" />
+
     <!-- Fonts are self-hosted (src/styles/fonts.css) — no third-party round
          trip on the critical path. Preload only the two latin files that render
          above the fold; latin-ext loads on demand via unicode-range. -->

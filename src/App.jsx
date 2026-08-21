@@ -5,6 +5,7 @@ import { ShopProvider } from './context/ShopContext';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { LoadingProvider, useGlobalLoading } from './context/LoadingContext';
+import { routeChunks } from './lib/routeChunks';
 import ScrollToTop from './components/ScrollToTop';
 import LoadingScreen from './components/LoadingScreen';
 
@@ -21,25 +22,27 @@ import Footer from './components/Footer';
 // Each page imports its own CSS, so this splits the stylesheet too.
 import Home from './pages/Home';
 
-const Shop = lazy(() => import('./pages/Shop'));
-const Editorials = lazy(() => import('./pages/Editorials'));
-const About = lazy(() => import('./pages/About'));
-const Cart = lazy(() => import('./pages/Cart'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+// The routes shoppers reach most are imported through routeChunks so the same
+// thunk can be prefetched on hover/touch before the click lands.
+const Shop = lazy(routeChunks.shop);
+const Editorials = lazy(routeChunks.editorials);
+const About = lazy(routeChunks.about);
+const Cart = lazy(routeChunks.cart);
+const Checkout = lazy(routeChunks.checkout);
+const ProductDetail = lazy(routeChunks.product);
 const FAQ = lazy(() => import('./pages/FAQ'));
 const Contact = lazy(() => import('./pages/Contact'));
 const TrackOrder = lazy(() => import('./pages/TrackOrder'));
 const Shipping = lazy(() => import('./pages/Shipping'));
 const Returns = lazy(() => import('./pages/Returns'));
-const Wishlist = lazy(() => import('./pages/Wishlist'));
+const Wishlist = lazy(routeChunks.wishlist);
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
 const OrderDetails = lazy(() => import('./pages/OrderDetails'));
 const OrderConfirmed = lazy(() => import('./pages/OrderConfirmed'));
 const OrderFailed = lazy(() => import('./pages/OrderFailed'));
-const Profile = lazy(() => import('./pages/Profile'));
+const Profile = lazy(routeChunks.profile);
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 import ErrorBoundary from './components/ErrorBoundary';

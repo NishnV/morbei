@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
@@ -8,6 +8,8 @@ import { contactAPI } from '../lib/api';
 import { useCollection } from '../hooks/useCollection';
 import { useSearch } from '../hooks/useSearch';
 import { useProducts } from '../hooks/useProducts';
+import { prefetchProduct } from '../hooks/useProduct';
+import { prefetchRoute } from '../lib/routeChunks';
 import { useGlobalLoading } from '../context/LoadingContext';
 import Seo, { breadcrumbJsonLd } from '../components/Seo';
 import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
@@ -154,13 +156,21 @@ const Shop = ({ category = "ALL" }) => {
         return filters;
     }, [selectedSizes, selectedColors, priceRange]);
 
-    // Fetch from Shopify — either collection or all products
+    // Fetch from Shopify — search, a collection, or all products. Exactly one of
+    // these three is rendered, so the other two are skipped rather than fetched
+    // and discarded: /shop/dresses used to pull a full 40-product catalogue page
+    // it never displayed, on top of the collection it actually needed.
+    const isSearching = Boolean(searchQuery);
+
     const { data: collectionData, loading: collectionLoading, error: collectionError, hasNextPage: collectionHasNext, fetchMore: collectionFetchMore } = useCollection(
         collectionHandle,
-        { sortBy: SORT_KEY_MAP[sortBy] || 'featured', filters: shopifyFilters, pageSize: 40 }
+        { sortBy: SORT_KEY_MAP[sortBy] || 'featured', filters: shopifyFilters, pageSize: 40, skip: isSearching }
     );
 
-    const { data: allProducts, loading: allLoading, error: allError, hasNextPage: allHasNext, fetchMore: allFetchMore } = useProducts(40);
+    const { data: allProducts, loading: allLoading, error: allError, hasNextPage: allHasNext, fetchMore: allFetchMore } = useProducts(
+        40,
+        { skip: isSearching || Boolean(collectionHandle) }
+    );
 
     // Fetch from Shopify search when search query is present
     const { data: searchResults, loading: searchLoading, totalCount: searchTotal } = useSearch(
@@ -183,6 +193,15 @@ const Shop = ({ category = "ALL" }) => {
     if (searchQuery) {
         currentCategory = `SEARCH RESULTS FOR: ${searchQuery.toUpperCase()}`;
     }
+
+    // Warm both halves of the next navigation the moment the shopper signals
+    // one: the product query and the lazily-loaded ProductDetail chunk. Hover
+    // gives us ~200ms on desktop; pointerdown gives us the ~100ms between
+    // touch and tap on mobile. Both no-op once warmed.
+    const warmProduct = useCallback((handle) => {
+        prefetchProduct(handle);
+        prefetchRoute('product');
+    }, []);
 
     // Show loading screen only while Shopify data is actually being fetched
     const { startLoading, stopLoading } = useGlobalLoading();
@@ -483,7 +502,13 @@ const Shop = ({ category = "ALL" }) => {
                     <div className={`products-grid col-${viewMode}`}>
                         {sortedProducts.map((product, idx) => (
                             <div className={`product-item reveal reveal-up reveal-delay-${(idx % 4) + 1}`} key={product.id || idx}>
-                                <Link to={`/product/${product.handle || product.id}`} className="product-link">
+                                <Link
+                                    to={`/product/${product.handle || product.id}`}
+                                    className="product-link"
+                                    onMouseEnter={() => warmProduct(product.handle)}
+                                    onFocus={() => warmProduct(product.handle)}
+                                    onPointerDown={() => warmProduct(product.handle)}
+                                >
                                     <div
                                         className="product-image-container"
                                         onTouchStart={(e) => handleTouchStart(e, product, idx)}
