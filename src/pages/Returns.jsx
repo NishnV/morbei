@@ -66,7 +66,7 @@ const Returns = () => {
                 <p className="re-body re-contact">
                     Email: info@morbei.com<br />
                     Phone: +91 9952228533<br />
-                    Instagram: @morbei
+                    Instagram: @shopmorbei
                 </p>
                 <p className="re-body">
                     We're committed to making your shopping experience with MORBEI simple,

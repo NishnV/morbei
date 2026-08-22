@@ -263,7 +263,7 @@ const PrivacyPolicy = () => {
                     Morbei<br />
                     Email: info@morbei.com<br />
                     Phone: +91 9952228533<br />
-                    Instagram: @morbei<br />
+                    Instagram: @shopmorbei<br />
                     Opening Hours: Mon to Sat: 11:00am – 5:00pm
                 </p>
             </section>
