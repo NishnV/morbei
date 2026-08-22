@@ -1287,6 +1287,15 @@
         overflow-x: hidden;
     }
 
+    .no-products-found {
+        width: calc(100vw - 4rem);
+        top: 5rem;
+    }
+
+    .no-products-found p {
+        max-width: 100%;
+    }
+
     .products-grid {
         overflow-x: hidden;
         gap: 1px;
@@ -1454,45 +1463,69 @@
         padding-left: calc(1.2rem + 2px);
     }
 }
+.shop-main-content {
+    position: relative;
+    min-height: 60vh;
+}
+
 .no-products-found {
-    padding: 10rem 2rem;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 8rem;
     text-align: center;
-    max-width: 600px;
-    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    width: fit-content;
 }
 
 .no-products-found h2 {
-    font-size: 1.5rem;
-    letter-spacing: 0.2em;
-    font-weight: 500;
-    margin-bottom: 1.5rem;
+    font-family: 'Castoro Titling', serif;
+    font-size: 16px;
+    letter-spacing: 1.6px;
+    font-weight: 400;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--text);
+    white-space: nowrap;
 }
 
 .no-products-found p {
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    color: var(--text-muted);
-    margin-bottom: 3rem;
-    line-height: 1.8;
+    font-size: 9px;
+    letter-spacing: 0.9px;
+    color: var(--text);
+    margin: 0;
+    line-height: 26px;
+    text-transform: uppercase;
+    font-weight: 300;
+    max-width: 530px;
 }
 
 .back-to-shop {
-    display: inline-block;
-    padding: 1.25rem 3rem;
-    background: #000;
-    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 270px;
+    height: 40px;
+    background: #d9d9d9;
+    color: #000;
     text-decoration: none;
-    font-size: 0.7rem;
-    letter-spacing: 0.2em;
-    transition: opacity 0.3s;
+    font-size: 9px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    font-weight: 400;
+    transition: opacity 0.2s;
+    margin-top: 4.9rem;
 }
 
 .back-to-shop:hover {
-    opacity: 0.8;
+    opacity: 0.75;
 }
 
 [data-theme='dark'] .back-to-shop {
-    background: #fff;
+    background: #d9d9d9;
     color: #000;
 }
 
