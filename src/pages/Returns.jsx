@@ -5,8 +5,8 @@ const Returns = () => {
     return (
         <div className="re-page">
             <div className="re-header">
-                <div className="re-rule" />
                 <h1 className="re-title">Returns &amp; Exchanges</h1>
+                <div className="re-rule" />
             </div>
 
             <p className="re-intro">

@@ -5,8 +5,8 @@ const Shipping = () => {
     return (
         <div className="sp-page">
             <div className="sp-header">
-                <div className="sp-rule" />
                 <h1 className="sp-title">Shipping Policy</h1>
+                <div className="sp-rule" />
             </div>
 
             <section className="sp-section">

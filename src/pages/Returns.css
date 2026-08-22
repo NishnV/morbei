@@ -16,7 +16,8 @@
 .re-rule {
     height: 1px;
     background: #fff;
-    margin-bottom: 2.5rem;
+    /* Sits below the title, so the gap belongs above it. */
+    margin-top: 2.5rem;
 }
 
 .re-title {

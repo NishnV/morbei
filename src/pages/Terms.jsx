@@ -5,8 +5,8 @@ const Terms = () => {
     return (
         <div className="tc-page">
             <div className="tc-header">
-                <div className="tc-rule" />
                 <h1 className="tc-title">Terms &amp; Conditions</h1>
+                <div className="tc-rule" />
             </div>
 
             {/* ── A. GENERAL TERMS ── */}
