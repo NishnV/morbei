@@ -15,7 +15,10 @@
 
 .pp-rule {
     height: 1px;
-    background: #fff;
+    /* 1px is the thinnest a hairline renders, so the weight comes off the
+       colour instead. Solid #fff made this the heaviest divider on the site;
+       every other rule here is a translucent white. */
+    background: rgba(255, 255, 255, 0.25);
     /* Sits below the title and date, so the gap belongs above it. */
     margin-top: 2.5rem;
 }

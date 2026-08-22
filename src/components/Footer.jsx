@@ -63,7 +63,7 @@ const Footer = ({ minimal = false, showWordmark = false }) => {
                                 <li><Link to="/">HOME</Link></li>
                                 <li><Link to="/about">ABOUT</Link></li>
                                 <li><Link to="/contact">CONTACT US</Link></li>
-                                <li><a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer">INSTAGRAM</a></li>
+                                <li><a href="https://www.instagram.com/shopmorbei" target="_blank" rel="noopener noreferrer">INSTAGRAM</a></li>
                             </ul>
                         </div>
                         <div className="link-group">
