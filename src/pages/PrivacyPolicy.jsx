@@ -5,9 +5,9 @@ const PrivacyPolicy = () => {
     return (
         <div className="pp-page">
             <div className="pp-header">
-                <div className="pp-rule" />
-                <p className="pp-updated">Last Updated on 24.07.2026</p>
                 <h1 className="pp-title">Privacy Policy</h1>
+                <p className="pp-updated">Last Updated on 24.07.2026</p>
+                <div className="pp-rule" />
             </div>
 
             <p className="pp-intro">
