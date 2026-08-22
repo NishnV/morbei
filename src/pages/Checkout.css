@@ -753,9 +753,15 @@ select.checkout-input-v3 option {
 /* TrackOrder.css also styles .cancel-order-btn and .order-details-container
    and wins on bundle order — these scoped resets keep the order-history page
    on this file's intended values */
+/* Aligned to the navbar's menu button rather than the 4rem/1440px grid the
+   other order pages use. The button sits inside .nav-container's fluid gutter
+   (Navbar.css), so matching that value — and dropping the centred max-width,
+   which pushes the left edge inward on wide screens — is what makes the
+   ORDER DETAILS heading start exactly where the hamburger does.
+   Keep this in sync with .nav-container in Navbar.css. */
 .order-history-page .order-details-container {
-    max-width: 1440px;
-    padding: 0 4rem;
+    max-width: none;
+    padding: 0 clamp(1.5rem, 2.5vw, 3rem);
 }
 
 .order-history-page .cancel-order-btn {
@@ -1613,5 +1619,14 @@ select.checkout-input-v3 option {
 
     .order-item-block {
         gap: 1.2rem;
+    }
+}
+
+/* Portrait tablets: .nav-container narrows its left gutter, so the menu button
+   moves with it. Mirror that here or the heading drifts a few px to the right. */
+@media (--tablet) {
+    .order-history-page .order-details-container {
+        padding-left: calc(1.2rem + 2px);
+        padding-right: 1.2rem;
     }
 }

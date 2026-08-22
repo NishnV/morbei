@@ -19,7 +19,6 @@ export const routeChunks = {
     wishlist: () => import('../pages/Wishlist'),
     profile: () => import('../pages/Profile'),
     about: () => import('../pages/About'),
-    editorials: () => import('../pages/Editorials'),
 };
 
 const started = new Set();

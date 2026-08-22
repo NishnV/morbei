@@ -70,7 +70,6 @@ const Footer = ({ minimal = false, showWordmark = false }) => {
                             <h4>HELP/SUPPORT</h4>
                             <ul>
                                 <li><Link to="/faqs">FAQS</Link></li>
-                                <li><Link to="/track">TRACK ORDER</Link></li>
                                 <li><Link to="/shipping">SHIPPING</Link></li>
                                 <li><Link to="/returns">RETURNS & EXCHANGES</Link></li>
                             </ul>
@@ -79,7 +78,6 @@ const Footer = ({ minimal = false, showWordmark = false }) => {
                             <h4>LEGAL</h4>
                             <ul>
                                 <li><Link to="/privacy">PRIVACY POLICY</Link></li>
-                                <li><Link to="/cookies">COOKIE POLICY</Link></li>
                                 <li><Link to="/terms">TERMS & CONDITIONS</Link></li>
                             </ul>
                         </div>

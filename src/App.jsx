@@ -25,7 +25,6 @@ import Home from './pages/Home';
 // The routes shoppers reach most are imported through routeChunks so the same
 // thunk can be prefetched on hover/touch before the click lands.
 const Shop = lazy(routeChunks.shop);
-const Editorials = lazy(routeChunks.editorials);
 const About = lazy(routeChunks.about);
 const Cart = lazy(routeChunks.cart);
 const Checkout = lazy(routeChunks.checkout);
@@ -38,7 +37,6 @@ const Returns = lazy(() => import('./pages/Returns'));
 const Wishlist = lazy(routeChunks.wishlist);
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const Terms = lazy(() => import('./pages/Terms'));
-const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
 const OrderDetails = lazy(() => import('./pages/OrderDetails'));
 const OrderConfirmed = lazy(() => import('./pages/OrderConfirmed'));
 const OrderFailed = lazy(() => import('./pages/OrderFailed'));
@@ -55,7 +53,6 @@ const ROUTE_TITLES = [
   [/^\/$/, 'MORBEI | Minimalist Fashion'],
   [/^\/shop\/?([a-z-]*)/, (m) => m[1] && m[1] !== 'all' ? `${m[1].replace(/-/g, ' ').toUpperCase()} | MORBEI` : 'SHOP | MORBEI'],
   [/^\/product\//, 'MORBEI'],
-  [/^\/editorials/, 'EDITORIALS | MORBEI'],
   [/^\/about/, 'ABOUT | MORBEI'],
   [/^\/cart/, 'CART | MORBEI'],
   [/^\/checkout/, 'CHECKOUT | MORBEI'],
@@ -70,7 +67,6 @@ const ROUTE_TITLES = [
   [/^\/returns/, 'RETURNS | MORBEI'],
   [/^\/privacy/, 'PRIVACY POLICY | MORBEI'],
   [/^\/terms/, 'TERMS | MORBEI'],
-  [/^\/cookies/, 'COOKIE POLICY | MORBEI'],
   [/^\/unsubscribe/, 'EMAIL PREFERENCES | MORBEI'],
 ];
 
@@ -161,7 +157,6 @@ const AppContent = () => {
           <Route path="/" element={<Home />} />
           <Route path="/shop/:category" element={<ShopWrapper />} />
           <Route path="/shop" element={<ShopWrapper />} />
-          <Route path="/editorials" element={<Editorials />} />
           <Route path="/about" element={<About />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<RequireCart><Checkout /></RequireCart>} />
@@ -179,7 +174,6 @@ const AppContent = () => {
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
-          <Route path="/cookies" element={<CookiePolicy />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

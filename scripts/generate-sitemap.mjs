@@ -32,7 +32,6 @@ const STATIC_ROUTES = [
     ['/shop/dresses', 'weekly', '0.8'],
     ['/shop/tops', 'weekly', '0.8'],
     ['/shop/bottoms', 'weekly', '0.8'],
-    ['/editorials', 'weekly', '0.6'],
     ['/about', 'monthly', '0.5'],
     ['/contact', 'monthly', '0.4'],
     ['/faqs', 'monthly', '0.4'],
@@ -40,7 +39,6 @@ const STATIC_ROUTES = [
     ['/returns', 'monthly', '0.3'],
     ['/privacy', 'yearly', '0.2'],
     ['/terms', 'yearly', '0.2'],
-    ['/cookies', 'yearly', '0.2'],
 ];
 
 
