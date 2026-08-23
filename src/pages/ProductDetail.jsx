@@ -96,9 +96,7 @@ const ProductDetail = () => {
     const [activeAccordion, setActiveAccordion] = useState(null);
     const [mainImageIndex, setMainImageIndex] = useState(0);
     const [prevImageIndex, setPrevImageIndex] = useState(null);
-    const [mainSlideDir, setMainSlideDir] = useState(null); // null = default crossfade; 1/-1 = wheel-triggered vertical slide direction
     const [bgColor, setBgColor] = useState('#fff');
-    const mainImgWheelLock = useRef(false);
 
     const sampleImageBg = useCallback((img) => {
         try {
@@ -117,30 +115,9 @@ const ProductDetail = () => {
 
     const handleImageSelect = (idx) => {
         if (idx === mainImageIndex) return;
-        setMainSlideDir(null); // thumbnail clicks keep the crossfade, not the wheel's vertical slide
         setPrevImageIndex(mainImageIndex);
         setMainImageIndex(idx);
         setTimeout(() => setPrevImageIndex(null), 1350);
-    };
-
-    // Desktop: scrolling over the main image slides vertically to the next/previous
-    // image, mirroring the mobile touch-swipe slider but wheel-driven. Locked for the
-    // animation's duration so one wheel gesture only advances one image at a time.
-    // Disabled for 2-image products — col2 shows both images as a slider there.
-    const handleMainImageWheel = (e) => {
-        if (media.length <= 2) return;
-        if (Math.abs(e.deltaY) < 12) return;
-        e.preventDefault();
-        if (mainImgWheelLock.current) return;
-        const dir = e.deltaY > 0 ? 1 : -1;
-        const next = Math.max(0, Math.min(media.length - 1, mainImageIndex + dir));
-        if (next === mainImageIndex) return;
-        mainImgWheelLock.current = true;
-        setTimeout(() => { mainImgWheelLock.current = false; }, 650);
-        setMainSlideDir(dir);
-        setPrevImageIndex(mainImageIndex);
-        setMainImageIndex(next);
-        setTimeout(() => { setPrevImageIndex(null); setMainSlideDir(null); }, 650);
     };
 
     // Lightbox state
@@ -487,7 +464,6 @@ const ProductDetail = () => {
                 <div
                     className="pd-main-image-col"
                     onClick={() => { setLightboxIndex(mainImageIndex); setLightboxZoom(0); setLightboxOpen(true); }}
-                    onWheel={handleMainImageWheel}
                     style={{ background: bgColor, cursor: 'pointer' }}
                 >
                     {prevImageIndex !== null && (
@@ -495,7 +471,7 @@ const ProductDetail = () => {
                             src={shopifyImage(stillOf(media[prevImageIndex]), 1200)}
                             alt=""
                             decoding="async"
-                            className={`pd-main-img pd-main-img-exit${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-out-up' : ' pd-main-img-slide-out-down') : ''}`}
+                            className="pd-main-img pd-main-img-exit"
                             style={{ position: 'absolute', inset: 0 }}
                         />
                     )}
@@ -509,7 +485,7 @@ const ProductDetail = () => {
                             item={media[mainImageIndex]}
                             active
                             alt={product.name}
-                            className={`pd-main-img${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-in-up' : ' pd-main-img-slide-in-down') : ''}`}
+                            className="pd-main-img"
                         />
                     ) : (
                         <img
@@ -522,7 +498,7 @@ const ProductDetail = () => {
                             // lazy, and tell the browser to prioritise it.
                             fetchPriority="high"
                             decoding="async"
-                            className={`pd-main-img${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-in-up' : ' pd-main-img-slide-in-down') : ''}`}
+                            className="pd-main-img"
                             crossOrigin="anonymous"
                             onLoad={(e) => sampleImageBg(e.currentTarget)}
                         />
