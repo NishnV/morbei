@@ -127,6 +127,7 @@ const ProductDetail = () => {
     const [lbMouse, setLbMouse] = useState({ visible: false, cx: 0, cy: 0 });
     const [lbOrigin, setLbOrigin] = useState({ x: 50, y: 50 });
     const [col2AtBottom, setCol2AtBottom] = useState(false);
+    const [col2Overflows, setCol2Overflows] = useState(false);
     const lbNatRect = useRef(null);
     const lbMainRef = useRef(null);
     const lbImgRef = useRef(null);
@@ -250,6 +251,28 @@ const ProductDetail = () => {
             if (sizeFromUrl && product.sizes?.includes(sizeFromUrl)) setSelectedSize(sizeFromUrl);
         }
     }, [product]);
+
+    // The scroll hint only means something when there is more below the fold.
+    // Column two is exactly two thumbnails tall, and a three-item gallery hides
+    // the active one from it — leaving two, which fit exactly — so counting
+    // media put an arrow there that scrolled nothing, already flipped to its
+    // "back to top" state because the column was its own full height.
+    // Measure the column instead; the count cannot answer this question.
+    useEffect(() => {
+        const el = col2Ref.current;
+        if (!el) return;
+        const measure = () => {
+            const overflows = el.scrollHeight - el.clientHeight > 4;
+            setCol2Overflows(overflows);
+            if (!overflows) setCol2AtBottom(false);
+        };
+        measure();
+        // Thumbnail height is driven by the column's width through aspect-ratio,
+        // so a viewport change moves both sides of the comparison at once.
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [media, mainImageIndex]);
 
     // Shopify already excludes the current product from its recommendations;
     // filter defensively anyway and cap at the four the grid is built for.
@@ -537,7 +560,7 @@ const ProductDetail = () => {
                             </div>
                         ))}
                     </div>
-                    {media.length > 2 && (
+                    {col2Overflows && (
                         <button
                             className="pd-col2-scroll-hint"
                             aria-label={col2AtBottom ? 'Scroll to top' : 'Scroll for more images'}
