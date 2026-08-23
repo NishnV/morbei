@@ -10,6 +10,7 @@ import { useCustomer } from '../hooks/useCustomer';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Seo, { SITE_URL, breadcrumbJsonLd } from '../components/Seo';
 import SizeGuide from '../components/SizeGuide';
+import ProductVideo from '../components/ProductVideo';
 import Modal from '../components/ui/Modal';
 import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 import { sortSizes } from '../utils/sizes';
@@ -17,6 +18,20 @@ import { colorToSwatch } from '../utils/colors';
 import { contactAPI } from '../lib/api';
 import { isMobileViewport } from '../lib/viewport';
 import './ProductDetail.css';
+
+// The still that stands in for a media item: the image itself, or a video's
+// poster frame. Thumbnails and the crossfade layer are always images, whatever
+// the item behind them turns out to be.
+const stillOf = (m) => (m?.kind === 'video' ? m.poster : m?.url);
+
+const PLAY_BADGE = (
+    <span className="pd-media-badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10.5" stroke="currentColor" strokeWidth="1" />
+            <path d="M9.8 8.3v7.4L16 12z" fill="currentColor" />
+        </svg>
+    </span>
+);
 
 const LB_ZOOMS = [1, 2, 3.5, 5]; // lightbox zoom levels: 0=fit, then 2x/3.5x/5x
 
@@ -43,6 +58,14 @@ const ProductDetail = () => {
     const { customer } = useCustomer();
 
     const { data: product, loading } = useProduct(id);
+    // The gallery runs on `media`, not `images`: media is what carries video,
+    // and it preserves the order the merchant set in the admin so a clip placed
+    // second stays second. `images` is still the right list for the OG tag, the
+    // wishlist thumbnail and structured data, which all want a still.
+    const media = useMemo(() => {
+        if (product?.media?.length) return product.media;
+        return (product?.images || []).map((url) => ({ kind: 'image', url }));
+    }, [product]);
     // Shopify's own recommendation engine. This used to fetch 40 full products
     // (each with 10 images and 50 variants) and shuffle them with Math.random()
     // to fill four tiles — a large payload on every product view, results that
@@ -105,12 +128,12 @@ const ProductDetail = () => {
     // animation's duration so one wheel gesture only advances one image at a time.
     // Disabled for 2-image products — col2 shows both images as a slider there.
     const handleMainImageWheel = (e) => {
-        if (!product.images || product.images.length <= 2) return;
+        if (media.length <= 2) return;
         if (Math.abs(e.deltaY) < 12) return;
         e.preventDefault();
         if (mainImgWheelLock.current) return;
         const dir = e.deltaY > 0 ? 1 : -1;
-        const next = Math.max(0, Math.min(product.images.length - 1, mainImageIndex + dir));
+        const next = Math.max(0, Math.min(media.length - 1, mainImageIndex + dir));
         if (next === mainImageIndex) return;
         mainImgWheelLock.current = true;
         setTimeout(() => { mainImgWheelLock.current = false; }, 650);
@@ -215,10 +238,10 @@ const ProductDetail = () => {
         if (lightboxZoom > 0) return; // was panning a zoomed image, not swiping
         if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
             setLightboxIndex(prev => deltaX < 0
-                ? Math.min(prev + 1, product.images.length - 1)
+                ? Math.min(prev + 1, media.length - 1)
                 : Math.max(prev - 1, 0));
         }
-    }, [lightboxZoom, product]);
+    }, [lightboxZoom, media]);
 
     const handleLbMouseMove = useCallback((e) => {
         const cRect = lbMainRef.current?.getBoundingClientRect();
@@ -366,11 +389,15 @@ const ProductDetail = () => {
         }
         e.preventDefault();
         if (deltaX < 0) {
-            setMainImageIndex(prev => Math.min(prev + 1, product.images.length - 1));
+            setMainImageIndex(prev => Math.min(prev + 1, media.length - 1));
         } else {
             setMainImageIndex(prev => Math.max(prev - 1, 0));
         }
     };
+
+    // Video takes over the lightbox's click and cursor behaviour, so several
+    // branches below need to know what is on screen.
+    const lbIsVideo = media[lightboxIndex]?.kind === 'video';
 
     const productUrl = `/product/${product.handle || product.id}`;
     const inStock = product.variants?.some(v => v.available) ?? product.availableForSale;
@@ -455,7 +482,7 @@ const ProductDetail = () => {
                     ]),
                 ]}
             />
-            <div className={`pd-container${product.images.length <= 1 ? ' pd-single-image' : ''}`}>
+            <div className={`pd-container${media.length <= 1 ? ' pd-single-image' : ''}`}>
                 {/* Column 1 — 50%: Main image — click to open lightbox */}
                 <div
                     className="pd-main-image-col"
@@ -465,37 +492,51 @@ const ProductDetail = () => {
                 >
                     {prevImageIndex !== null && (
                         <img
-                            src={shopifyImage(product.images[prevImageIndex], 1200)}
+                            src={shopifyImage(stillOf(media[prevImageIndex]), 1200)}
                             alt=""
                             decoding="async"
                             className={`pd-main-img pd-main-img-exit${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-out-up' : ' pd-main-img-slide-out-down') : ''}`}
                             style={{ position: 'absolute', inset: 0 }}
                         />
                     )}
-                    <img
-                        key={mainImageIndex}
-                        src={shopifyImage(product.images[mainImageIndex], 1200)}
-                        srcSet={shopifySrcSet(product.images[mainImageIndex], [800, 1200, 1600, 2000])}
-                        sizes={product.images.length <= 1 ? "(max-width: 1024px) 100vw, 75vw" : "(max-width: 1024px) 100vw, 50vw"}
-                        alt={product.name}
-                        // This is the LCP element on every product page — never
-                        // lazy, and tell the browser to prioritise it.
-                        fetchPriority="high"
-                        decoding="async"
-                        className={`pd-main-img${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-in-up' : ' pd-main-img-slide-in-down') : ''}`}
-                        crossOrigin="anonymous"
-                        onLoad={(e) => sampleImageBg(e.currentTarget)}
-                    />
+                    {media[mainImageIndex]?.kind === 'video' ? (
+                        // No crossOrigin/onLoad pair here: the backdrop colour is
+                        // sampled from an image's pixels through a canvas, and a
+                        // video has none to read. The colour left by the last
+                        // still carries over, which reads better than a reset.
+                        <ProductVideo
+                            key={mainImageIndex}
+                            item={media[mainImageIndex]}
+                            active
+                            alt={product.name}
+                            className={`pd-main-img${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-in-up' : ' pd-main-img-slide-in-down') : ''}`}
+                        />
+                    ) : (
+                        <img
+                            key={mainImageIndex}
+                            src={shopifyImage(media[mainImageIndex]?.url, 1200)}
+                            srcSet={shopifySrcSet(media[mainImageIndex]?.url, [800, 1200, 1600, 2000])}
+                            sizes={media.length <= 1 ? "(max-width: 1024px) 100vw, 75vw" : "(max-width: 1024px) 100vw, 50vw"}
+                            alt={product.name}
+                            // This is the LCP element on every product page — never
+                            // lazy, and tell the browser to prioritise it.
+                            fetchPriority="high"
+                            decoding="async"
+                            className={`pd-main-img${mainSlideDir ? (mainSlideDir > 0 ? ' pd-main-img-slide-in-up' : ' pd-main-img-slide-in-down') : ''}`}
+                            crossOrigin="anonymous"
+                            onLoad={(e) => sampleImageBg(e.currentTarget)}
+                        />
+                    )}
                 </div>
 
                 {/* Column 2 — 25%: Scrollable thumbnail strip — all images, active one highlighted */}
-                <div className={`pd-col2-wrapper${product.images.length === 2 ? ' pd-two-images' : ''}`}>
+                <div className={`pd-col2-wrapper${media.length === 2 ? ' pd-two-images' : ''}`}>
                     <div className="pd-secondary-images-col" ref={col2Ref} onScroll={() => {
                         const el = col2Ref.current;
                         if (!el) return;
                         setCol2AtBottom(el.scrollTop + el.clientHeight >= el.scrollHeight - 10);
                     }}>
-                        {product.images.map((img, idx) => (
+                        {media.map((m, idx) => (
                             <div
                                 className={`pd-secondary-img${idx === mainImageIndex ? ' active' : ''}${idx === prevImageIndex ? ' pd-secondary-img-enter' : ''}`}
                                 key={idx}
@@ -503,7 +544,7 @@ const ProductDetail = () => {
                                     cursor: idx === mainImageIndex ? 'default' : 'pointer',
                                     // 2-image products: show all in col2 (col2 is the slider).
                                     // 3+ image products: hide the active image (it's shown large in col1).
-                                    display: (product.images.length <= 2 || idx !== mainImageIndex) ? 'block' : 'none',
+                                    display: (media.length <= 2 || idx !== mainImageIndex) ? 'block' : 'none',
                                     pointerEvents: idx === mainImageIndex ? 'none' : 'auto',
                                 }}
                                 onClick={() => handleImageSelect(idx)}
@@ -511,15 +552,16 @@ const ProductDetail = () => {
                                 <img
                                     loading="lazy"
                                     decoding="async"
-                                    src={shopifyImage(img, 800)}
-                                    srcSet={shopifySrcSet(img, [400, 600, 800, 1200])}
+                                    src={shopifyImage(stillOf(m), 800)}
+                                    srcSet={shopifySrcSet(stillOf(m), [400, 600, 800, 1200])}
                                     sizes="25vw"
                                     alt={`${product.name} view ${idx + 1}`}
                                 />
+                                {m.kind === 'video' && PLAY_BADGE}
                             </div>
                         ))}
                     </div>
-                    {product.images.length > 2 && (
+                    {media.length > 2 && (
                         <button
                             className="pd-col2-scroll-hint"
                             aria-label={col2AtBottom ? 'Scroll to top' : 'Scroll for more images'}
@@ -549,18 +591,29 @@ const ProductDetail = () => {
                             onTouchStart={handleMobileTouchStart}
                             onTouchEnd={handleMobileTouchEnd}
                         >
-                            {product.images.map((img, idx) => (
+                            {media.map((m, idx) => (
                                 <div className="pd-mobile-slide" key={idx}>
-                                    <img
-                                        // First slide is the mobile LCP; the rest can wait.
-                                        loading={idx === 0 ? 'eager' : 'lazy'}
-                                        fetchPriority={idx === 0 ? 'high' : undefined}
-                                        decoding="async"
-                                        src={shopifyImage(img, 900)}
-                                        srcSet={shopifySrcSet(img, [600, 900, 1200, 1600])}
-                                        sizes="100vw"
-                                        alt={`${product.name} view ${idx + 1}`}
-                                    />
+                                    {m.kind === 'video' ? (
+                                        // Every slide stays mounted so the strip can
+                                        // translate between them — only the one on
+                                        // screen is allowed to play.
+                                        <ProductVideo
+                                            item={m}
+                                            active={idx === mainImageIndex}
+                                            alt={`${product.name} view ${idx + 1}`}
+                                        />
+                                    ) : (
+                                        <img
+                                            // First slide is the mobile LCP; the rest can wait.
+                                            loading={idx === 0 ? 'eager' : 'lazy'}
+                                            fetchPriority={idx === 0 ? 'high' : undefined}
+                                            decoding="async"
+                                            src={shopifyImage(m.url, 900)}
+                                            srcSet={shopifySrcSet(m.url, [600, 900, 1200, 1600])}
+                                            sizes="100vw"
+                                            alt={`${product.name} view ${idx + 1}`}
+                                        />
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -601,9 +654,9 @@ const ProductDetail = () => {
                         </div>
                     </div>
 
-                    {product.images.length > 1 && (
+                    {media.length > 1 && (
                         <div className="pd-mobile-dots">
-                            {product.images.map((_, idx) => (
+                            {media.map((_, idx) => (
                                 <button
                                     key={idx}
                                     className={`pd-mobile-dot${idx === mainImageIndex ? ' active' : ''}`}
@@ -915,25 +968,30 @@ const ProductDetail = () => {
                             </svg>
                         </button>
                         <div className="pd-lightbox-thumbs">
-                            {product.images.map((img, idx) => (
+                            {media.map((m, idx) => (
                                 <div
                                     key={idx}
                                     className={`pd-lightbox-thumb${idx === lightboxIndex ? ' active' : ''}`}
-                                    onClick={() => { setLightboxIndex(idx); setLightboxZoom(0); setLbOrigin({ x: 50, y: 50 }); lbNatRect.current = null; setLbMouse(m => ({ ...m, visible: false })); }}
+                                    onClick={() => { setLightboxIndex(idx); setLightboxZoom(0); setLbOrigin({ x: 50, y: 50 }); lbNatRect.current = null; setLbMouse(mm => ({ ...mm, visible: false })); }}
                                 >
-                                    <img loading="lazy" decoding="async" src={shopifyImage(img, 200)} alt={`${product.name} view ${idx + 1}`} />
+                                    <img loading="lazy" decoding="async" src={shopifyImage(stillOf(m), 200)} alt={`${product.name} view ${idx + 1}`} />
+                                    {m.kind === 'video' && PLAY_BADGE}
                                 </div>
                             ))}
                         </div>
                         <div
-                            className="pd-lightbox-main"
+                            className={`pd-lightbox-main${lbIsVideo ? ' pd-lightbox-main-video' : ''}`}
                             ref={lbMainRef}
-                            onMouseMove={handleLbMouseMove}
+                            onMouseMove={lbIsVideo ? undefined : handleLbMouseMove}
                             onMouseLeave={handleLbMouseLeave}
                             onTouchStart={handleLbTouchStart}
                             onTouchMove={handleLbTouchMove}
                             onTouchEnd={handleLbTouchEnd}
                             onClick={() => {
+                                // Zoom is for inspecting fabric in a still. On a video
+                                // the same click has to reach the transport controls,
+                                // and scaling a playing frame helps nobody.
+                                if (lbIsVideo) return;
                                 // No zoom-on-tap on phone/iPad — this is a desktop-only interaction
                                 if (isMobileViewport()) return;
                                 const newZoom = (lightboxZoom + 1) % 4;
@@ -941,21 +999,31 @@ const ProductDetail = () => {
                                 setLightboxZoom(newZoom);
                             }}
                         >
-                            <img
-                                ref={lbImgRef}
-                                // The lightbox exists to inspect fabric detail —
-                                // it zooms to 5x, so this is the one place that
-                                // genuinely needs a large source.
-                                src={shopifyImage(product.images[lightboxIndex], 2048)}
-                                decoding="async"
-                                alt={product.name}
-                                style={{
-                                    transform: `scale(${LB_ZOOMS[lightboxZoom]})`,
-                                    transformOrigin: `${lbOrigin.x.toFixed(1)}% ${lbOrigin.y.toFixed(1)}%`,
-                                }}
-                            />
+                            {lbIsVideo ? (
+                                <ProductVideo
+                                    key={lightboxIndex}
+                                    item={media[lightboxIndex]}
+                                    active
+                                    controls
+                                    alt={product.name}
+                                />
+                            ) : (
+                                <img
+                                    ref={lbImgRef}
+                                    // The lightbox exists to inspect fabric detail —
+                                    // it zooms to 5x, so this is the one place that
+                                    // genuinely needs a large source.
+                                    src={shopifyImage(media[lightboxIndex]?.url, 2048)}
+                                    decoding="async"
+                                    alt={product.name}
+                                    style={{
+                                        transform: `scale(${LB_ZOOMS[lightboxZoom]})`,
+                                        transformOrigin: `${lbOrigin.x.toFixed(1)}% ${lbOrigin.y.toFixed(1)}%`,
+                                    }}
+                                />
+                            )}
                             {/* Custom cursor */}
-                            {lbMouse.visible && (
+                            {!lbIsVideo && lbMouse.visible && (
                                 <div className="pd-lb-cursor" style={{ left: lbMouse.cx, top: lbMouse.cy }}>
                                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round">
                                         <circle cx="10" cy="10" r="7"/>
@@ -966,7 +1034,7 @@ const ProductDetail = () => {
                                 </div>
                             )}
                             {/* Zoom level badge */}
-                            {lightboxZoom > 0 && (
+                            {!lbIsVideo && lightboxZoom > 0 && (
                                 <div className="pd-lb-zoom-badge">
                                     {lightboxZoom === 1 ? '2×' : lightboxZoom === 2 ? '3.5×' : '5×'}
                                 </div>

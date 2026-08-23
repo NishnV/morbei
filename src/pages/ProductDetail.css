@@ -123,6 +123,27 @@
     to   { opacity: 1; }
 }
 
+/* Marks a gallery thumbnail whose item is a video. The strip shows the poster
+   frame either way, so without this a clip is indistinguishable from a still. */
+.pd-media-badge {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    width: 22px;
+    height: 22px;
+    color: #fff;
+    pointer-events: none;
+    /* The posters are light more often than not; the drop shadow keeps the
+       outline readable without laying a plate behind it. */
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+}
+
+.pd-media-badge svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
 /* ---- Lightbox ---- */
 .pd-lightbox-overlay {
     position: fixed;
@@ -193,6 +214,7 @@
 }
 
 .pd-lightbox-thumb {
+    position: relative;
     flex-shrink: 0;
     aspect-ratio: 3 / 4;
     overflow: hidden;
@@ -228,6 +250,21 @@
     position: relative;
     cursor: none;
     touch-action: none;
+}
+
+/* Zoom is disabled for video, so this drops the transform machinery the image
+   rule carries — and keeps pointer events, which the transport controls need. */
+.pd-lightbox-main video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* The image pane hides the system cursor in favour of a drawn magnifier. A
+   video has no zoom, so the real cursor comes back. */
+.pd-lightbox-main-video {
+    cursor: default;
 }
 
 .pd-lightbox-main img {
@@ -326,6 +363,7 @@
 }
 
 .pd-secondary-img {
+    position: relative;
     width: 100%;
     flex-shrink: 0;
 }
@@ -1022,7 +1060,8 @@
         flex-shrink: 0;
     }
 
-    .pd-mobile-slide img {
+    .pd-mobile-slide img,
+    .pd-mobile-slide video {
         width: 100%;
         aspect-ratio: 4/5;
         object-fit: cover;
@@ -1235,7 +1274,8 @@
         flex-shrink: 0;
     }
 
-    .pd-mobile-slide img {
+    .pd-mobile-slide img,
+    .pd-mobile-slide video {
         width: 100%;
         aspect-ratio: 4/5;
         object-fit: cover;
@@ -1623,7 +1663,8 @@
         flex-shrink: 0;
     }
 
-    .pd-mobile-slide img {
+    .pd-mobile-slide img,
+    .pd-mobile-slide video {
         width: 100%;
         aspect-ratio: 4/5;
         object-fit: cover;

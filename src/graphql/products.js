@@ -153,12 +153,45 @@ const COLOR_PATTERN_FIELDS = `
   }
 `;
 
+/**
+ * Product media — images *and* video, in the order set in the Shopify admin.
+ *
+ * The `images` connection in ProductFields returns images only, so a video
+ * uploaded against a product was silently dropped from the gallery and the
+ * media order collapsed. This is the connection that carries both.
+ *
+ * Single-product queries only, for the same reason as the colour metafield
+ * above: the grid tiles need one still each, and pulling every rendition URL
+ * for 40 products would multiply the query cost for nothing.
+ *
+ * Shopify transcodes each upload into an HLS stream plus MP4 renditions at
+ * 1080p/720p/480p. `sources` lists all of them; the UI picks from there.
+ */
+const MEDIA_FIELDS = `
+  media(first: 12) {
+    edges {
+      node {
+        mediaContentType
+        alt
+        ... on MediaImage {
+          image { url width height }
+        }
+        ... on Video {
+          previewImage { url width height }
+          sources { url mimeType format width height }
+        }
+      }
+    }
+  }
+`;
+
 export const PRODUCT_BY_HANDLE_QUERY = `
   ${PRODUCT_FRAGMENT}
   query ProductByHandle($handle: String!) {
     productByHandle(handle: $handle) {
       ...ProductFields
       ${COLOR_PATTERN_FIELDS}
+      ${MEDIA_FIELDS}
     }
   }
 `;
@@ -173,6 +206,7 @@ export const PRODUCT_BY_ID_QUERY = `
     product(id: $id) {
       ...ProductFields
       ${COLOR_PATTERN_FIELDS}
+      ${MEDIA_FIELDS}
     }
   }
 `;

@@ -17,6 +17,7 @@
  *   currency: string,
  *   category: string,
  *   images: string[],
+ *   media: Array<{ kind: 'image', url } | { kind: 'video', poster, alt, sources }>,
  *   img: string,
  *   sizes: string[],
  *   colors: string[],
@@ -78,10 +79,56 @@ function normalizeTaxonomyColors(colorPattern) {
     .filter(Boolean);
 }
 
+/**
+ * Flatten the `media` connection into the gallery's render list.
+ *
+ * Returns one entry per media item in the merchant's chosen order, so a video
+ * placed second in the Shopify admin stays second on the page. Two shapes:
+ *
+ *   { kind: 'image', url }
+ *   { kind: 'video', poster, sources: [{ url, mimeType, width, height }] }
+ *
+ * `sources` is sorted widest-first and holds only the MP4 renditions. Shopify
+ * also returns an HLS stream, which Safari plays natively but Chrome and
+ * Firefox cannot without a JS player — progressive MP4 is the one format every
+ * browser here handles, and `<video>` picks the first source it can play.
+ *
+ * Only the single-product queries request media. Everywhere else this returns
+ * [] and the caller falls back to `images`.
+ */
+function normalizeMedia(media) {
+  return flattenEdges(media)
+    .map((node) => {
+      if (node?.mediaContentType === 'IMAGE') {
+        return node.image?.url ? { kind: 'image', url: node.image.url } : null;
+      }
+      if (node?.mediaContentType === 'VIDEO') {
+        const sources = (node.sources || [])
+          .filter((src) => src.mimeType === 'video/mp4')
+          .sort((a, b) => (b.width || 0) - (a.width || 0));
+        if (!sources.length) return null;
+        return {
+          kind: 'video',
+          poster: node.previewImage?.url || null,
+          alt: node.alt || '',
+          sources,
+        };
+      }
+      // 3D models and external video are not uploaded for this catalogue and
+      // have no gallery treatment — dropping them is better than an empty tile.
+      return null;
+    })
+    .filter(Boolean);
+}
+
 export function normalizeProduct(product) {
   if (!product) return null;
 
   const images = flattenEdges(product.images).map((img) => img.url);
+  // Falls back to the images when the query didn't ask for media, so a caller
+  // working from a list query still gets a usable gallery list.
+  const mediaList = normalizeMedia(product.media);
+  const media = mediaList.length ? mediaList : images.map((url) => ({ kind: 'image', url }));
   const variants = flattenEdges(product.variants);
   const metafieldsArray = (product.metafields || []).filter(Boolean);
 
@@ -176,6 +223,9 @@ export function normalizeProduct(product) {
     currency,
     category,
     images,
+    // Images and video in admin order. `images` stays images-only — the grid,
+    // cart, wishlist and OG tags all want a still and nothing else.
+    media,
     img: images[0] || '/placeholder.png',
     sizes: sizes.length > 0 ? sizes : ['S', 'M', 'L'],
     colors,
