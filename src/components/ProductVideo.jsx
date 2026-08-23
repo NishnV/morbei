@@ -17,26 +17,38 @@ import React, { useEffect, useMemo, useRef } from 'react';
 /**
  * Pick one MP4 rendition.
  *
- * Shopify returns 1080p/720p/480p at roughly 7.2/4.5/1.5 Mbps. Listing them
- * all as <source> elements does not help: the browser takes the first it can
- * decode, which is always the largest, so the choice has to be made here.
+ * Shopify returns 1080p/720p/480p, but these are portrait clips, so those
+ * labels are heights — the widths are 606, 404 and 270. Listing them all as
+ * <source> elements does not choose between them either: the browser takes
+ * the first it can decode, which is always the largest.
+ *
+ * The choice is made in device pixels, not CSS pixels. Every surface this
+ * plays on asks for more width than the source has: the desktop column is
+ * about 640 CSS px, or ~1280 device pixels on a retina screen, and a phone at
+ * 375 CSS px with DPR 3 asks for 1125. Nothing here covers either, so the
+ * widest rendition is always the sharpest available answer and the smaller
+ * ones are reserved for the data-saver case.
  *
  * `sources` arrives sorted widest-first from normalizeProduct.
  */
 function pickSource(sources) {
     if (!sources?.length) return null;
-    const smallest = sources[sources.length - 1];
 
-    if (typeof navigator !== 'undefined' && navigator.connection?.saveData) return smallest;
+    // An explicit request to spend less data outranks sharpness.
+    if (typeof navigator !== 'undefined' && navigator.connection?.saveData) {
+        return sources[sources.length - 1];
+    }
 
-    // These are portrait clips, so "1080p" is 606px wide. On a phone the frame
-    // is roughly 400 CSS px, and the extra 2.7 Mbps of the top rendition buys
-    // almost nothing over cellular.
-    const narrow = typeof window !== 'undefined' && window.innerWidth < 768;
-    if (!narrow) return sources[0];
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const cssWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
+    // Portrait phone: full-bleed slide. Desktop: the main column is ~44vw.
+    const needed = (cssWidth < 768 ? cssWidth : cssWidth * 0.44) * dpr;
 
-    const mid = sources.find((s) => (s.width || 0) <= 450);
-    return mid || smallest;
+    // Smallest rendition that still covers the frame, widest otherwise. Today
+    // this lands on the widest everywhere; it stops doing so the moment a
+    // higher-resolution master is uploaded, which is the point.
+    const covering = [...sources].reverse().find((s) => (s.width || 0) >= needed);
+    return covering || sources[0];
 }
 
 const ProductVideo = ({ item, active = true, controls = false, className, alt }) => {
