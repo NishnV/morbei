@@ -338,11 +338,13 @@
 
 /* ---- Column 3: Info Section (25%) ---- */
 /* Pinned, and never a scroller of its own.
-   It used to be forced to the full viewport height with overflow-y: auto, which
-   turned the column into a second scroll container: on any window shorter than
-   the column, putting the cursor over the product details and scrolling moved
-   the details instead of the page. Sizing to content leaves the page as the
-   only thing that scrolls, and the column simply holds its position. */
+   This was once a hard height with overflow-y: auto, which made the column a
+   second scroll container: on any window shorter than it, putting the cursor
+   over the product details and scrolling moved the details instead of the page.
+   min-height keeps the free space that .pd-description-section's margin-top:
+   auto needs to sit the description and accordions on the bottom edge, while
+   letting the column grow past the viewport instead of scrolling inside
+   itself. The page stays the only thing that scrolls. */
 .pd-info-section {
     padding: 3rem 3rem 2rem 2.5rem;
     display: flex;
@@ -350,6 +352,8 @@
     position: sticky;
     top: 48px;
     align-self: start;
+    min-height: calc(100vh - 48px);
+    min-height: calc(100dvh - 48px);
     box-sizing: border-box;
 }
 
@@ -2110,16 +2114,36 @@
 
        Capped, because the alignment cannot survive a wide viewport: the images
        grow with the window, so holding it at 2000px would mean a ~300px gap —
-       the chasm this was reported for. Exact alignment holds from the 1440px
-       design width to ~1520px; above that the offset is pinned and the button
-       drifts above the seam, which reads far better than the alternative.
-       Raise the 150px ceiling to trade dead space for alignment on wide screens.
+       the chasm this was reported for. Above the cap the offset is pinned and
+       the button drifts above the seam, which reads far better than the
+       alternative.
+
+       The constant is 350px rather than the 307px that lands the button exactly
+       on the seam, which deliberately gives up that alignment. At 307px this
+       column stood 744px tall and needed a 792px viewport to finish above the
+       fold; Chrome on a 1440x900 laptop gives about 776px once the bookmarks
+       bar is showing, so the last accordion fell below the fold there while
+       Safari — whose toolbar is far slimmer — had room to spare. The extra 43px
+       brings the requirement to ~749px and buys back that margin. Restore 307px
+       and the 150px ceiling to put the button back on the seam.
 
        Sits on .pd-actions so the note line and the button move as one block —
        the note is inside .pd-actions and is always present, so it counts toward
        the constant either way. */
     .pd-actions {
-        margin-top: clamp(1.25rem, calc(31.25vw - 307px), 150px);
+        margin-top: clamp(1.25rem, calc(31.25vw - 350px), 110px);
+        /* Clear space the accordions cannot take. The description block below
+           is bottom-anchored with margin-top: auto, so it grows upward into the
+           space above it — and an open accordion can be up to 500px tall, far
+           more than the ~136px that sits there. Without this the panel reaches
+           the button and presses against it. A fixed margin is not free space,
+           so the auto margin cannot absorb it: once the gap closes to this,
+           the column grows downward instead and the button keeps its air.
+
+           2rem rather than 3rem: this margin is real height in a column that
+           has to finish above the fold, and 28px already reads as clear space
+           under a 40px button. */
+        margin-bottom: 2rem;
     }
 
     .pd-description-section {
