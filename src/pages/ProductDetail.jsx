@@ -33,6 +33,13 @@ const PLAY_BADGE = (
     </span>
 );
 
+// The merchant-written accordion fields are multi_line_text_field, so a line
+// break typed in the Shopify admin has to survive to the page instead of
+// collapsing into the run of text beside it. Also trims — the values are hand
+// entered and pick up stray leading spaces.
+const paragraphs = (value) =>
+    String(value || '').trim().split(/\n+/).map((line) => line.trim()).filter(Boolean);
+
 const LB_ZOOMS = [1, 2, 3.5, 5]; // lightbox zoom levels: 0=fit, then 2x/3.5x/5x
 
 // Product descriptions come from Shopify admin, so they're store-operator
@@ -394,6 +401,10 @@ const ProductDetail = () => {
             setMainImageIndex(prev => Math.max(prev - 1, 0));
         }
     };
+
+    // custom.product_measurement is what this shop defines and fills; the older
+    // custom.measurements key has no definition here and stays as a fallback.
+    const measurementText = product.metafields?.productMeasurement || product.metafields?.measurements;
 
     // Video takes over the lightbox's click and cursor behaviour, so several
     // branches below need to know what is on screen.
@@ -854,21 +865,27 @@ const ProductDetail = () => {
                     <div className="pd-accordion">
                         <AccordionItem title="PRODUCT MEASUREMENTS" isOpen={activeAccordion === 'meas'} onClick={() => toggleAccordion('meas')}>
                             {product.metafields?.fitType && <p>Fit: {product.metafields.fitType}</p>}
-                            {product.metafields?.measurements ? (
-                                <p>{product.metafields.measurements}</p>
-                            ) : (
-                                <p>Contact us for product measurements.</p>
-                            )}
+                            {measurementText
+                                ? paragraphs(measurementText).map((line, i) => <p key={i}>{line}</p>)
+                                : <p>Contact us for product measurements.</p>}
                         </AccordionItem>
                         <AccordionItem title="COMPOSITION AND CARE" isOpen={activeAccordion === 'comp'} onClick={() => toggleAccordion('comp')}>
-                            {product.metafields?.material && <p><strong>Material:</strong> {product.metafields.material}</p>}
-                            {product.metafields?.careInstructions && <p><strong>Care:</strong> {product.metafields.careInstructions}</p>}
-                            {!product.metafields?.material && !product.metafields?.careInstructions && (
-                                <p>Contact us for product composition and care details.</p>
+                            {product.metafields?.compositionAndCare ? (
+                                paragraphs(product.metafields.compositionAndCare).map((line, i) => <p key={i}>{line}</p>)
+                            ) : (
+                                <>
+                                    {product.metafields?.material && <p><strong>Material:</strong> {product.metafields.material}</p>}
+                                    {product.metafields?.careInstructions && <p><strong>Care:</strong> {product.metafields.careInstructions}</p>}
+                                    {!product.metafields?.material && !product.metafields?.careInstructions && (
+                                        <p>Contact us for product composition and care details.</p>
+                                    )}
+                                </>
                             )}
                         </AccordionItem>
                         <AccordionItem title="SHIPPING" isOpen={activeAccordion === 'ship'} onClick={() => toggleAccordion('ship')}>
-                            <p>Free standard shipping on all orders. Returns accepted within 14 days.</p>
+                            {product.metafields?.shipping
+                                ? paragraphs(product.metafields.shipping).map((line, i) => <p key={i}>{line}</p>)
+                                : <p>Free standard shipping on all orders. Returns accepted within 14 days.</p>}
                         </AccordionItem>
                     </div>
                 </div>

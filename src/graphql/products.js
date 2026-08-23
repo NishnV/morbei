@@ -83,6 +83,9 @@ const PRODUCT_FRAGMENT = `
       }
     }
     metafields(identifiers: [
+      { namespace: "custom", key: "product_measurement" },
+      { namespace: "custom", key: "composition_and_care" },
+      { namespace: "custom", key: "shipping" },
       { namespace: "custom", key: "size_guide" },
       { namespace: "custom", key: "material" },
       { namespace: "custom", key: "care_instructions" },

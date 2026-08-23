@@ -28,7 +28,8 @@
  *   productType: string,
  *   tags: string[],
  *   availableForSale: boolean,
- *   metafields: { sizeGuide, material, careInstructions, fitType, badge,
+ *   metafields: { productMeasurement, compositionAndCare, shipping,
+ *                 sizeGuide, material, careInstructions, fitType, badge,
  *                 modelInfo, measurements },
  *   seo: { title, description }
  * }
@@ -136,6 +137,19 @@ export function normalizeProduct(product) {
   const metafields = {};
   for (const mf of metafieldsArray) {
     switch (mf.key) {
+      // The three the store actually defines — one per accordion on the product
+      // page. The keys below them predate those definitions and have never
+      // existed in this shop; they stay mapped so a merchant who does define
+      // them still gets the finer-grained rendering.
+      case 'product_measurement':
+        metafields.productMeasurement = mf.value;
+        break;
+      case 'composition_and_care':
+        metafields.compositionAndCare = mf.value;
+        break;
+      case 'shipping':
+        metafields.shipping = mf.value;
+        break;
       case 'size_guide':
         metafields.sizeGuide = mf.value;
         break;
