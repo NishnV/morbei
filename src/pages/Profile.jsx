@@ -7,8 +7,6 @@ import './Profile.css';
 import SiteImage from '../components/SiteImage';
 import PasswordField from '../components/PasswordField';
 
-const GOOGLE_ICON = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
-
 const Profile = () => {
     const {
         customer, loading, error,
@@ -32,7 +30,7 @@ const Profile = () => {
         }
     }, [customer, navigate]);
 
-    const [view, setView] = useState(() => (location.state?.from ? 'login' : 'signup')); // login | signup | recover | google-coming-soon
+    const [view, setView] = useState(() => (location.state?.from ? 'login' : 'signup')); // login | signup | recover
     const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', notify: false });
     const [message, setMessage] = useState('');
     const [addrForm, setAddrForm] = useState({ firstName: '', lastName: '', address1: '', address2: '', city: '', province: '', zip: '', country: 'India', phone: '' });
@@ -359,10 +357,6 @@ const Profile = () => {
                             <button type="submit" disabled={loading} className="profile-auth-submit-btn">
                                 {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
                             </button>
-                            <button type="button" className="profile-auth-google-btn" onClick={() => setView('google-coming-soon')}>
-                                <img src={GOOGLE_ICON} alt="Google" />
-                                SIGN IN WITH GOOGLE
-                            </button>
                         </form>
 
                         <div className="profile-auth-switch">
@@ -410,10 +404,6 @@ const Profile = () => {
                             <button type="submit" disabled={loading} className="profile-auth-submit-btn" style={{ marginTop: '16px' }}>
                                 {loading ? 'LOGGING IN...' : 'LOGIN'}
                             </button>
-                            <button type="button" className="profile-auth-google-btn" onClick={() => setView('google-coming-soon')}>
-                                <img src={GOOGLE_ICON} alt="Google" />
-                                SIGN IN WITH GOOGLE
-                            </button>
                         </form>
 
                         <div className="profile-auth-switch">
@@ -423,27 +413,6 @@ const Profile = () => {
                                 className="profile-auth-switch-link"
                             >
                                 Create one
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {view === 'google-coming-soon' && (
-                    <div className="profile-auth-form-container">
-                        <h1 className="profile-auth-title">COMING SOON</h1>
-                        <div className="profile-coming-soon">
-                            <div className="profile-coming-soon-icon">
-                                <img src={GOOGLE_ICON} alt="Google" className="profile-coming-soon-google" />
-                            </div>
-                            <p className="profile-coming-soon-text">
-                                Google Sign-In is coming soon.<br />
-                                Stay tuned for a seamless login experience.
-                            </p>
-                            <button
-                                onClick={() => { setView('signup'); setMessage(''); }}
-                                className="profile-auth-submit-btn"
-                            >
-                                BACK TO SIGN UP
                             </button>
                         </div>
                     </div>

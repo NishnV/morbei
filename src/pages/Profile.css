@@ -206,35 +206,6 @@
   cursor: not-allowed;
 }
 
-.profile-auth-google-btn {
-  width: 100%;
-  background: #fff;
-  color: #0a0a0a;
-  border: none;
-  padding: 16px;
-  font-size: 0.6rem;
-  letter-spacing: 0.22em;
-  cursor: pointer;
-  font-weight: 500;
-  font-family: inherit;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 12px;
-  transition: opacity 0.2s;
-}
-
-.profile-auth-google-btn:hover {
-  opacity: 0.9;
-}
-
-.profile-auth-google-btn img {
-  width: 18px;
-  height: 18px;
-}
-
 /* SWITCH LINK */
 .profile-auth-switch {
   margin-top: 16px;
@@ -259,41 +230,6 @@
   text-underline-offset: 2px;
   padding: 0;
   margin-left: 2px;
-}
-
-/* COMING SOON */
-.profile-coming-soon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 0 40px;
-  gap: 32px;
-}
-
-.profile-coming-soon-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.profile-coming-soon-google {
-  width: 40px;
-  height: 40px;
-  opacity: 0.6;
-}
-
-.profile-coming-soon-text {
-  font-family: 'Montserrat', sans-serif;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  text-align: center;
-  line-height: 1.8;
-  letter-spacing: 1px;
 }
 
 /* FOOTER LEGAL */
