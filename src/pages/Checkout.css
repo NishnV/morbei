@@ -660,6 +660,7 @@ select.checkout-input-v3 option {
 }
 
 .order-details-header {
+    font-family: 'Castoro Titling', Avenir, sans-serif;
     font-size: 1.1rem;
     letter-spacing: 0.25em;
     font-weight: 500;
@@ -728,7 +729,7 @@ select.checkout-input-v3 option {
 .cancel-order-btn {
     background: none;
     border: 1px solid #1a1a1a;
-    color: #444;
+    color: #fff;
     width: 200px;
     padding: 1.1rem;
     font-size: 0.7rem;
@@ -739,7 +740,6 @@ select.checkout-input-v3 option {
 
 .cancel-order-btn:hover {
     border-color: #fff;
-    color: #fff;
 }
 
 /* Return/exchange variant renders as a link but matches the button box */
@@ -768,7 +768,7 @@ select.checkout-input-v3 option {
     margin-top: 0;
     background: none;
     border: 1px solid #1a1a1a;
-    color: #444;
+    color: #fff;
     width: 200px;
     padding: 1.1rem;
     font-size: 0.7rem;
@@ -840,7 +840,7 @@ select.checkout-input-v3 option {
 .est-delivery-badge {
     font-size: 0.65rem;
     letter-spacing: 0.15em;
-    color: #444;
+    color: #fff;
 }
 
 .order-tracking-info {
