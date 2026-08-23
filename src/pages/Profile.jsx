@@ -80,12 +80,16 @@ const Profile = () => {
     const handleRecover = async (e) => {
         e.preventDefault();
         setMessage('');
+        // Same reply whether or not the address has an account. Shopify's
+        // customerRecover answers UNIDENTIFIED_CUSTOMER for an unknown email,
+        // and echoing that here would let anyone test addresses against the
+        // customer list one at a time.
         try {
             await recoverPassword(form.email);
-            setMessage('Recovery email sent. Check your inbox.');
-        } catch (err) {
-            setMessage(err.message || 'Recovery failed');
+        } catch {
+            // swallowed on purpose — see above
         }
+        setMessage('If that email has an account, a reset link is on its way.');
     };
 
     const handleLogout = async () => {
