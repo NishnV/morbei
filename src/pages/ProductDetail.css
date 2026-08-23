@@ -337,22 +337,20 @@
 }
 
 /* ---- Column 3: Info Section (25%) ---- */
+/* Pinned, and never a scroller of its own.
+   It used to be forced to the full viewport height with overflow-y: auto, which
+   turned the column into a second scroll container: on any window shorter than
+   the column, putting the cursor over the product details and scrolling moved
+   the details instead of the page. Sizing to content leaves the page as the
+   only thing that scrolls, and the column simply holds its position. */
 .pd-info-section {
     padding: 3rem 3rem 2rem 2.5rem;
     display: flex;
     flex-direction: column;
     position: sticky;
     top: 48px;
-    /* dvh tracks the browser toolbar so the column bottom is never hidden behind it */
-    height: calc(100vh - 48px);
-    height: calc(100dvh - 48px);
-    overflow-y: auto;
-    scrollbar-width: none;
+    align-self: start;
     box-sizing: border-box;
-}
-
-.pd-info-section::-webkit-scrollbar {
-    display: none;
 }
 
 /* Product name */
