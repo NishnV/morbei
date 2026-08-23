@@ -5,6 +5,7 @@ import { formatPrice } from '../utils/formatPrice';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './Profile.css';
 import SiteImage from '../components/SiteImage';
+import PasswordField from '../components/PasswordField';
 
 const GOOGLE_ICON = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
 
@@ -319,18 +320,12 @@ const Profile = () => {
                                     required
                                 />
                             </div>
-                            <div className="profile-auth-input-group">
-                                <input
-                                    name="password"
-                                    type="password"
-                                    placeholder="PASSWORD"
-                                    value={form.password}
-                                    onChange={handleChange}
-                                    className="profile-auth-input"
-                                    required
-                                    minLength={5}
-                                />
-                            </div>
+                            <PasswordField
+                                value={form.password}
+                                onChange={handleChange}
+                                autoComplete="new-password"
+                                minLength={5}
+                            />
                             <div className="profile-auth-phone-row">
                                 <span className="profile-auth-country-code">
                                     +91
@@ -398,17 +393,11 @@ const Profile = () => {
                                     required
                                 />
                             </div>
-                            <div className="profile-auth-input-group">
-                                <input
-                                    name="password"
-                                    type="password"
-                                    placeholder="PASSWORD"
-                                    value={form.password}
-                                    onChange={handleChange}
-                                    className="profile-auth-input"
-                                    required
-                                />
-                            </div>
+                            <PasswordField
+                                value={form.password}
+                                onChange={handleChange}
+                                autoComplete="current-password"
+                            />
 
                             <button
                                 type="button"

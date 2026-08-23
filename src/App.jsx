@@ -43,6 +43,7 @@ const OrderFailed = lazy(() => import('./pages/OrderFailed'));
 const Profile = lazy(routeChunks.profile);
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 import ErrorBoundary from './components/ErrorBoundary';
 import { useCustomer } from './hooks/useCustomer';
 import { useCart } from './hooks/useCart';
@@ -68,6 +69,7 @@ const ROUTE_TITLES = [
   [/^\/privacy/, 'PRIVACY POLICY | MORBEI'],
   [/^\/terms/, 'TERMS | MORBEI'],
   [/^\/unsubscribe/, 'EMAIL PREFERENCES | MORBEI'],
+  [/^\/account\/reset/, 'RESET PASSWORD | MORBEI'],
 ];
 
 function titleForPath(pathname) {
@@ -175,6 +177,11 @@ const AppContent = () => {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
+          {/* Landing pages for the reset link in Shopify's recovery email.
+              The query-string form is what our notification template sends;
+              the path form matches the URL Shopify generates natively. */}
+          <Route path="/account/reset" element={<ResetPassword />} />
+          <Route path="/account/reset/:customerId/:resetToken" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>

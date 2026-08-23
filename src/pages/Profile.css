@@ -336,6 +336,58 @@
   text-align: center;
 }
 
+/* PASSWORD VISIBILITY TOGGLE */
+/* Reserve the toggle's width so a long password scrolls up to it rather than
+   under it. The group is already position: relative, so the button anchors to
+   the underline it draws. */
+.profile-auth-input--password {
+  padding-right: 34px;
+}
+
+.profile-auth-eye {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 6px 0 6px 10px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.profile-auth-eye:hover,
+.profile-auth-eye:focus-visible {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.profile-auth-eye svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* RESET PASSWORD PAGE */
+.profile-auth-note {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  line-height: 1.8;
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+/* The expired-link CTA is a Link, not a button — re-align the text it inherits
+   from .profile-auth-submit-btn */
+.profile-auth-submit-link {
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 /* FORGOT PASSWORD LINK */
 .profile-auth-forgot {
   background: none;
