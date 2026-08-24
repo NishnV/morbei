@@ -75,7 +75,7 @@ const Home = () => {
                     </div>
                 </div>
                 <div className="fp-editorial-overlay">
-                    <h2 className="fp-editorial-title">S/S '26</h2>
+                    <h2 className="fp-editorial-title">PRE-FALL '26</h2>
                     <Link to="/shop/new-in" className="fp-editorial-link">EXPLORE</Link>
                 </div>
             </section>

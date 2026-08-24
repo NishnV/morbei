@@ -540,7 +540,11 @@
 /* Hero SHOP CTA — visible on all screens */
 .fp-hero-cta {
     position: absolute;
-    bottom: clamp(2rem, 5vh, 5rem);
+    /* Desktop only. Every handheld breakpoint restates its own bottom value
+       (--phone-sm, --tablet-sm, --tablet-lg all pin clamp(2rem, 5vh, 5rem)),
+       so raising it here lifts the link on laptops and monitors and leaves
+       phones and portrait tablets exactly where they were. */
+    bottom: clamp(4rem, 13vh, 11rem);
     left: 0;
     width: 100%;
     display: flex;
@@ -548,6 +552,19 @@
     justify-content: center;
     z-index: 10;
     padding-bottom: max(0, env(safe-area-inset-bottom));
+}
+
+/* Phones keep the original anchor.
+   The --phone-sm block far above already sets this, but it is written *before*
+   the base rule and carries the same specificity, so the base has always won
+   and that override has never done anything — invisible until now only because
+   both held the same value. This one sits after the base, so it actually
+   applies. Portrait tablets need no equivalent: their --tablet-sm and
+   --tablet-lg rules come later in the file and pin their own values. */
+@media (--phone) {
+    .fp-hero-cta {
+        bottom: clamp(2rem, 5vh, 5rem);
+    }
 }
 
 .fp-hero-shop-link {
@@ -609,7 +626,13 @@
 
 .fp-editorial-title {
     font-family: 'Castoro Titling', Avenir, sans-serif;
-    font-size: clamp(16px, 5vw, 70px);
+    /* Halved from clamp(16px, 5vw, 70px). The label used to read "S/S '26" —
+       seven characters — and the size was set against that. "PRE-FALL '26" is
+       twice as wide at the same size (436px against 223px, measured at 1440),
+       so keeping 70px doubled the footprint the section was composed around.
+       Every breakpoint below is scaled by the same factor, which holds the
+       label's proportion of the screen steady rather than only fixing desktop. */
+    font-size: clamp(12px, 2.6vw, 36px);
     font-weight: 100;
     letter-spacing: 0.01em;
     margin-bottom: 0.1rem;
@@ -941,7 +964,7 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     }
 
     .fp-editorial-title {
-        font-size: clamp(24px, 10vw, 48px);
+        font-size: clamp(14px, 5.2vw, 25px);
     }
 
     .fp-editorial-half:last-child {
@@ -998,7 +1021,7 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     }
 
     .fp-editorial-title {
-        font-size: clamp(30px, 12vw, 70px);
+        font-size: clamp(16px, 6.2vw, 36px);
     }
 
     .fp-categories-grid {
