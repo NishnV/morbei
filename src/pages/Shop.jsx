@@ -192,7 +192,7 @@ const Shop = ({ category = "ALL" }) => {
 
     // Override category title for search
     if (searchQuery) {
-        currentCategory = `SEARCH RESULTS FOR: ${searchQuery.toUpperCase()}`;
+        currentCategory = `SEARCH: ${searchQuery.toUpperCase()}`;
     }
 
     // Warm both halves of the next navigation the moment the shopper signals

@@ -288,18 +288,28 @@
     min-height: 100svh;
 }
 
+/* Header metrics are the Terms page's, deliberately — .tc-header,
+   .tc-rule and .tc-title in Terms.css. The two pages sat side by side in
+   the footer's Legal column looking almost, but not quite, alike. */
 .contact-head {
     padding: 0 clamp(1.5rem, 3vw, 3rem);
-    /* The rule sits under the title and spans the page, not the columns. */
-    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-    padding-bottom: 2.5rem;
-    margin-bottom: 6rem;
+    margin-bottom: 3.5rem;
+}
+
+/* An element rather than a border-bottom, so the gap above it is the rule's
+   own margin and reads the same as .tc-rule does. The line spans the page,
+   not the columns. */
+.contact-rule {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.25);
+    margin-top: 2.5rem;
 }
 
 .contact-title {
     font-family: 'Castoro Titling', Avenir, sans-serif;
-    font-size: 1rem;
-    letter-spacing: 0.25em;
+    font-size: 16px;
+    letter-spacing: 1.6px;
+    line-height: 25px;
     font-weight: 400;
     color: #fff;
     text-align: center;
@@ -431,9 +441,10 @@
         padding: 100px 0 60px;
     }
 
-    .contact-head {
-        margin-bottom: 3rem;
-        padding-bottom: 2rem;
+    /* Terms shrinks only the title on handhelds and keeps both gaps, so
+       the header does not drift back out of step down here. */
+    .contact-title {
+        font-size: 14px;
     }
 
     /* One column, details first — someone who just wants the phone number

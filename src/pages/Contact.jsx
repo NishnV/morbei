@@ -35,6 +35,7 @@ const Contact = () => {
         <div className="support-page contact-page">
             <div className="contact-head">
                 <h1 className="contact-title">CONTACT US</h1>
+                <div className="contact-rule" />
             </div>
 
             <div className="contact-grid">
