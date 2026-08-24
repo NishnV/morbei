@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { shopifyFetch } from '../lib/shopify';
 import { SITE_IMAGES_QUERY } from '../graphql/siteImages';
+import SNAPSHOT from '../generated/site-images.json';
 
 /**
  * Loads the slot → image map from Shopify metaobjects.
@@ -15,9 +16,12 @@ import { SITE_IMAGES_QUERY } from '../graphql/siteImages';
  *    a slot simply hasn't been filled in yet, <SiteImage> falls back to the file
  *    in public/. The site is never image-less because a CMS lookup failed.
  *
- * 3. **Don't flash on repeat visits.** The map is cached in localStorage and
- *    used to seed the first render, so a returning visitor sees the real image
- *    immediately while a fresh copy revalidates in the background.
+ * 3. **Don't flash, ever.** The map is cached in localStorage for returning
+ *    visitors, and seeded from a build-time snapshot for everyone else, so the
+ *    first paint already carries the real image while a fresh copy revalidates
+ *    in the background. Without the snapshot, a first-time visitor watched the
+ *    public/ fallback get replaced a moment after load — visible in incognito,
+ *    but not remotely limited to it.
  *
  * One fetch per page load, shared across every consumer via the module-level
  * cache — these change maybe monthly, so per-component fetching would be waste.
@@ -97,6 +101,15 @@ export function useSiteImages() {
         if (cached) {
             memoryCache = cached.map;
             return cached.map;
+        }
+        // Nothing visitor-specific yet — first visit, or a private window.
+        // The snapshot is what this slot map looked like at build time, which
+        // is right until someone changes an image in the admin, and the fetch
+        // below corrects even that within the same page load. Deliberately
+        // last: a real cache is always fresher than a build artefact.
+        if (Object.keys(SNAPSHOT).length) {
+            memoryCache = SNAPSHOT;
+            return SNAPSHOT;
         }
         return {};
     });

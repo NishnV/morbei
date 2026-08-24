@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSiteImages } from '../hooks/useSiteImages';
 import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 
@@ -34,18 +35,24 @@ export default function SiteImage({
 }) {
     const images = useSiteImages();
     const managed = images[slot];
+    // A snapshot URL points at whatever was in the slot when the build ran.
+    // If that file has since been deleted from Shopify the request 404s, and
+    // a broken image is worse than the stale-but-present local copy.
+    const [managedFailed, setManagedFailed] = useState(false);
 
-    const src = managed ? shopifyImage(managed.url, width) : fallback;
+    const useManaged = managed && !managedFailed;
+    const src = useManaged ? shopifyImage(managed.url, width) : fallback;
     // shopifySrcSet returns undefined for non-Shopify URLs, so the local
     // fallback simply renders without a srcset.
-    const srcSet = managed && widths ? shopifySrcSet(managed.url, widths) : undefined;
+    const srcSet = useManaged && widths ? shopifySrcSet(managed.url, widths) : undefined;
 
     return (
         <img
             src={src}
             srcSet={srcSet}
             sizes={srcSet ? sizes : undefined}
-            alt={managed?.alt || alt}
+            alt={(useManaged && managed.alt) || alt}
+            onError={useManaged ? () => setManagedFailed(true) : undefined}
             className={className}
             loading={priority ? 'eager' : 'lazy'}
             fetchPriority={priority ? 'high' : undefined}

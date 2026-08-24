@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/generate-sitemap.mjs",
+    "prebuild": "node scripts/generate-sitemap.mjs && node scripts/generate-site-images.mjs",
     "build": "vite build",
     "postbuild": "node scripts/prerender-og.mjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "site-images": "node scripts/generate-site-images.mjs"
   },
   "dependencies": {
     "dompurify": "^3.4.13",
