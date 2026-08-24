@@ -70,9 +70,72 @@
 }
 
 /* FAQ Accordion */
+/* ---- FAQ ---- */
+/* Left-aligned and quiet, per the design: a small FAQ label over a search
+   field, then rules-only rows. The shared .support-header treatment — a 3rem
+   centred title with a subtitle — belongs to Contact and Unsubscribe, which
+   still use it, so this page opts out rather than changing it for them. */
+/* The shared container caps at a fixed 800px with a fixed 2rem gutter, which
+   is fine on a wide screen and wrong on a window near 800px wide: the column
+   becomes the viewport, the rules run almost edge to edge, and the centred
+   column the design calls for disappears. Holding it to a share of the
+   viewport as well keeps that column at every width — still 800px on a large
+   screen, proportional below it.
+
+   Scoped to this page: Contact and Unsubscribe share .support-container and
+   have the same behaviour, but they are forms, where filling the width reads
+   far less oddly than a list of rules does. */
+.faq-page .support-container {
+    max-width: min(800px, 76vw);
+}
+
+.faq-head {
+    margin-bottom: 3.5rem;
+}
+
+.faq-title {
+    font-family: 'Castoro Titling', Avenir, sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.18em;
+    font-weight: 400;
+    color: #fff;
+    margin: 0 0 0.6rem;
+}
+
+.faq-search {
+    /* Deliberately short of the rows below it — the design sets the field at
+       roughly 40% of the column so it reads as a filter, not a form. */
+    width: 40%;
+    min-width: 220px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    padding: 0.5rem 0;
+    outline: none;
+}
+
+.faq-search::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: 0.15em;
+}
+
+.faq-search:focus {
+    border-bottom-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Chrome draws its own clear button on type=search; it sits proud of this
+   hairline field, so it is dropped in favour of just clearing the text. */
+.faq-search::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
 .faq-item {
-    border-bottom: 1px solid var(--border);
-    padding: 1.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .faq-question {
@@ -80,18 +143,48 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 2rem;
     text-align: left;
-    font-weight: 500;
-    font-size: 1rem;
-    letter-spacing: 0.05em;
-    padding: 0.5rem 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Castoro Titling', Avenir, sans-serif;
+    font-weight: 400;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    color: #fff;
+    padding: 1.5rem 0;
+    transition: opacity 0.2s ease;
+}
+
+.faq-question:hover {
+    opacity: 0.7;
+}
+
+.faq-chevron {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.65);
+    transition: transform 0.3s ease;
+}
+
+.faq-chevron.open {
+    transform: rotate(180deg);
 }
 
 .faq-answer {
-    padding: 1rem 0;
-    font-size: 1.0rem;
-    color: var(--text-muted);
-    line-height: 1.6;
+    padding: 0 0 1.6rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: #999;
+    line-height: 1.9;
+}
+
+.faq-empty {
+    padding: 2rem 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: #999;
+    line-height: 1.9;
 }
 
 /* Track Order Form */
@@ -150,7 +243,199 @@
         font-size: 2rem;
     }
 
+    /* The vw cap above is there to stop the column filling a ~800px desktop
+       window. A phone is that narrow to begin with, so keeping it would spend
+       a third of the screen on gutters — the padding below is the whole
+       margin here. */
+    .faq-page .support-container {
+        max-width: none;
+    }
+
+    .faq-search {
+        width: 100%;
+    }
+
+    .faq-question {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        gap: 1rem;
+    }
+
+    .faq-head {
+        margin-bottom: 2.5rem;
+    }
+
     .support-container {
         padding: 0 1.5rem;
+    }
+}
+
+/* ============================================
+   CONTACT
+   ============================================ */
+/* Wider than .support-container on purpose: the design runs the rule under the
+   title almost the full page width and sets the two columns against it, which
+   an 800px column cannot express. */
+.contact-page {
+    padding: 120px 0 100px;
+}
+
+.contact-head {
+    padding: 0 clamp(1.5rem, 3vw, 3rem);
+    /* The rule sits under the title and spans the page, not the columns. */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    padding-bottom: 2.5rem;
+    margin-bottom: 6rem;
+}
+
+.contact-title {
+    font-family: 'Castoro Titling', Avenir, sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.25em;
+    font-weight: 400;
+    color: #fff;
+    text-align: center;
+    margin: 0;
+}
+
+.contact-grid {
+    display: grid;
+    /* The message column is the fixed one — a form has a natural width, and
+       letting it stretch on a wide screen makes the inputs look like fields in
+       a spreadsheet. The details column takes the slack. */
+    grid-template-columns: 1fr minmax(320px, 390px);
+    gap: clamp(3rem, 8vw, 8rem);
+    align-items: start;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 clamp(1.5rem, 3vw, 3rem);
+}
+
+.contact-subhead {
+    font-family: 'Castoro Titling', Avenir, sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    font-weight: 400;
+    color: #fff;
+    margin: 0 0 1.8rem;
+}
+
+.contact-body {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    line-height: 2.1;
+    color: #999;
+    margin: 0 0 1.8rem;
+    /* The design breaks this paragraph at roughly 70 characters; 46ch wrapped
+       it into a narrow ribbon against a much wider column. */
+    max-width: 70ch;
+}
+
+.contact-body a {
+    color: #ccc;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.contact-body a:hover {
+    color: #fff;
+}
+
+/* ---- form ---- */
+.contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.contact-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.contact-field > span {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.contact-field input,
+.contact-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    padding: 0.7rem 0.8rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.contact-field textarea {
+    resize: vertical;
+    line-height: 1.8;
+}
+
+.contact-field input:focus,
+.contact-field textarea:focus {
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+.contact-submit {
+    margin-top: 0.6rem;
+    width: 100%;
+    background: #d9d9d9;
+    color: #0a0a0a;
+    border: none;
+    padding: 0.8rem;
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.contact-submit:hover:not(:disabled) {
+    background: #fff;
+}
+
+.contact-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.contact-note {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    line-height: 1.8;
+    margin: 0 0 0.5rem;
+}
+
+.contact-note--ok { color: #88c888; }
+.contact-note--err { color: #e88; }
+
+@media (--mobile) {
+    .contact-page {
+        padding: 100px 0 60px;
+    }
+
+    .contact-head {
+        margin-bottom: 3rem;
+        padding-bottom: 2rem;
+    }
+
+    /* One column, details first — someone who just wants the phone number
+       should not have to scroll a form to reach it. */
+    .contact-grid {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+    }
+
+    .contact-body {
+        max-width: none;
     }
 }

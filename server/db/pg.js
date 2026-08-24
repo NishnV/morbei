@@ -111,6 +111,10 @@ export async function initDB() {
         -- valid server-side for its full lifetime.
         ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
+        -- The contact form gained a phone field; without this the number a
+        -- customer types is accepted by the browser and dropped on the floor.
+        ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS phone TEXT;
+
         CREATE TABLE IF NOT EXISTS contact_submissions (
             id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             name TEXT, email TEXT, subject TEXT, message TEXT,

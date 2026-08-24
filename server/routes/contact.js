@@ -32,18 +32,22 @@ function unsubscribeUrl(email) {
 // POST /api/contact — save submission and email store
 router.post('/', async (req, res) => {
     try {
-        const { name, email, subject, message } = req.body;
+        const { name, email, subject, message, phone } = req.body;
         if (!name?.trim() || !email?.trim() || !message?.trim()) {
             return res.status(400).json({ error: 'name, email and message are required' });
         }
+        // Optional, and capped rather than validated: people write numbers in
+        // every shape there is, and rejecting a reachable one to enforce a
+        // format would cost more than it saves. The bound is what matters.
+        const contactPhone = String(phone || '').trim().slice(0, 40);
 
         await run(
-            'INSERT INTO contact_submissions (name, email, subject, message) VALUES ($1, $2, $3, $4)',
-            [name.trim(), email.trim(), subject?.trim() || '', message.trim()]
+            'INSERT INTO contact_submissions (name, email, subject, message, phone) VALUES ($1, $2, $3, $4, $5)',
+            [name.trim(), email.trim(), subject?.trim() || '', message.trim(), contactPhone]
         );
 
         // Non-blocking email — don't let email failure break the response
-        sendContactNotification({ name, email, subject, message }).catch(err => {
+        sendContactNotification({ name, email, subject, message, phone: contactPhone }).catch(err => {
             console.error('Contact email error:', err.message);
             notifySlackError('contact notification email failed', err).catch(() => {});
         });

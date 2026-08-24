@@ -2,81 +2,96 @@ import React, { useState } from 'react';
 import { contactAPI } from '../lib/api';
 import './SupportPage.css';
 
+/**
+ * Contact.
+ *
+ * The details here are the real ones. What was here before was scaffolding —
+ * care@morbei.com, a +91 98765 43210 placeholder, and a Mumbai studio address
+ * that does not exist — sitting on a live page where a customer with a problem
+ * would have used them.
+ */
 const Contact = () => {
-    const [form, setForm] = useState({ name: '', email: '', message: '' });
+    const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' });
     const [status, setStatus] = useState('idle'); // idle | loading | success | error
     const [errorMsg, setErrorMsg] = useState('');
+
+    const set = (key) => (e) => setForm(p => ({ ...p, [key]: e.target.value }));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setStatus('loading');
         setErrorMsg('');
         try {
-            await contactAPI.submit({ name: form.name, email: form.email, message: form.message });
+            await contactAPI.submit(form);
             setStatus('success');
-            setForm({ name: '', email: '', message: '' });
+            setForm({ name: '', phone: '', email: '', message: '' });
         } catch (err) {
-            setErrorMsg(err.message || 'Failed to send. Please email us directly at care@morbei.com');
+            setErrorMsg(err.message || 'Failed to send. Please email us directly at info@morbei.com');
             setStatus('error');
         }
     };
 
     return (
-        <div className="support-page">
-            <div className="support-container">
-                <div className="support-header">
-                    <h1>CONTACT US</h1>
-                    <p>WE ARE HERE TO ASSIST YOU</p>
-                </div>
+        <div className="support-page contact-page">
+            <div className="contact-head">
+                <h1 className="contact-title">CONTACT US</h1>
+            </div>
 
-                <div className="support-content animate-fade">
-                    <div className="grid-2">
-                        <div className="support-section">
-                            <h2>CUSTOMER CARE</h2>
-                            <p>FOR ANY INQUIRIES REGARDING YOUR ORDER, SHIPMENT, OR OUR PRODUCTS, PLEASE REACH OUT TO US:</p>
-                            <ul>
-                                <li>EMAIL: CARE@MORBEI.COM</li>
-                                <li>WHATSAPP: +91 98765 43210</li>
-                                <li>HOURS: MON-SAT | 10:00 AM - 7:00 PM IST</li>
-                            </ul>
-                        </div>
+            <div className="contact-grid">
+                <section className="contact-details">
+                    <h2 className="contact-subhead">GET IN TOUCH</h2>
+                    <p className="contact-body">
+                        For enquiries regarding MORBEI, our collections, products, orders, or
+                        services, please contact our support team,
+                    </p>
+                    <p className="contact-body">
+                        Email: <a href="mailto:info@morbei.com">info@morbei.com</a><br />
+                        Customer support: <a href="tel:+919952228533">+91 9952228533</a><br />
+                        Opening hours: 11:00 AM - 5:00 PM<br />
+                        Registered office address: No. 248, B Block, First Floor, F2,
+                        Vigneshwara Nagar, Gerugambakkam, Chennai - 600128.
+                    </p>
+                </section>
 
-                        <div className="support-section">
-                            <h2>HEAD OFFICE</h2>
-                            <p>MORBEI DESIGN STUDIO</p>
-                            <ul>
-                                <li>PIECE 42, TEXTILE DISTRICT</li>
-                                <li>MUMBAI, MAHARASHTRA, 400013</li>
-                                <li>INDIA</li>
-                            </ul>
-                        </div>
-                    </div>
+                <section className="contact-form-col">
+                    <h2 className="contact-subhead">SEND US A MESSAGE</h2>
 
-                    <div className="support-section" style={{ marginTop: '2rem' }}>
-                        <h2>SEND US A MESSAGE</h2>
-                        {status === 'success' && <p style={{ color: '#88c888', letterSpacing: '0.1em', fontSize: '0.8rem', marginBottom: '1rem' }}>MESSAGE SENT! WE WILL REPLY WITHIN 1–2 BUSINESS DAYS.</p>}
-                        {status === 'error' && <p style={{ color: '#e88', letterSpacing: '0.1em', fontSize: '0.8rem', marginBottom: '1rem' }}>{errorMsg}</p>}
-                        {status !== 'success' && (
-                        <form className="track-form" onSubmit={handleSubmit}>
-                            <div className="form-group">
-                                <label>FULL NAME</label>
-                                <input type="text" placeholder="YOUR NAME" required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-                            </div>
-                            <div className="form-group">
-                                <label>EMAIL ADDRESS</label>
-                                <input type="email" placeholder="YOUR@EMAIL.COM" required value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
-                            </div>
-                            <div className="form-group">
-                                <label>MESSAGE</label>
-                                <textarea rows="5" placeholder="HOW CAN WE HELP YOU?" required value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))}></textarea>
-                            </div>
-                            <button type="submit" className="submit-btn" disabled={status === 'loading'}>
+                    {status === 'success' ? (
+                        <p className="contact-note contact-note--ok">
+                            Message sent. We will reply within 1-2 business days.
+                        </p>
+                    ) : (
+                        <form className="contact-form" onSubmit={handleSubmit}>
+                            {status === 'error' && (
+                                <p className="contact-note contact-note--err">{errorMsg}</p>
+                            )}
+
+                            <label className="contact-field">
+                                <span>FULL NAME</span>
+                                <input type="text" required value={form.name} onChange={set('name')} autoComplete="name" />
+                            </label>
+
+                            <label className="contact-field">
+                                <span>PHONE NUMBER</span>
+                                <input type="tel" value={form.phone} onChange={set('phone')} autoComplete="tel" />
+                            </label>
+
+                            <label className="contact-field">
+                                <span>EMAIL</span>
+                                <input type="email" required value={form.email} onChange={set('email')} autoComplete="email" />
+                            </label>
+
+                            <label className="contact-field">
+                                <span>MESSAGE</span>
+                                <textarea rows="6" required value={form.message} onChange={set('message')} />
+                            </label>
+
+                            <button type="submit" className="contact-submit" disabled={status === 'loading'}>
                                 {status === 'loading' ? 'SENDING...' : 'SEND MESSAGE'}
                             </button>
                         </form>
-                        )}
-                    </div>
-                </div>
+                    )}
+                </section>
             </div>
         </div>
     );

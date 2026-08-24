@@ -212,7 +212,7 @@ export async function sendRefundFailureAlert({ orderId, paymentId, amountPaise, 
 /**
  * Send contact form submission notification to store.
  */
-export async function sendContactNotification({ name, email, subject, message }) {
+export async function sendContactNotification({ name, email, subject, message, phone }) {
     if (!STORE_EMAIL) return;
     await transporter.sendMail({
         from: STORE_FROM,
@@ -224,6 +224,7 @@ export async function sendContactNotification({ name, email, subject, message })
             <h2 style="font-size:16px;letter-spacing:0.15em;">NEW CONTACT MESSAGE</h2>
             <p><strong>Name:</strong> ${esc(name)}</p>
             <p><strong>Email:</strong> <a href="mailto:${esc(email)}">${esc(email)}</a></p>
+            ${phone ? `<p><strong>Phone:</strong> ${esc(phone)}</p>` : ''}
             ${subject ? `<p><strong>Subject:</strong> ${esc(subject)}</p>` : ''}
             <p><strong>Message:</strong></p>
             <p style="background:#f9f9f9;padding:16px;border-radius:4px;white-space:pre-line;">${esc(message)}</p>
