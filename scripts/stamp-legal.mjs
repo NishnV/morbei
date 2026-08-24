@@ -29,9 +29,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const OUT = resolve(ROOT, 'src/generated/legal-updated.json');
 
+// Terms is deliberately absent: that document states its own effective date
+// in its closing sections, and a second date in the header that could drift
+// out of step with it would be worse than no date at all.
 const DOCS = [
     { key: 'privacy', file: 'src/pages/PrivacyPolicy.jsx', label: 'Privacy Policy' },
-    { key: 'terms', file: 'src/pages/Terms.jsx', label: 'Terms & Conditions' },
 ];
 
 const checkOnly = process.argv.includes('--check');

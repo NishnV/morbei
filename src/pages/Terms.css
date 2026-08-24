@@ -5,6 +5,10 @@
     padding: 100px clamp(1.5rem, 17.4vw, 250px) 8rem;
     font-family: 'Avenir', 'Avenir Next', sans-serif;
     font-weight: 300;
+    /* Uppercases the whole page, headings included. That matters more than it
+       looks: the source document writes headings in three different cases
+       ("A. GENERAL TERMS", "XI. Intellectual Property", "v. definitions"),
+       and this makes them consistent without editing the document to do it. */
     text-transform: uppercase;
 }
 
@@ -21,19 +25,6 @@
     background: rgba(255, 255, 255, 0.25);
     /* Sits below the title, so the gap belongs above it. */
     margin-top: 2.5rem;
-}
-
-/* Matches .pp-updated on the privacy page — the two headers should not
-   differ in the one line they now have in common. */
-.tc-updated {
-    font-family: 'Avenir', sans-serif;
-    font-weight: 300;
-    font-size: 10px;
-    letter-spacing: 1px;
-    line-height: 25px;
-    text-align: center;
-    margin: 0;
-    opacity: 0.75;
 }
 
 .tc-title {
