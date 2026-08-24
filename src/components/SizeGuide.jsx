@@ -168,6 +168,17 @@ const SizeGuide = ({ open, onClose, sizeGuideHtml, productName, measurementsText
                         )}
 
                         <div className="sg-notes">
+                            {/* How to take each measurement, written per product — a top
+                                explains BUST and WAIST, trousers LOW WAIST and HIP. They
+                                arrive as the note lines of the same metafield, so they
+                                change with the columns above them. */}
+                            {productTable?.notes?.map((note, i) => {
+                                // "BUST — around the fullest part" → bold the term.
+                                const split = note.match(/^([^—–-]{1,24})\s*[—–-]\s*(.+)$/);
+                                return split
+                                    ? <p key={i}><strong>{split[1].trim()}</strong> — {split[2]}</p>
+                                    : <p key={i}>{note}</p>;
+                            })}
                             <p className="sg-note-muted">
                                 These are the finished garment's measurements. For body
                                 measurements and how to take them, see SIZE GUIDE.

@@ -12,6 +12,17 @@
  * declares BUST/WAIST/LENGTH and trousers declare WAIST/HIP/INSEAM without
  * either the schema or this file knowing about garment types.
  *
+ * Any line without a pipe is a note rather than a row, so the measuring
+ * instructions live in the same field and change with the garment:
+ *
+ *   SIZE | LOW WAIST | HIP | LENGTH
+ *   XXS  | 30        | 34  | 42
+ *   LOW WAIST — around the lowest part of the waist, below the natural waistline.
+ *   HIP — around the fullest part of the hips, tape level and not pulled tight.
+ *
+ * A top explains BUST and WAIST, trousers explain LOW WAIST and HIP, and
+ * neither the schema nor this file needs to know which is which.
+ *
  * Returns null for anything that isn't a table — including the single-line
  * form these fields hold today ("Bust-34in, Waist-28in") — so the caller can
  * fall back to rendering the text as-is rather than showing an empty dialog.
@@ -22,8 +33,12 @@ export function parseMeasurementTable(text) {
     const lines = String(text).split('\n').map((l) => l.trim()).filter(Boolean);
     if (lines.length < 2) return null;
 
-    const grid = lines.map((line) => line.split('|').map((cell) => cell.trim()));
-    // A header plus at least one row, each with at least two columns.
+    // A pipe is what marks a line as tabular. Everything else is prose.
+    const rowLines = lines.filter((l) => l.includes('|'));
+    const notes = lines.filter((l) => !l.includes('|'));
+    if (rowLines.length < 2) return null;
+
+    const grid = rowLines.map((line) => line.split('|').map((cell) => cell.trim()));
     if (grid[0].length < 2) return null;
 
     const width = grid[0].length;
@@ -34,7 +49,7 @@ export function parseMeasurementTable(text) {
         .filter((row) => row.some(Boolean));
 
     if (!rows.length) return null;
-    return { headers: grid[0], rows };
+    return { headers: grid[0], rows, notes };
 }
 
 /** A cell that is only a number, a decimal, or a range of them. */
