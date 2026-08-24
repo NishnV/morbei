@@ -613,7 +613,7 @@
    base alone would move it on phones and portrait tablets too. */
 .fp-editorial-overlay {
     position: absolute;
-    top: 44%;
+    top: 38%;
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
