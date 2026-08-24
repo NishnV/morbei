@@ -42,7 +42,19 @@ const Home = () => {
                     className="fp-hero-img"
                     width={1920}
                     widths={[800, 1200, 1600, 1920, 2400]}
-                    sizes="100vw"
+                    // The hero is object-fit: cover in a 100vw x 100svh box, and
+                    // the source is 16:9. On a portrait phone the box is far
+                    // taller than it is wide, so cover scales the image by
+                    // height and renders it about 1440 CSS px wide inside a
+                    // 375px window — most of it cropped away off-screen.
+                    //
+                    // sizes describes the box, not the render, so "100vw" told
+                    // the browser 375px and it chose the 800w file, which then
+                    // got blown up 3.6x. The rendered width is really
+                    // max(boxWidth, boxHeight x aspect), which is what this says
+                    // — 16:9 makes the second term 177.8vh. Measured: the
+                    // browser now picks 2400w where it used to pick 800w.
+                    sizes="max(100vw, 178vh)"
                     priority
                 />
                 <div className="fp-hero-cta">
