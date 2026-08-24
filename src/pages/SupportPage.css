@@ -278,6 +278,14 @@
    an 800px column cannot express. */
 .contact-page {
     padding: 120px 0 100px;
+    /* Hold the page open to a full screen so the footer always begins at or
+       below the fold. On a 1440x900 desktop the content stops at 803px and
+       the footer used to start there, surfacing above the fold on a page
+       that is otherwise short. A min-height rather than more bottom padding:
+       padding would add the same space on tall and short screens alike,
+       where this only fills in what the viewport actually leaves over. */
+    min-height: 100vh;
+    min-height: 100svh;
 }
 
 .contact-head {
