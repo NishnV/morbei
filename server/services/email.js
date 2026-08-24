@@ -3,10 +3,19 @@ import nodemailer from 'nodemailer';
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
 
+// 465 is implicit TLS: the server sends nothing and waits for the client to
+// open the handshake. Connecting to it in plaintext is not an error either
+// side reports — both just wait, until nodemailer gives up with "Greeting
+// never received". Deriving this from the port removes a way to be wrong;
+// SMTP_SECURE still wins where it is set, for hosts that are unusual.
+const SMTP_SECURE = process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === 'true'
+    : SMTP_PORT === 465;
+
 const transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: SMTP_PORT,
-    secure: process.env.SMTP_SECURE === 'true',
+    secure: SMTP_SECURE,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,

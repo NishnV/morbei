@@ -34,7 +34,13 @@ function probe(h, p, ms = 8000) {
     });
 }
 
+const secure = process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === 'true'
+    : port === 465;
+
 console.log(`env: SMTP_USER=${user ? 'set' : 'MISSING'}  SMTP_PASS=${pass ? 'set' : 'MISSING'}`);
+console.log(`     SMTP_HOST=${host}  SMTP_PORT=${port}  secure=${secure}` +
+    `${process.env.SMTP_SECURE === undefined ? ' (derived from port)' : ''}`);
 console.log(`     STORE_NOTIFICATION_EMAIL=${process.env.STORE_NOTIFICATION_EMAIL || '(unset — falls back to SMTP_USER)'}`);
 console.log('');
 
@@ -58,7 +64,7 @@ if (!user || !pass) {
 const transporter = nodemailer.createTransport({
     host,
     port,
-    secure: process.env.SMTP_SECURE === 'true',
+    secure,
     auth: { user, pass },
     connectionTimeout: 15000,
     greetingTimeout: 10000,
