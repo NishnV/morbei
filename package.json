@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/generate-sitemap.mjs && node scripts/generate-site-images.mjs",
+    "prebuild": "node scripts/generate-sitemap.mjs && node scripts/generate-site-images.mjs && node scripts/stamp-legal.mjs --check",
     "build": "vite build",
     "postbuild": "node scripts/prerender-og.mjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "site-images": "node scripts/generate-site-images.mjs"
+    "site-images": "node scripts/generate-site-images.mjs",
+    "stamp-legal": "node scripts/stamp-legal.mjs"
   },
   "dependencies": {
     "dompurify": "^3.4.13",

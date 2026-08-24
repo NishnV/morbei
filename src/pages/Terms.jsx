@@ -1,11 +1,13 @@
 import React from 'react';
 import './Terms.css';
+import LEGAL from '../generated/legal-updated.json';
 
 const Terms = () => {
     return (
         <div className="tc-page">
             <div className="tc-header">
                 <h1 className="tc-title">Terms &amp; Conditions</h1>
+                <p className="tc-updated">Last Updated on {LEGAL.terms.date}</p>
                 <div className="tc-rule" />
             </div>
 
