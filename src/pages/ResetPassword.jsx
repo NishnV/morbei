@@ -66,7 +66,7 @@ const ResetPassword = () => {
     return (
         <div className="profile-auth-page">
             <div className="profile-auth-image">
-                <SiteImage slot="account-side" fallback="/login-side.webp" alt="MORBEI Fashion" width={1000} widths={[600, 800, 1000]} sizes="50vw" />
+                <SiteImage slot="account-side" fallback="/login-side.webp" alt="MORBEI Fashion" width={1000} widths={[600, 800, 1000, 1200, 1600]} sizes="(max-width: 900px) 100vw, (orientation: portrait) and (max-width: 1200px) 100vw, 50vw" />
             </div>
 
             <div className="profile-auth-form-panel">
