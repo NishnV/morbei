@@ -1,14 +1,43 @@
 import nodemailer from 'nodemailer';
 
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
+
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
+    host: SMTP_HOST,
+    port: SMTP_PORT,
     secure: process.env.SMTP_SECURE === 'true',
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+    // Nodemailer waits two minutes before giving up on a TCP connect, and ten
+    // on an idle socket. When the host's egress drops SMTP the send does not
+    // fail — it hangs, holding the request's callback open for the whole two
+    // minutes and reporting "Connection timeout" long after the customer has
+    // gone. Fail in seconds instead, so the error reaches the logs while the
+    // event that caused it is still legible.
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000,
 });
+
+/**
+ * Is the SMTP server actually reachable from here? Resolves to null on
+ * success or the error on failure — never throws, so a caller can log it
+ * without wrapping. Worth running at boot: otherwise a blocked port is
+ * discovered by a customer whose order confirmation never arrives.
+ */
+export async function verifyTransport() {
+    try {
+        await transporter.verify();
+        return null;
+    } catch (err) {
+        return err;
+    }
+}
+
+export const smtpTarget = `${SMTP_HOST}:${SMTP_PORT}`;
 
 const STORE_EMAIL = process.env.STORE_NOTIFICATION_EMAIL || process.env.SMTP_USER;
 const STORE_FROM = `"MORBEI" <${process.env.SMTP_USER}>`;

@@ -12,6 +12,7 @@ import contactRoutes from './routes/contact.js';
 import wishlistRoutes from './routes/wishlist.js';
 import { notifySlackError } from './services/slack.js';
 import { startReconciler } from './services/reconcile.js';
+import { verifyTransport, smtpTarget } from './services/email.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -151,6 +152,15 @@ app.use((err, _req, res, _next) => {
 initDB()
   .then(() => {
     const server = app.listen(PORT, () => console.log(`MORBEI server running on port ${PORT}`));
+
+    // Prove the mail path before a customer needs it. Non-blocking: a store
+    // that cannot send email should still take orders, but it should say so
+    // loudly rather than discovering it one failed confirmation at a time.
+    verifyTransport().then((err) => {
+      if (!err) return console.log(`SMTP ready (${smtpTarget})`);
+      console.error(`SMTP unreachable (${smtpTarget}): ${err.message}`);
+      notifySlackError(`SMTP unreachable at boot (${smtpTarget})`, err).catch(() => {});
+    });
     // Safety net below the webhook: recovers orders where money was captured
     // but fulfilment never completed. Runs shortly after boot, then hourly.
     startReconciler();

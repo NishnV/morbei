@@ -111,7 +111,13 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
             cartLines,
             shippingAddress,
             shopifyOrderId,
-        }).catch(emailErr => console.error('Order email error (non-blocking):', emailErr.message));
+        }).catch(emailErr => {
+            // Alert, don't just log. This is the one email a paying customer
+            // expects, and losing it silently looks identical to a working
+            // store right up until someone asks where their confirmation is.
+            console.error('Order email error (non-blocking):', emailErr.message);
+            notifySlackError(`order confirmation email failed (order ${order.id})`, emailErr).catch(() => {});
+        });
 
         return { alreadyProcessed: false, shopifyOrderId, orderNumber: shopifyOrderNumber };
     } catch (err) {
