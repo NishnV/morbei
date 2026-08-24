@@ -608,9 +608,12 @@
     display: block;
 }
 
+/* Sits above centre on desktop. --mobile restores the true centre below:
+   nothing overrides this rule at any handheld breakpoint, so changing the
+   base alone would move it on phones and portrait tablets too. */
 .fp-editorial-overlay {
     position: absolute;
-    top: 50%;
+    top: 44%;
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
@@ -634,7 +637,11 @@
        label's proportion of the screen steady rather than only fixing desktop. */
     font-size: clamp(12px, 2.6vw, 36px);
     font-weight: 100;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.2em;
+    /* No margin-right compensation here. The usual trick — pulling back the
+       trailing letter-space so centred text does not drift — measured 4px off
+       centre with it and exactly centred without, because the line box this
+       sits in already accounts for it. */
     margin-bottom: 0.1rem;
     color: #fff;
     line-height: 1;
@@ -1022,6 +1029,11 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
 
     .fp-editorial-title {
         font-size: clamp(16px, 6.2vw, 36px);
+    }
+
+    /* Undo the desktop lift — see .fp-editorial-overlay. */
+    .fp-editorial-overlay {
+        top: 50%;
     }
 
     .fp-categories-grid {
