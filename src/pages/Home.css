@@ -1032,6 +1032,13 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
         font-size: clamp(16px, 6.2vw, 36px);
     }
 
+    /* Handhelds show one image instead of two, and centred the label lands
+       on the model's hands. Lifted onto the torso. The whole overlay moves,
+       so EXPLORE travels with it — see .fp-editorial-overlay. */
+    .fp-editorial-overlay {
+        top: 44%;
+    }
+
     .fp-categories-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
