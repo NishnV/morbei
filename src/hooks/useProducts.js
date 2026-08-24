@@ -19,15 +19,36 @@ import { useCachedQuery } from './useCachedQuery';
 const EMPTY_PAGE = { products: [], pageInfo: { hasNextPage: false, endCursor: null } };
 
 /**
+ * Frontend sort values -> Shopify ProductSortKeys + reverse.
+ *
+ * Mirrors SORT_MAP in useCollection, but against ProductSortKeys rather than
+ * ProductCollectionSortKeys: there is no MANUAL or COLLECTION_DEFAULT outside a
+ * collection, so "featured" falls through to Shopify's own default order.
+ */
+const SORT_MAP = {
+  'price-low': { sortKey: 'PRICE', reverse: false },
+  'price-high': { sortKey: 'PRICE', reverse: true },
+  'name-asc': { sortKey: 'TITLE', reverse: false },
+  'name-desc': { sortKey: 'TITLE', reverse: true },
+  newest: { sortKey: 'CREATED_AT', reverse: true },
+  'best-selling': { sortKey: 'BEST_SELLING', reverse: false },
+};
+
+/**
  * Fetch a paginated list of all products.
  *
  * @param {number} [pageSize=20] - Number of products per page
  * @param {Object} [options={}]
  * @param {boolean} [options.skip] - Skip fetching entirely (the caller isn't using the result)
+ * @param {string} [options.sortBy] - Sort key from SORT_MAP (e.g. "price-low")
  * @returns {{ data: Array, loading: boolean, error: Error|null, hasNextPage: boolean, fetchMore: Function }}
  */
-export function useProducts(pageSize = 20, { skip = false } = {}) {
-  const baseKey = keyFor('products', { pageSize });
+export function useProducts(pageSize = 20, { skip = false, sortBy } = {}) {
+  const sortConfig = SORT_MAP[sortBy] || { sortKey: null, reverse: false };
+  // The sort is part of the identity of the list, so it has to be part of the
+  // cache key — otherwise switching sort order returns the previous ordering
+  // straight from cache and looks like the control does nothing.
+  const baseKey = keyFor('products', { pageSize, sortBy: sortBy || 'featured' });
 
   const initial = () => {
     if (skip) return { ...EMPTY_PAGE, loading: false, error: null };
@@ -54,7 +75,7 @@ export function useProducts(pageSize = 20, { skip = false } = {}) {
       const page = await runQuery({
         key: pageKey,
         query: PRODUCTS_QUERY,
-        variables: { first: pageSize, after },
+        variables: { first: pageSize, after, sortKey: sortConfig.sortKey, reverse: sortConfig.reverse },
         transform: (data) => ({
           products: flattenEdges(data.products).map(normalizeProduct).filter(Boolean),
           pageInfo: data.products.pageInfo,
@@ -68,7 +89,7 @@ export function useProducts(pageSize = 20, { skip = false } = {}) {
       put(baseKey, merged);
       return merged;
     },
-    [baseKey, pageSize]
+    [baseKey, pageSize, sortConfig.sortKey, sortConfig.reverse]
   );
 
   useEffect(() => {

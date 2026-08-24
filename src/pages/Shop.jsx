@@ -13,6 +13,7 @@ import { prefetchRoute } from '../lib/routeChunks';
 import { useGlobalLoading } from '../context/LoadingContext';
 import Seo, { breadcrumbJsonLd } from '../components/Seo';
 import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
+import { sortSizes } from '../utils/sizes';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Modal from '../components/ui/Modal';
 import './Shop.css';
@@ -169,7 +170,7 @@ const Shop = ({ category = "ALL" }) => {
 
     const { data: allProducts, loading: allLoading, error: allError, hasNextPage: allHasNext, fetchMore: allFetchMore } = useProducts(
         40,
-        { skip: isSearching || Boolean(collectionHandle) }
+        { skip: isSearching || Boolean(collectionHandle), sortBy }
     );
 
     // Fetch from Shopify search when search query is present
@@ -210,8 +211,83 @@ const Shop = ({ category = "ALL" }) => {
         else stopLoading();
     }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Colour and size are filtered here, on every path, because Shopify cannot
+    // do it for this store. Two separate reasons:
+    //
+    //   - The plain products connection behind /shop/all has no `filters`
+    //     argument at all — only collection.products and search accept one — so
+    //     the panel's selections were sent nowhere.
+    //   - On a collection they were sent and ignored. Asking the API which
+    //     filters this store exposes returns Availability and Price only;
+    //     colour and size are not indexed, so a variantOption filter matches
+    //     nothing and Shopify quietly returns the unfiltered list. Indexing
+    //     them means configuring the Search & Discovery app in the admin.
+    //
+    // If those facets are ever configured, the server-side filters already
+    // being sent start working and this pass becomes a no-op — everything
+    // reaching it will already match.
+    //
+    // Caveat worth knowing as the catalogue grows: this can only judge what has
+    // been fetched. Below the 40-product page size that is the whole catalogue
+    // and the result is exact; past it, a filter would need a "load more"
+    // before it could see the rest.
+    const filteredProducts = useMemo(() => {
+        const list = shopifyProducts || [];
+        if (!selectedSizes.length && !selectedColors.length
+            && priceRange.min <= 0 && priceRange.max >= 15000) return list;
+
+        const wantedSizes = selectedSizes.map(s => s.toUpperCase());
+        const wantedColors = selectedColors.map(c => c.toLowerCase());
+
+        return list.filter(p => {
+            if (wantedSizes.length) {
+                const has = (p.sizes || []).some(s => wantedSizes.includes(String(s).toUpperCase()));
+                if (!has) return false;
+            }
+            if (wantedColors.length) {
+                // A product's colour can come from the Colour variant option or,
+                // for the single-colourway pieces that make up most of this
+                // catalogue, from Shopify's taxonomy metafield.
+                const own = [
+                    ...(p.colors || []),
+                    ...(p.taxonomyColors || []).map(c => c.label),
+                ].map(c => String(c).toLowerCase());
+                if (!own.some(c => wantedColors.includes(c))) return false;
+            }
+            const price = p.priceNum;
+            if (typeof price === 'number') {
+                if (price < priceRange.min || price > priceRange.max) return false;
+            }
+            return true;
+        });
+    }, [shopifyProducts, selectedSizes, selectedColors, priceRange]);
+
+    // The panel's options are read off the products on screen rather than
+    // hardcoded. The hardcoded list offered WHITE, BEIGE and BLACK while the
+    // catalogue uses IVORY — so ticking WHITE filtered everything away and
+    // looked like the filter was broken in a second, different way. Deriving
+    // them cannot drift as the catalogue changes.
+    const availableColors = useMemo(() => {
+        const seen = new Map();
+        for (const p of shopifyProducts || []) {
+            for (const c of p.colors || []) {
+                const key = String(c).toLowerCase();
+                if (!seen.has(key)) seen.set(key, String(c));
+            }
+        }
+        return [...seen.values()].sort((a, b) => a.localeCompare(b));
+    }, [shopifyProducts]);
+
+    const availableSizes = useMemo(() => {
+        const seen = new Set();
+        for (const p of shopifyProducts || []) {
+            for (const s of p.sizes || []) seen.add(String(s).toUpperCase());
+        }
+        return sortSizes([...seen]);
+    }, [shopifyProducts]);
+
     const sortedProducts = useMemo(() => {
-        const display = (shopifyProducts || []).map(p => ({
+        const display = (filteredProducts || []).map(p => ({
             id: p.id,
             handle: p.handle,
             name: p.name,
@@ -226,11 +302,13 @@ const Shop = ({ category = "ALL" }) => {
             variants: p.variants,
         }));
 
-        // Client-side sorting fallback (Shopify handles most sorting server-side)
+        // Sorting is server-side on all three paths now. This stays as a
+        // fallback for the two title sorts, which are the ones a shopper most
+        // obviously notices being wrong.
         if (sortBy === 'name-asc') return display.sort((a, b) => a.name.localeCompare(b.name));
         if (sortBy === 'name-desc') return display.sort((a, b) => b.name.localeCompare(a.name));
         return display;
-    }, [shopifyProducts, sortBy]);
+    }, [filteredProducts, sortBy]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -370,11 +448,16 @@ const Shop = ({ category = "ALL" }) => {
                     <div className="filter-section">
                         <h4 className="filter-section-title">COLOUR</h4>
                         <div className="filter-list">
-                            {['White', 'Beige', 'Black'].map(color => (
-                                <label key={color} className="filter-check-row" onClick={() => toggleColor(color)}>
+                            {availableColors.map(color => (
+                                /* The toggle lives on the input's onChange, not on the
+                                   label's onClick. A click on a label is forwarded to the
+                                   control it wraps, and that synthetic click bubbles back
+                                   out through the label — so an onClick here ran twice per
+                                   click and the box ended up exactly where it started. */
+                                <label key={color} className="filter-check-row">
                                     <span className={`filter-sq-check ${selectedColors.includes(color) ? 'checked' : ''}`} />
                                     <span className="filter-check-label">{color.toUpperCase()}</span>
-                                    <input type="checkbox" checked={selectedColors.includes(color)} onChange={() => {}} style={{ display: 'none' }} />
+                                    <input type="checkbox" checked={selectedColors.includes(color)} onChange={() => toggleColor(color)} style={{ display: 'none' }} />
                                 </label>
                             ))}
                         </div>
@@ -429,11 +512,12 @@ const Shop = ({ category = "ALL" }) => {
                     <div className="filter-section">
                         <h4 className="filter-section-title">SIZE</h4>
                         <div className="filter-size-grid">
-                            {['XXS', 'XS', 'L', 'S', 'M', 'XL'].map(size => (
-                                <label key={size} className="filter-check-row" onClick={() => toggleSize(size)}>
+                            {availableSizes.map(size => (
+                                /* Same double-fire as the colour rows above. */
+                                <label key={size} className="filter-check-row">
                                     <span className={`filter-sq-check ${selectedSizes.includes(size) ? 'checked' : ''}`} />
                                     <span className="filter-check-label">{size}</span>
-                                    <input type="checkbox" checked={selectedSizes.includes(size)} onChange={() => {}} style={{ display: 'none' }} />
+                                    <input type="checkbox" checked={selectedSizes.includes(size)} onChange={() => toggleSize(size)} style={{ display: 'none' }} />
                                 </label>
                             ))}
                         </div>

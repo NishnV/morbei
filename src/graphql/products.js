@@ -104,13 +104,20 @@ const PRODUCT_FRAGMENT = `
 
 /**
  * Fetch a paginated list of products.
+ *
+ * Note this connection takes sortKey/reverse but NOT filters — faceted
+ * filtering is only available on collection.products and on search. The
+ * all-products grid therefore filters client-side; see Shop.jsx.
+ *
  * @param {number} first - Number of products to fetch (default 20)
  * @param {string|null} after - Cursor for pagination
+ * @param {string|null} sortKey - ProductSortKeys value
+ * @param {boolean} reverse - Flip the sort direction
  */
 export const PRODUCTS_QUERY = `
   ${PRODUCT_FRAGMENT}
-  query Products($first: Int!, $after: String) {
-    products(first: $first, after: $after) {
+  query Products($first: Int!, $after: String, $sortKey: ProductSortKeys, $reverse: Boolean) {
+    products(first: $first, after: $after, sortKey: $sortKey, reverse: $reverse) {
       pageInfo {
         hasNextPage
         hasPreviousPage
