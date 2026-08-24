@@ -659,6 +659,14 @@
     border-bottom: 1.2px solid transparent;
     padding-bottom: 1px;
     transition: border-color 0.3s, opacity 0.3s;
+    /* Drops a little clear of the label. A transform, not a margin: it
+       paints the link lower without changing its layout box, so the
+       overlay's height and its translate(-50%, -50%) centring are
+       untouched and PRE-FALL' 26 does not move. A margin-bottom on the
+       title would have grown the block and pushed the label up by half
+       the gap. One rule covers desktop and handhelds — no breakpoint
+       overrides the link. */
+    transform: translateY(0.9rem);
 }
 
 .fp-editorial-link:hover {
