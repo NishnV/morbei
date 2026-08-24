@@ -128,7 +128,7 @@ const Navbar = () => {
                                         </div>
                                         <div className="suggestion-info">
                                             <span className="suggestion-name">{p.title || p.name}</span>
-                                            <span className="suggestion-price">{p.priceRange ? formatPrice(p.priceRange.minVariantPrice) : p.price}</span>
+                                            <span className="suggestion-price">{p.price}</span>
                                         </div>
                                     </Link>
                                 ))}

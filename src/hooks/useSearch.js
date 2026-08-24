@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SEARCH_PRODUCTS_QUERY, PREDICTIVE_SEARCH_QUERY } from '../graphql/search';
 import { normalizeProduct } from '../utils/normalizeProduct';
+import { formatPrice } from '../utils/formatPrice';
 import { peek, put, runQuery, keyFor, TTL } from '../lib/shopifyCache';
 
 /**
@@ -185,14 +186,18 @@ export function usePredictiveSearch(query, debounceMs = 300, limit = 5) {
           return {
             // Predictive results carry a slimmer shape than the full product
             // query, so they're normalized here rather than via normalizeProduct.
+            // price and compareAtPrice are formatted strings, matching what
+            // normalizeProduct produces: passing the raw MoneyV2 through left
+            // an object where the view expected text, and rendering it threw
+            // React error #31 the moment anyone searched.
             products: (result.products || []).map((p) => ({
               id: p.id,
               title: p.title,
               handle: p.handle,
               availableForSale: p.availableForSale,
               img: p.images?.edges?.[0]?.node?.url || '/placeholder.png',
-              price: p.priceRange?.minVariantPrice,
-              compareAtPrice: p.variants?.edges?.[0]?.node?.compareAtPrice,
+              price: formatPrice(p.priceRange?.minVariantPrice),
+              compareAtPrice: formatPrice(p.variants?.edges?.[0]?.node?.compareAtPrice) || null,
             })),
             collections: (result.collections || []).map((c) => ({
               id: c.id,
