@@ -17,7 +17,7 @@
 
 .sg-modal {
     position: relative;
-    background: #0a0a0a;
+    background: var(--bg);
     border: 1px solid rgba(255, 255, 255, 0.18);
     width: min(560px, 100%);
     /* Never taller than the viewport — the chart scrolls inside instead. */
@@ -61,6 +61,34 @@
 }
 
 /* ---- unit toggle ---- */
+/* ---- panel tabs ---- */
+/* Same pill treatment as the unit switch below, one level up in the hierarchy:
+   wider padding and a brighter inactive label, so the two rows read as
+   "which table" above "which unit" rather than as two equal controls. */
+.sg-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 1.4rem;
+}
+
+.sg-tab {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #aaa;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    padding: 0.6rem 1.5rem;
+    cursor: pointer;
+    font-family: inherit;
+    text-transform: uppercase;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.sg-tab + .sg-tab { border-left: none; }
+.sg-tab.active { background: #fff; color: #0a0a0a; }
+.sg-tab:hover:not(.active) { color: #fff; }
+
 .sg-units {
     display: flex;
     justify-content: center;
@@ -162,4 +190,16 @@
 @media (--phone) {
     .sg-modal { padding: 2.2rem 1.2rem 1.6rem; }
     .sg-table { font-size: 0.58rem; }
+}
+
+@media (--phone) {
+    /* Two long labels will not sit side by side at 375px — stack them. */
+    .sg-tabs {
+        flex-direction: column;
+    }
+
+    .sg-tab + .sg-tab {
+        border-left: 1px solid rgba(255, 255, 255, 0.22);
+        border-top: none;
+    }
 }

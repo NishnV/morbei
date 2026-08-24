@@ -863,12 +863,6 @@ const ProductDetail = () => {
 
                     {/* Accordions — directly below add-to-bag */}
                     <div className="pd-accordion">
-                        <AccordionItem title="PRODUCT MEASUREMENTS" isOpen={activeAccordion === 'meas'} onClick={() => toggleAccordion('meas')}>
-                            {product.metafields?.fitType && <p>Fit: {product.metafields.fitType}</p>}
-                            {measurementText
-                                ? paragraphs(measurementText).map((line, i) => <p key={i}>{line}</p>)
-                                : <p>Contact us for product measurements.</p>}
-                        </AccordionItem>
                         <AccordionItem title="COMPOSITION AND CARE" isOpen={activeAccordion === 'comp'} onClick={() => toggleAccordion('comp')}>
                             {product.metafields?.compositionAndCare ? (
                                 paragraphs(product.metafields.compositionAndCare).map((line, i) => <p key={i}>{line}</p>)
@@ -942,6 +936,7 @@ const ProductDetail = () => {
                 onClose={() => setShowSizeGuide(false)}
                 sizeGuideHtml={product.metafields?.sizeGuide}
                 productName={product.name}
+                measurementsText={measurementText}
             />
 
             {/* Restock alert. Guests can use this too — the endpoint is

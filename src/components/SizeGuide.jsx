@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
+import { parseMeasurementTable, rowToCm } from '../utils/measurementTable';
 import './SizeGuide.css';
 
 /**
@@ -12,6 +13,18 @@ import './SizeGuide.css';
  *
  * Uses the product's own `size_guide` metafield when the merchant has filled
  * one in; otherwise falls back to a standard chart so the button is never dead.
+ *
+ * Two panels, because they answer different questions and the answers differ
+ * per garment:
+ *
+ *   SIZE GUIDE — the brand's body measurements, identical on every product.
+ *     Shown first, and what the dialog opens on.
+ *   PRODUCT MEASUREMENTS — this garment's own cut, from the product's
+ *     custom.product_measurement metafield. Per product, so the tab only
+ *     appears when that product has one.
+ *
+ * The tab row is only drawn when there is a product table to switch to;
+ * otherwise this stays the single-panel dialog it was.
  */
 
 // Standard womenswear measurements, in the size vocabulary this catalogue uses.
@@ -37,8 +50,22 @@ const DEFAULT_CHART = {
     ],
 };
 
-const SizeGuide = ({ open, onClose, sizeGuideHtml, productName }) => {
+const SizeGuide = ({ open, onClose, sizeGuideHtml, productName, measurementsText }) => {
     const [unit, setUnit] = useState('in');
+    const [tab, setTab] = useState('guide');
+
+    // Always opens on the size guide — the body measurements are the question
+    // a shopper arrives with, and this garment's own cut is the follow-up.
+    // Reset during render rather than in an effect: an effect would paint the
+    // tab they left on and then swap it, and it re-renders the tree twice.
+    const [wasOpen, setWasOpen] = useState(open);
+    if (open !== wasOpen) {
+        setWasOpen(open);
+        if (open) setTab('guide');
+    }
+
+    const productTable = useMemo(() => parseMeasurementTable(measurementsText), [measurementsText]);
+    const hasProductPanel = Boolean(productTable || measurementsText);
 
     useEffect(() => {
         if (!open) return;
@@ -55,7 +82,27 @@ const SizeGuide = ({ open, onClose, sizeGuideHtml, productName }) => {
 
     if (!open) return null;
 
+    // A product panel was asked for but this product has none — show the guide.
+    const activeTab = hasProductPanel ? tab : 'guide';
     const rows = unit === 'in' ? DEFAULT_CHART.rowsIn : DEFAULT_CHART.rowsCm;
+    const productRows = productTable
+        ? (unit === 'in' ? productTable.rows : productTable.rows.map(rowToCm))
+        : [];
+
+    const unitToggle = (
+        <div className="sg-units" role="group" aria-label="Measurement unit">
+            <button
+                className={`sg-unit${unit === 'in' ? ' active' : ''}`}
+                onClick={() => setUnit('in')}
+                aria-pressed={unit === 'in'}
+            >INCHES</button>
+            <button
+                className={`sg-unit${unit === 'cm' ? ' active' : ''}`}
+                onClick={() => setUnit('cm')}
+                aria-pressed={unit === 'cm'}
+            >CM</button>
+        </div>
+    );
 
     return (
         <div className="sg-backdrop" onClick={onClose}>
@@ -70,7 +117,64 @@ const SizeGuide = ({ open, onClose, sizeGuideHtml, productName }) => {
                 <h2 className="sg-title">SIZE GUIDE</h2>
                 {productName && <p className="sg-product">{productName}</p>}
 
-                {sizeGuideHtml ? (
+                {hasProductPanel && (
+                    <div className="sg-tabs" role="tablist" aria-label="Measurement view">
+                        <button
+                            role="tab"
+                            className={`sg-tab${activeTab === 'guide' ? ' active' : ''}`}
+                            aria-selected={activeTab === 'guide'}
+                            onClick={() => setTab('guide')}
+                        >SIZE GUIDE</button>
+                        <button
+                            role="tab"
+                            className={`sg-tab${activeTab === 'product' ? ' active' : ''}`}
+                            aria-selected={activeTab === 'product'}
+                            onClick={() => setTab('product')}
+                        >PRODUCT MEASUREMENTS</button>
+                    </div>
+                )}
+
+                {activeTab === 'product' ? (
+                    <>
+                        {/* Only offer the unit switch when there are numbers to convert.
+                            A product still on the old single-line value has nothing to
+                            toggle, so the control would be a lie. */}
+                        {productTable && unitToggle}
+
+                        {productTable ? (
+                            <div className="sg-table-wrap">
+                                <table className="sg-table">
+                                    <thead>
+                                        <tr>{productTable.headers.map((h, i) => <th key={i}>{h}</th>)}</tr>
+                                    </thead>
+                                    <tbody>
+                                        {productRows.map((row, r) => (
+                                            <tr key={r}>
+                                                {row.map((cell, i) => (
+                                                    i === 0 ? <th scope="row" key={i}>{cell}</th> : <td key={i}>{cell}</td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            // Not a table — render what the merchant typed.
+                            <div className="sg-notes">
+                                {String(measurementsText).split(/\n+/).map((line, i) => (
+                                    <p key={i}>{line.trim()}</p>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="sg-notes">
+                            <p className="sg-note-muted">
+                                These are the finished garment's measurements. For body
+                                measurements and how to take them, see SIZE GUIDE.
+                            </p>
+                        </div>
+                    </>
+                ) : sizeGuideHtml ? (
                     // Merchant-authored, same sanitisation as the product description.
                     <div
                         className="sg-custom"
@@ -84,18 +188,7 @@ const SizeGuide = ({ open, onClose, sizeGuideHtml, productName }) => {
                     />
                 ) : (
                     <>
-                        <div className="sg-units" role="group" aria-label="Measurement unit">
-                            <button
-                                className={`sg-unit${unit === 'in' ? ' active' : ''}`}
-                                onClick={() => setUnit('in')}
-                                aria-pressed={unit === 'in'}
-                            >INCHES</button>
-                            <button
-                                className={`sg-unit${unit === 'cm' ? ' active' : ''}`}
-                                onClick={() => setUnit('cm')}
-                                aria-pressed={unit === 'cm'}
-                            >CM</button>
-                        </div>
+                        {unitToggle}
 
                         <div className="sg-table-wrap">
                             <table className="sg-table">
