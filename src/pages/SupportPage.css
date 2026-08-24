@@ -292,7 +292,9 @@
    .tc-rule and .tc-title in Terms.css. The two pages sat side by side in
    the footer's Legal column looking almost, but not quite, alike. */
 .contact-head {
-    padding: 0 clamp(1.5rem, 3vw, 3rem);
+    /* The Terms page's inset, so the rule under the title is the same length
+       there and here — .tc-page in Terms.css uses this same clamp. */
+    padding: 0 clamp(1.5rem, 17.4vw, 250px);
     margin-bottom: 3.5rem;
 }
 
@@ -324,9 +326,11 @@
     grid-template-columns: 1fr minmax(320px, 390px);
     gap: clamp(3rem, 8vw, 8rem);
     align-items: start;
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 0 clamp(1.5rem, 3vw, 3rem);
+    /* Same inset as .contact-head, so the columns start and end exactly where
+       the rule above them does. No max-width to go with it: the inset is
+       viewport-relative and a fixed cap cannot track it, which is what left
+       the content overhanging the rule by 78px a side at 1440. */
+    padding: 0 clamp(1.5rem, 17.4vw, 250px);
 }
 
 .contact-subhead {
@@ -452,6 +456,15 @@
     .contact-grid {
         grid-template-columns: 1fr;
         gap: 3rem;
+    }
+
+    /* 17.4vw is 68px a side on a 390px phone, which is most of the screen
+       spent on margin. Terms drops to a flat 1.5rem here for the same
+       reason — .tc-page in its --mobile block. */
+    .contact-head,
+    .contact-grid {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
     }
 
     .contact-body {
