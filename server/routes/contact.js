@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { run } from '../db/pg.js';
 import { sendContactNotification, sendRestockRequest, sendNewsletterWelcome } from '../services/email.js';
 import { subscribeToMarketing, setMarketingConsentRevoked } from '../services/shopify-admin.js';
-import { notifySlackError } from '../services/slack.js';
+import { notifySlackError, notifySlackContact } from '../services/slack.js';
 
 const router = Router();
 
@@ -46,10 +46,20 @@ router.post('/', async (req, res) => {
             [name.trim(), email.trim(), subject?.trim() || '', message.trim(), contactPhone]
         );
 
-        // Non-blocking email — don't let email failure break the response
-        sendContactNotification({ name, email, subject, message, phone: contactPhone }).catch(err => {
+        const submission = { name, email, subject, message, phone: contactPhone };
+
+        // Slack is the delivery path. Outbound SMTP is blocked from the host,
+        // and the alert that reported it arrived over this same webhook — so
+        // this is the one route out of the box known to work.
+        notifySlackContact(submission).then(delivered => {
+            if (!delivered) console.error('Contact Slack delivery failed — message is still in contact_submissions');
+        });
+
+        // Email stays as a second copy for whenever SMTP is reachable again.
+        // Its failure is logged, not alerted: Slack already carried the
+        // message, and an alert per submission would be pure noise.
+        sendContactNotification(submission).catch(err => {
             console.error('Contact email error:', err.message);
-            notifySlackError('contact notification email failed', err).catch(() => {});
         });
 
         res.json({ success: true });
