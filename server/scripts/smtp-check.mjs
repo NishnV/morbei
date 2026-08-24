@@ -61,23 +61,63 @@ if (!user || !pass) {
     process.exit(1);
 }
 
-const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: { user, pass },
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 30000,
-});
-
-try {
-    await transporter.verify();
-    console.log(`login ok — ${host}:${port} accepts ${user}`);
-    process.exit(0);
-} catch (err) {
-    console.error(`login failed — ${err.code || ''} ${err.message}`);
-    // A reachable port with a failed login is a credentials problem; an
-    // unreachable one above is a network problem. They have different fixes.
-    process.exit(1);
+/**
+ * Try one (port, TLS mode) pair. A 535 here is a completely different
+ * finding from a timeout: it means the server heard us and said no, so the
+ * network is fine and the credentials, the mailbox, or the host are not.
+ */
+async function tryLogin(p, isSecure) {
+    const t = nodemailer.createTransport({
+        host,
+        port: p,
+        secure: isSecure,
+        auth: { user, pass },
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 30000,
+    });
+    try {
+        await t.verify();
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, code: err.code, message: err.message };
+    } finally {
+        t.close();
+    }
 }
+
+// 465 is implicit TLS, 587 is STARTTLS. Providers usually accept one and not
+// the other, and a wrong pairing fails in ways that look like other faults.
+const combos = [
+    { port: 465, secure: true, label: '465 implicit TLS' },
+    { port: 587, secure: false, label: '587 STARTTLS' },
+];
+
+let authenticated = false;
+for (const c of combos) {
+    const r = await tryLogin(c.port, c.secure);
+    if (r.ok) {
+        authenticated = true;
+        console.log(`login ok    ${host}:${c.label} accepts ${user}`);
+    } else {
+        console.log(`login fail  ${host}:${c.label} — ${r.code || ''} ${r.message}`);
+    }
+}
+console.log('');
+
+if (authenticated) {
+    console.log('At least one combination works. Set SMTP_PORT and SMTP_SECURE to match it.');
+    process.exit(0);
+}
+
+// 535 is worth spelling out, because it is the one failure people read as
+// "email is broken" when it is really "this mailbox will not accept a
+// password over SMTP".
+console.log('Nothing authenticated. If the failures above say 535:');
+console.log('  - the connection and TLS are fine; the mailbox rejected the password');
+console.log('  - SMTP_USER must be the full address, not the part before the @');
+console.log('  - a Microsoft 365 mailbox (which is what GoDaddy now sells) has');
+console.log('    authenticated SMTP disabled by default, and its real host is');
+console.log('    smtp.office365.com:587 — not smtpout.secureserver.net');
+console.log('  - with 2FA on the mailbox, only an app password will work');
+process.exit(1);
