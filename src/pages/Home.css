@@ -608,9 +608,10 @@
     display: block;
 }
 
-/* Truly centred, at every breakpoint. The desktop lift lives on
-   .fp-editorial-title as a transform instead: moving the overlay moved
-   EXPLORE with it, and only the label is meant to rise. */
+/* Truly centred, at every breakpoint, with EXPLORE sitting directly
+   under the label — the composition in the design. Two earlier attempts
+   lifted this above centre; both were reverted. If it ever needs to rise
+   again, move this one `top` and the pair travels together. */
 .fp-editorial-overlay {
     position: absolute;
     top: 50%;
@@ -645,14 +646,6 @@
     margin-bottom: 0.1rem;
     color: #fff;
     line-height: 1;
-    /* The desktop lift. A transform, not a margin or a change to the
-       overlay's top: it paints the label 12vh higher without altering the
-       layout box, so the overlay's height and centring are untouched and
-       EXPLORE stays exactly on the section's centre line. 12vh reproduces
-       the earlier top: 50% -> 38% move to the pixel, since the section is
-       100vh tall — the label lands where it did, EXPLORE no longer follows.
-       --mobile resets this; nothing else overrides it. */
-    transform: translateY(-12vh);
 }
 
 .fp-editorial-link {
@@ -1037,8 +1030,6 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
 
     .fp-editorial-title {
         font-size: clamp(16px, 6.2vw, 36px);
-        /* Undo the desktop lift — see .fp-editorial-title. */
-        transform: none;
     }
 
     .fp-categories-grid {
