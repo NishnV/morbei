@@ -3,7 +3,7 @@
   height: 100vh;
   height: 100dvh;
   display: flex;
-  background: #0a0a0a;
+  background: var(--bg);
 }
 
 /* LEFT IMAGE PANEL */

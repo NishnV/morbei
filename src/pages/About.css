@@ -7,7 +7,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0e0e0e;
+    background: var(--bg);
 }
 
 /* Grid (not flex+gap) is what makes the image land exactly on the viewport's

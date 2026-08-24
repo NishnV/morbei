@@ -13,7 +13,7 @@
 }
 
 .morbei-modal {
-    background: #0a0a0a;
+    background: var(--bg);
     border: 1px solid rgba(255, 255, 255, 0.18);
     width: min(400px, 100%);
     padding: 2.2rem 2rem;
