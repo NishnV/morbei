@@ -27,32 +27,121 @@ import './SizeGuide.css';
  * otherwise this stays the single-panel dialog it was.
  */
 
-// Standard womenswear measurements, in the size vocabulary this catalogue uses.
-// Body measurements, not garment measurements — the fit is stated separately in
-// the PRODUCT MEASUREMENTS accordion.
-const DEFAULT_CHART = {
-    headers: ['SIZE', 'BUST', 'WAIST', 'HIP'],
-    rowsIn: [
-        ['XXS', '30–31', '23–24', '33–34'],
-        ['XS', '32–33', '25–26', '35–36'],
-        ['S', '34–35', '27–28', '37–38'],
-        ['M', '36–37', '29–30', '39–40'],
-        ['L', '38–40', '31–33', '41–43'],
-        ['XL', '41–43', '34–36', '44–46'],
-    ],
-    rowsCm: [
-        ['XXS', '76–79', '58–61', '84–86'],
-        ['XS', '81–84', '63–66', '89–91'],
-        ['S', '86–89', '68–71', '94–97'],
-        ['M', '91–94', '74–76', '99–102'],
-        ['L', '97–102', '79–84', '104–109'],
-        ['XL', '104–109', '86–91', '112–117'],
-    ],
+// Body measurements for selecting size + garment length column.
+// LENGTH values are approximate garment lengths — update if MORBEI's
+// sizing runs longer or shorter than these defaults.
+const CHARTS = {
+    top: {
+        headers: ['SIZE', 'BUST', 'WAIST', 'LENGTH'],
+        rowsIn: [
+            ['XXS', '30–31', '23–24', '22'],
+            ['XS',  '32–33', '25–26', '22.5'],
+            ['S',   '34–35', '27–28', '23'],
+            ['M',   '36–37', '29–30', '23.5'],
+            ['L',   '38–40', '31–33', '24'],
+            ['XL',  '41–43', '34–36', '24.5'],
+        ],
+        rowsCm: [
+            ['XXS', '76–79',   '58–61',  '56'],
+            ['XS',  '81–84',   '63–66',  '57'],
+            ['S',   '86–89',   '68–71',  '58'],
+            ['M',   '91–94',   '74–76',  '60'],
+            ['L',   '97–102',  '79–84',  '61'],
+            ['XL',  '104–109', '86–91',  '62'],
+        ],
+        notes: [
+            { label: 'BUST',   desc: 'around the fullest part, tape level and not pulled tight.' },
+            { label: 'WAIST',  desc: 'around the narrowest part of the natural waist.' },
+            { label: 'LENGTH', desc: 'shoulder seam to hem (garment measurement).' },
+        ],
+    },
+    bottom: {
+        headers: ['SIZE', 'WAIST', 'HIP', 'LENGTH'],
+        rowsIn: [
+            ['XXS', '23–24', '33–34', '36'],
+            ['XS',  '25–26', '35–36', '36.5'],
+            ['S',   '27–28', '37–38', '37'],
+            ['M',   '29–30', '39–40', '37.5'],
+            ['L',   '31–33', '41–43', '38'],
+            ['XL',  '34–36', '44–46', '38.5'],
+        ],
+        rowsCm: [
+            ['XXS', '58–61',  '84–86',   '91'],
+            ['XS',  '63–66',  '89–91',   '93'],
+            ['S',   '68–71',  '94–97',   '94'],
+            ['M',   '74–76',  '99–102',  '95'],
+            ['L',   '79–84',  '104–109', '97'],
+            ['XL',  '86–91',  '112–117', '98'],
+        ],
+        notes: [
+            { label: 'WAIST',  desc: 'around the narrowest part of the natural waist.' },
+            { label: 'HIP',    desc: 'around the fullest part, roughly 20cm below the waist.' },
+            { label: 'LENGTH', desc: 'waist to hem (garment measurement).' },
+        ],
+    },
+    dress: {
+        headers: ['SIZE', 'BUST', 'WAIST', 'HIP', 'LENGTH'],
+        rowsIn: [
+            ['XXS', '30–31', '23–24', '33–34', '44'],
+            ['XS',  '32–33', '25–26', '35–36', '44.5'],
+            ['S',   '34–35', '27–28', '37–38', '45'],
+            ['M',   '36–37', '29–30', '39–40', '45.5'],
+            ['L',   '38–40', '31–33', '41–43', '46'],
+            ['XL',  '41–43', '34–36', '44–46', '46.5'],
+        ],
+        rowsCm: [
+            ['XXS', '76–79',   '58–61',  '84–86',   '112'],
+            ['XS',  '81–84',   '63–66',  '89–91',   '113'],
+            ['S',   '86–89',   '68–71',  '94–97',   '114'],
+            ['M',   '91–94',   '74–76',  '99–102',  '115'],
+            ['L',   '97–102',  '79–84',  '104–109', '117'],
+            ['XL',  '104–109', '86–91',  '112–117', '118'],
+        ],
+        notes: [
+            { label: 'BUST',   desc: 'around the fullest part, tape level and not pulled tight.' },
+            { label: 'WAIST',  desc: 'around the narrowest part of the natural waist.' },
+            { label: 'HIP',    desc: 'around the fullest part, roughly 20cm below the waist.' },
+            { label: 'LENGTH', desc: 'shoulder seam to hem (garment measurement).' },
+        ],
+    },
+    default: {
+        headers: ['SIZE', 'BUST', 'WAIST', 'HIP'],
+        rowsIn: [
+            ['XXS', '30–31', '23–24', '33–34'],
+            ['XS',  '32–33', '25–26', '35–36'],
+            ['S',   '34–35', '27–28', '37–38'],
+            ['M',   '36–37', '29–30', '39–40'],
+            ['L',   '38–40', '31–33', '41–43'],
+            ['XL',  '41–43', '34–36', '44–46'],
+        ],
+        rowsCm: [
+            ['XXS', '76–79',   '58–61',  '84–86'],
+            ['XS',  '81–84',   '63–66',  '89–91'],
+            ['S',   '86–89',   '68–71',  '94–97'],
+            ['M',   '91–94',   '74–76',  '99–102'],
+            ['L',   '97–102',  '79–84',  '104–109'],
+            ['XL',  '104–109', '86–91',  '112–117'],
+        ],
+        notes: [
+            { label: 'BUST',  desc: 'around the fullest part, tape level and not pulled tight.' },
+            { label: 'WAIST', desc: 'around the narrowest part of the natural waist.' },
+            { label: 'HIP',   desc: 'around the fullest part, roughly 20cm below the waist.' },
+        ],
+    },
 };
 
-const SizeGuide = ({ open, onClose, sizeGuideHtml, productName, measurementsText }) => {
+function resolveChart(productType) {
+    const t = (productType || '').toLowerCase();
+    if (t.includes('top') || t.includes('blouse') || t.includes('shirt')) return CHARTS.top;
+    if (t.includes('bottom') || t.includes('pant') || t.includes('trouser') || t.includes('skirt')) return CHARTS.bottom;
+    if (t.includes('dress')) return CHARTS.dress;
+    return CHARTS.default;
+}
+
+const SizeGuide = ({ open, onClose, sizeGuideHtml, productName, measurementsText, productType }) => {
     const [unit, setUnit] = useState('in');
     const [tab, setTab] = useState('guide');
+    const chart = resolveChart(productType);
 
     // Always opens on the size guide — the body measurements are the question
     // a shopper arrives with, and this garment's own cut is the follow-up.
@@ -84,7 +173,7 @@ const SizeGuide = ({ open, onClose, sizeGuideHtml, productName, measurementsText
 
     // A product panel was asked for but this product has none — show the guide.
     const activeTab = hasProductPanel ? tab : 'guide';
-    const rows = unit === 'in' ? DEFAULT_CHART.rowsIn : DEFAULT_CHART.rowsCm;
+    const rows = unit === 'in' ? chart.rowsIn : chart.rowsCm;
     const productRows = productTable
         ? (unit === 'in' ? productTable.rows : productTable.rows.map(rowToCm))
         : [];
@@ -204,7 +293,7 @@ const SizeGuide = ({ open, onClose, sizeGuideHtml, productName, measurementsText
                         <div className="sg-table-wrap">
                             <table className="sg-table">
                                 <thead>
-                                    <tr>{DEFAULT_CHART.headers.map(h => <th key={h}>{h}</th>)}</tr>
+                                    <tr>{chart.headers.map(h => <th key={h}>{h}</th>)}</tr>
                                 </thead>
                                 <tbody>
                                     {rows.map(row => (
@@ -219,13 +308,12 @@ const SizeGuide = ({ open, onClose, sizeGuideHtml, productName, measurementsText
                         </div>
 
                         <div className="sg-notes">
-                            <p><strong>BUST</strong> — around the fullest part, tape level and not pulled tight.</p>
-                            <p><strong>WAIST</strong> — around the narrowest part of the natural waist.</p>
-                            <p><strong>HIP</strong> — around the fullest part, roughly 20cm below the waist.</p>
+                            {chart.notes.map(({ label, desc }) => (
+                                <p key={label}><strong>{label}</strong> — {desc}</p>
+                            ))}
                             <p className="sg-note-muted">
-                                Measurements are body measurements, not garment measurements. Between two
-                                sizes, size up for a relaxed fit. See PRODUCT MEASUREMENTS for this
-                                garment's cut.
+                                Body measurements in inches unless stated. Between two sizes, size up
+                                for a relaxed fit. See PRODUCT MEASUREMENTS for this garment's cut.
                             </p>
                         </div>
                     </>

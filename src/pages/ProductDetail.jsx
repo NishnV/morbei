@@ -948,6 +948,7 @@ const ProductDetail = () => {
                 sizeGuideHtml={product.metafields?.sizeGuide}
                 productName={product.name}
                 measurementsText={measurementText}
+                productType={product.productType}
             />
 
             {/* Restock alert. Guests can use this too — the endpoint is
