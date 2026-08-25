@@ -85,7 +85,7 @@ if (!SEO_BLOCK.test(shell)) {
 
 // Static routes. Titles/descriptions mirror src/components/Seo.jsx usage.
 const STATIC_ROUTES = [
-    { path: '/', title: 'MORBEI | Minimalist Fashion', description: 'Minimalist fashion crafted in India. Designed with restraint.' },
+    { path: '/', title: 'MORBEI', description: 'Minimalist fashion crafted in India. Designed with restraint.' },
     { path: '/shop/all', title: 'SHOP | MORBEI', description: 'Shop the full MORBEI collection — minimalist dresses, tops and bottoms crafted in India.' },
     { path: '/shop/dresses', title: 'DRESSES | MORBEI', description: 'Shop MORBEI dresses — minimalist pieces crafted in India.' },
     { path: '/shop/tops', title: 'TOPS | MORBEI', description: 'Shop MORBEI tops — minimalist pieces crafted in India.' },

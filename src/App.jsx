@@ -51,7 +51,7 @@ import { useOrderRecovery } from './hooks/useOrderRecovery';
 
 // Per-route document titles — ProductDetail overrides with the product name once loaded
 const ROUTE_TITLES = [
-  [/^\/$/, 'MORBEI | Minimalist Fashion'],
+  [/^\/$/, 'MORBEI'],
   [/^\/shop\/?([a-z-]*)/, (m) => m[1] && m[1] !== 'all' ? `${m[1].replace(/-/g, ' ').toUpperCase()} | MORBEI` : 'SHOP | MORBEI'],
   [/^\/product\//, 'MORBEI'],
   [/^\/about/, 'ABOUT | MORBEI'],
@@ -77,7 +77,7 @@ function titleForPath(pathname) {
     const match = pathname.match(pattern);
     if (match) return typeof title === 'function' ? title(match) : title;
   }
-  return 'MORBEI | Minimalist Fashion';
+  return 'MORBEI';
 }
 
 const ShopWrapper = () => {

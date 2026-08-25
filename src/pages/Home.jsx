@@ -15,7 +15,7 @@ const Home = () => {
     return (
         <>
         <Seo
-            title="MORBEI | Minimalist Fashion"
+            title="MORBEI"
             path="/"
             jsonLd={{
                 '@context': 'https://schema.org',
