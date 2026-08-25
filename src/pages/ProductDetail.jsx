@@ -661,6 +661,17 @@ const ProductDetail = () => {
                                     </span>
                                 );
                             })}
+                            <button
+                                type="button"
+                                className="pd-mobile-size-guide-btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowMobileSizeOverlay(false);
+                                    setShowSizeGuide(true);
+                                }}
+                            >
+                                Size Guide
+                            </button>
                         </div>
                     </div>
 
