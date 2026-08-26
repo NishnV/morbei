@@ -676,3 +676,27 @@
         font-size: 10px;
     }
 }
+
+/* ---------------------------------------------------------------------------
+   Small phones: let the link columns shrink.
+
+   The links are white-space: nowrap, so each column's minimum width is its
+   longest label — "RETURNS & EXCHANGES" measures 125px. Three of those plus
+   the gaps need about 396px before the container's padding, which no phone
+   under 375px has. A 1fr track will not go below its content either, so the
+   third column simply ran past the container and was clipped by the page's
+   overflow-x: hidden. On a 360px Android — one of the commonest widths there
+   is — the LEGAL column lost its right edge.
+
+   minmax(0, 1fr) lets the tracks divide the space evenly, and dropping nowrap
+   lets a long label take two lines instead of forcing the track wider.
+   --------------------------------------------------------------------------- */
+@media (--phone) {
+    .footer-links-v2 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .link-group ul li a {
+        white-space: normal;
+    }
+}

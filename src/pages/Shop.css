@@ -1605,3 +1605,41 @@
     background: #fff;
     color: #000;
 }
+
+/* ---------------------------------------------------------------------------
+   Touch devices: undo the hover reveals above.
+
+   A touch screen has no pointer to move away, so :hover stays applied to the
+   last thing tapped until something else is tapped. In this grid that left one
+   card — the one a shopper touched on the way to a product, or came back to —
+   showing its size row and wearing an underline under its name and price,
+   while every other card looked normal. It reads as a rendering fault, which
+   is what it was reported as.
+
+   Pinned back to the base values above rather than wrapping each rule in
+   (hover: hover), because two of them are repeated inside later media blocks
+   and would have needed the guard in both places.
+   --------------------------------------------------------------------------- */
+@media (hover: none) {
+    .product-item:hover .product-sizes {
+        opacity: 0;
+        transform: translateY(10px);
+        background: transparent !important;
+    }
+
+    .product-item:hover .product-image-container .img-hover {
+        opacity: 0;
+    }
+
+    .product-item:hover .p-name {
+        opacity: 0.9;
+        border-bottom-color: transparent;
+        padding-bottom: 0;
+    }
+
+    .product-item:hover .p-price {
+        opacity: 0.85;
+        border-bottom-color: transparent;
+        padding-bottom: 0;
+    }
+}
