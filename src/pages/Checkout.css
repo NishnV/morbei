@@ -1219,6 +1219,16 @@ select.checkout-input-v3 option {
 
     .step0-content {
         max-width: 100%;
+        /* The base rule centres this with margin: 0 auto, which on desktop
+           sits it in the middle of the 1fr track between two 200px rails.
+           Auto margins also switch a grid item off stretch, so once the grid
+           collapses to a single track the box stopped filling it and shrank
+           to its content instead — 254px of fields in a 369px column, inset
+           and narrow while the headings above ran the full width. Raising
+           max-width alone could not undo that; the margins had to go. */
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
     }
 }
 
