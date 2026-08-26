@@ -195,10 +195,12 @@
   font-family: inherit;
   text-transform: uppercase;
   transition: opacity 0.2s;
-}
+}@media (hover: hover) {
 
-.profile-auth-submit-btn:hover {
-  opacity: 0.9;
+
+    .profile-auth-submit-btn:hover {
+      opacity: 0.9;
+    }
 }
 
 .profile-auth-submit-btn:disabled {
@@ -383,11 +385,13 @@
   cursor: pointer;
   font-family: inherit;
   transition: border-color 0.2s, color 0.2s;
-}
+}@media (hover: hover) {
 
-.profile-account-logout:hover {
-  border-color: #fff;
-  color: #fff;
+
+    .profile-account-logout:hover {
+      border-color: #fff;
+      color: #fff;
+    }
 }
 
 /* Two-column layout: orders/info on the left, addresses on the right */
@@ -430,12 +434,14 @@
   text-decoration: none;
   padding: 0;
   transition: color 0.2s;
-}
+}@media (hover: hover) {
 
-.profile-section-link:hover {
-  color: #fff;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+
+    .profile-section-link:hover {
+      color: #fff;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
 }
 
 .profile-account-text {
@@ -493,10 +499,12 @@
   border: 1px solid #1a1a1a;
   text-decoration: none;
   transition: border-color 0.2s;
-}
+}@media (hover: hover) {
 
-.profile-order-row:hover {
-  border-color: #333;
+
+    .profile-order-row:hover {
+      border-color: #333;
+    }
 }
 
 .profile-order-row-top {

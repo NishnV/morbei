@@ -152,10 +152,12 @@
     justify-content: center;
     opacity: 0.6;
     transition: opacity 0.2s;
-}
+}@media (hover: hover) {
 
-.pd-lightbox-close:hover {
-    opacity: 1;
+
+    .pd-lightbox-close:hover {
+        opacity: 1;
+    }
 }
 
 .pd-lightbox-thumbs {
@@ -182,10 +184,12 @@
     opacity: 0.45;
     transition: opacity 0.2s;
     border: 1px solid transparent;
-}
+}@media (hover: hover) {
 
-.pd-lightbox-thumb:hover {
-    opacity: 0.75;
+
+    .pd-lightbox-thumb:hover {
+        opacity: 0.75;
+    }
 }
 
 .pd-lightbox-thumb.active {
@@ -429,10 +433,18 @@
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.color-swatch.active,
-.color-swatch:hover {
+.color-swatch.active {
     border-color: #fff;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+/* Split from .active above: on a touch screen :hover sticks to the last
+   swatch tapped, and it must not look selected when it is not. */
+@media (hover: hover) {
+    .color-swatch:hover {
+        border-color: #fff;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
 }
 
 /* Read-only swatch: the product has a taxonomy colour but no Colour option to
@@ -576,12 +588,14 @@
     background: transparent;
     color: #fff;
     border: 1px solid rgba(255, 255, 255, 0.5);
-}
+}@media (hover: hover) {
 
-.pd-notify-btn:hover {
-    background: #fff;
-    color: #0a0a0a;
-    border-color: #fff;
+
+    .pd-notify-btn:hover {
+        background: #fff;
+        color: #0a0a0a;
+        border-color: #fff;
+    }
 }
 
 /* Colour option whose name we can't resolve to a swatch (e.g. a bespoke name
@@ -625,12 +639,14 @@
     transition: all 0.3s;
     text-transform: uppercase;
     font-weight: 500;
-}
+}@media (hover: hover) {
 
-.pd-add-bag-btn:hover {
-    background: #848484;
-    color: #000000;
-    text-decoration: none;
+
+    .pd-add-bag-btn:hover {
+        background: #848484;
+        color: #000000;
+        text-decoration: none;
+    }
 }
 
 .pd-add-bag-btn:disabled {
@@ -651,10 +667,12 @@
     transition: all 0.25s ease;
     flex-shrink: 0;
     padding: 0;
-}
+}@media (hover: hover) {
 
-.pd-wishlist-icon-btn:hover {
-    opacity: 0.6;
+
+    .pd-wishlist-icon-btn:hover {
+        opacity: 0.6;
+    }
 }
 
 /* Wishlisted state fills the bookmark (React sets fill="currentColor") — a
@@ -734,11 +752,13 @@
     color: #fff;
     text-transform: uppercase;
     transition: opacity 0.2s;
-}
+}@media (hover: hover) {
 
-.accordion-header:hover {
-    opacity: 0.7;
-    text-decoration: none;
+
+    .accordion-header:hover {
+        opacity: 0.7;
+        text-decoration: none;
+    }
 }
 
 .accordion-content {
@@ -856,10 +876,12 @@
     display: block;
     background: #111;
     transition: transform 0.6s ease;
-}
+}@media (hover: hover) {
 
-.rec-product:hover img {
-    transform: scale(1.04);
+
+    .rec-product:hover img {
+        transform: scale(1.04);
+    }
 }
 
 .rec-details-row {
@@ -895,10 +917,12 @@
     opacity: 0.9;
     line-height: 1.3;
     transition: opacity 0.3s ease;
-}
+}@media (hover: hover) {
 
-.rec-product:hover .rec-name {
-    opacity: 1;
+
+    .rec-product:hover .rec-name {
+        opacity: 1;
+    }
 }
 
 .rec-price {
@@ -907,10 +931,12 @@
     color: rgba(255,255,255,0.7);
     font-weight: 400;
     transition: opacity 0.3s ease;
-}
+}@media (hover: hover) {
 
-.rec-product:hover .rec-price {
-    opacity: 1;
+
+    .rec-product:hover .rec-price {
+        opacity: 1;
+    }
 }
 
 .rec-bookmark-btn {
@@ -927,10 +953,12 @@
     height: 28px;
     opacity: 0.8;
     cursor: pointer;
-}
+}@media (hover: hover) {
 
-.rec-bookmark-btn:hover {
-    opacity: 1;
+
+    .rec-bookmark-btn:hover {
+        opacity: 1;
+    }
 }
 
 /* Mobile-only slider — hidden on desktop */
@@ -1393,12 +1421,14 @@
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: left;
-}
+}@media (hover: hover) {
 
-.share-option:hover {
-    background: var(--text);
-    color: var(--bg);
-    transform: translateX(5px);
+
+    .share-option:hover {
+        background: var(--text);
+        color: var(--bg);
+        transform: translateX(5px);
+    }
 }
 
 .share-icon {
@@ -1537,11 +1567,13 @@
         border: none;
         background: none;
         text-transform: uppercase;
-    }
+    }@media (hover: hover) {
 
-    .pd-size-item:hover {
-        opacity: 0.7;
-    }
+
+        .pd-size-item:hover {
+            opacity: 0.7;
+        }
+}
 }
 
 @media (min-width: 431px) {
@@ -1559,12 +1591,14 @@
         padding: 0.2rem 0.3rem;
         transition: all 0.2s ease;
     }
-}
+}@media (hover: hover) {
 
-.pd-size-item:hover {
-    text-decoration: underline;
-    text-decoration-color: #fff;
-    text-underline-offset: 2px;
+
+    .pd-size-item:hover {
+        text-decoration: underline;
+        text-decoration-color: #fff;
+        text-underline-offset: 2px;
+    }
 }
 
 .pd-size-item.out-of-stock {
@@ -1659,11 +1693,13 @@
         height: 25px;
         flex-shrink: 0;
         transition: opacity 0.3s ease;
-    }
+    }@media (hover: hover) {
 
-    .pd-mobile-wishlist-icon:hover {
-        opacity: 0.6;
-    }
+
+        .pd-mobile-wishlist-icon:hover {
+            opacity: 0.6;
+        }
+}
 
     .pd-mobile-slides {
         display: flex;

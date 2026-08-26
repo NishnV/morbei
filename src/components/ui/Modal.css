@@ -89,8 +89,10 @@
     transition: opacity 0.2s;
 }
 
-.morbei-modal-confirm:hover {
-    opacity: 0.9;
+@media (hover: hover) {
+    .morbei-modal-confirm:hover {
+        opacity: 0.9;
+    }
 }
 
 .morbei-modal-cancel {

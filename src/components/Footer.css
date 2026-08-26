@@ -176,12 +176,14 @@
         transition: text-decoration 0.3s ease;
         white-space: nowrap;
         font-weight: 300;
-    }
+    }@media (hover: hover) {
 
-    .link-group ul li a:hover {
-        opacity: 1;
-        color: #fff;
-    }
+
+        .link-group ul li a:hover {
+            opacity: 1;
+            color: #fff;
+        }
+}
 
     .footer-wordmark-row {
         padding: 0 0 0;
@@ -306,12 +308,14 @@
     transition: text-decoration 0.3s ease;
     text-transform: uppercase;
     white-space: nowrap;
-}
+}@media (hover: hover) {
 
-.link-group ul li a:hover {
-    text-decoration: underline;
-    text-decoration-color: #ffffff;
-    text-underline-offset: 4px;
+
+    .link-group ul li a:hover {
+        text-decoration: underline;
+        text-decoration-color: #ffffff;
+        text-underline-offset: 4px;
+    }
 }
 
 .footer-copyright-standard {
@@ -335,10 +339,12 @@
     text-decoration: none;
     opacity: 0.8;
     transition: opacity 0.2s;
-}
+}@media (hover: hover) {
 
-.footer-icon-btn:hover {
-    opacity: 1;
+
+    .footer-icon-btn:hover {
+        opacity: 1;
+    }
 }
 
 .footer-icon-sup {

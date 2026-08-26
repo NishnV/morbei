@@ -254,10 +254,12 @@
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-}
+}@media (hover: hover) {
 
-.login-hint span:hover {
-    text-decoration: underline;
+
+    .login-hint span:hover {
+        text-decoration: underline;
+    }
 }
 
 /* Form Styling */
@@ -359,11 +361,13 @@ select.checkout-input-v3 option {
     cursor: pointer;
     padding: 0;
     transition: color 0.2s;
-}
+}@media (hover: hover) {
 
-.edit-btn:hover {
-    color: #fff;
-    text-decoration: underline;
+
+    .edit-btn:hover {
+        color: #fff;
+        text-decoration: underline;
+    }
 }
 
 .address-details {
@@ -504,11 +508,13 @@ select.checkout-input-v3 option {
     border: none;
     cursor: pointer;
     transition: box-shadow 0.2s, transform 0.15s;
-}
+}@media (hover: hover) {
 
-.razorpay-pay-btn:hover {
-    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1);
-    transform: translateY(-1px);
+
+    .razorpay-pay-btn:hover {
+        box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1);
+        transform: translateY(-1px);
+    }
 }
 
 .razorpay-pay-btn:disabled {
@@ -736,10 +742,12 @@ select.checkout-input-v3 option {
     letter-spacing: 0.15em;
     cursor: pointer;
     transition: all 0.2s;
-}
+}@media (hover: hover) {
 
-.cancel-order-btn:hover {
-    border-color: #fff;
+
+    .cancel-order-btn:hover {
+        border-color: #fff;
+    }
 }
 
 /* Return/exchange variant renders as a link but matches the button box */
@@ -857,10 +865,12 @@ select.checkout-input-v3 option {
     text-decoration: underline;
     text-underline-offset: 3px;
     transition: opacity 0.2s;
-}
+}@media (hover: hover) {
 
-.order-tracking-link:hover {
-    opacity: 0.7;
+
+    .order-tracking-link:hover {
+        opacity: 0.7;
+    }
 }
 
 /* Order Confirmed Page */

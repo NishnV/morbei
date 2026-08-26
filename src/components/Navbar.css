@@ -112,13 +112,15 @@
     white-space: nowrap;
     width: max-content;
     text-decoration: none;
-}
+}@media (hover: hover) {
 
-.nav-text-btn:hover {
 
-    text-decoration: underline;
-    text-decoration-color: #fff;
-    text-underline-offset: 4px;
+    .nav-text-btn:hover {
+
+        text-decoration: underline;
+        text-decoration-color: #fff;
+        text-underline-offset: 4px;
+    }
 }
 
 .nav-icon-btn {
@@ -141,10 +143,12 @@
 .nav-icon-btn svg {
     display: block;
     flex-shrink: 0;
-}
+}@media (hover: hover) {
 
-.nav-icon-btn:hover {
-    opacity: 1;
+
+    .nav-icon-btn:hover {
+        opacity: 1;
+    }
 }
 
 .icon-badge {
@@ -289,10 +293,12 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-}
+}@media (hover: hover) {
 
-.search-close-inline:hover {
-    opacity: 1;
+
+    .search-close-inline:hover {
+        opacity: 1;
+    }
 }
 
 .search-loader {
@@ -928,10 +934,12 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     letter-spacing: 0.15em;
     text-transform: uppercase;
     transition: opacity 0.3s ease;
-}
+}@media (hover: hover) {
 
-.checkout-btn:hover {
-    opacity: 0.9;
+
+    .checkout-btn:hover {
+        opacity: 0.9;
+    }
 }
 
 .modal-item-card .remove-btn {
@@ -968,10 +976,12 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     display: block;
     text-align: left;
     width: max-content;
-}
+}@media (hover: hover) {
 
-.menu-links li a:hover {
-    opacity: 0.7;
+
+    .menu-links li a:hover {
+        opacity: 0.7;
+    }
 }
 
 /* Ensure menu always has white text as requested */
@@ -1244,10 +1254,12 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
     opacity: 1;
     z-index: 10;
     transition: opacity 0.3s ease;
-}
+}@media (hover: hover) {
 
-.cart-controls-row .wishlist-black:hover {
-    opacity: 0.7;
+
+    .cart-controls-row .wishlist-black:hover {
+        opacity: 0.7;
+    }
 }
 
 .cart-controls-row .wishlist-black.active {
@@ -1298,11 +1310,13 @@ body.fp-nav-logo-hidden .mobile-navbar-logo {
 .quantity-controls button:last-of-type {
     border-right: none;
     border-left:  0.1px solid #878585;
-}
+}@media (hover: hover) {
 
-.quantity-controls button:hover {
-    text-decoration: none !important;
-    background-color: rgba(255,255,255,0.08);
+
+    .quantity-controls button:hover {
+        text-decoration: none !important;
+        background-color: rgba(255,255,255,0.08);
+    }
 }
 
 .quantity-controls span {

@@ -102,8 +102,15 @@ a {
   transition: var(--transition);
 }
 
-a:hover {
-  text-decoration: underline;
+/* Hover-capable pointers only. A touch screen has no pointer to move away,
+   so :hover stays on the last thing tapped: tapping a product card left its
+   name and price underlined until something else was touched, on every card
+   a shopper had been near. This one rule is inherited by everything inside
+   an anchor, which is why it looked like the grid was rendering wrong. */
+@media (hover: hover) {
+  a:hover {
+    text-decoration: underline;
+  }
 }
 
 ul {
@@ -123,9 +130,11 @@ button {
   transition: var(--transition);
 }
 
-/* Global button hover effect - underline text */
-button:hover:not(.dropdown-trigger):not(.play-pause-btn):not(.pd-add-bag-btn):not(.accordion-header):not(.faq-question) {
-  text-decoration: underline;
+/* Global button hover effect - underline text. Hover-capable only; see a:hover. */
+@media (hover: hover) {
+  button:hover:not(.dropdown-trigger):not(.play-pause-btn):not(.pd-add-bag-btn):not(.accordion-header):not(.faq-question) {
+    text-decoration: underline;
+  }
 }
 
 .container {

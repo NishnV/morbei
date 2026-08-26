@@ -41,11 +41,13 @@
     align-items: center;
     justify-content: center;
     border-bottom: 1px solid transparent;
-}
+}@media (hover: hover) {
 
-.view-btn:hover {
-    opacity: 1;
-    border-bottom: 1px solid currentColor;
+
+    .view-btn:hover {
+        opacity: 1;
+        border-bottom: 1px solid currentColor;
+    }
 }
 
 .view-btn.active {
@@ -108,12 +110,14 @@
     text-decoration: none;
     -webkit-text-stroke: 0.3px transparent;
     paint-order: stroke fill;
-}
+}@media (hover: hover) {
 
-.dropdown-trigger:hover {
-    text-decoration: underline;
-    text-decoration-color: currentColor;
-    text-underline-offset: 3px;
+
+    .dropdown-trigger:hover {
+        text-decoration: underline;
+        text-decoration-color: currentColor;
+        text-underline-offset: 3px;
+    }
 }
 
 /* Cancel trailing letter-spacing so SORT right-edge aligns with cart icon */
@@ -186,10 +190,12 @@
     align-items: center;
     justify-content: center;
     transition: opacity 0.3s ease;
-}
+}@media (hover: hover) {
 
-.side-panel-close:hover {
-    opacity: 0.6;
+
+    .side-panel-close:hover {
+        opacity: 0.6;
+    }
 }
 
 .side-panel-content {
@@ -438,10 +444,12 @@
 [data-theme='dark'] .apply-btn {
     background: #fff;
     color: #000;
-}
+}@media (hover: hover) {
 
-.apply-btn:hover {
-    opacity: 0.9;
+
+    .apply-btn:hover {
+        opacity: 0.9;
+    }
 }
 
 /* Reuse existing nested styles inside side-panel-content */
@@ -549,10 +557,12 @@
 
 .sort-option:last-child {
     border-bottom: none;
-}
+}@media (hover: hover) {
 
-.sort-option:hover {
-    opacity: 0.6;
+
+    .sort-option:hover {
+        opacity: 0.6;
+    }
 }
 
 .sort-option.active {
@@ -606,14 +616,18 @@
     position: absolute;
     inset: 0;
     opacity: 0;
-}
+}@media (hover: hover) {
 
-.product-item:hover .product-image-container .img-primary:not(.img-primary--only) {
-    opacity: 0;
-}
 
-.product-item:hover .product-image-container .img-hover {
-    opacity: 1;
+    .product-item:hover .product-image-container .img-primary:not(.img-primary--only) {
+        opacity: 0;
+    }
+}@media (hover: hover) {
+
+
+    .product-item:hover .product-image-container .img-hover {
+        opacity: 1;
+    }
 }
 
 .product-sizes {
@@ -648,12 +662,14 @@
     align-items: center;
     justify-content: center;
     padding: 0.2rem 0.3rem;
-}
+}@media (hover: hover) {
 
-.product-sizes span:hover {
-    text-decoration: underline;
-    text-decoration-color: #fff;
-    text-underline-offset: 2px;
+
+    .product-sizes span:hover {
+        text-decoration: underline;
+        text-decoration-color: #fff;
+        text-underline-offset: 2px;
+    }
 }
 
 /* Sold-out size: visible but inert */
@@ -661,10 +677,12 @@
     opacity: 0.35;
     text-decoration: line-through;
     cursor: default;
-}
+}@media (hover: hover) {
 
-.product-sizes span.size-unavailable:hover {
-    text-decoration: line-through;
+
+    .product-sizes span.size-unavailable:hover {
+        text-decoration: line-through;
+    }
 }
 
 /* Fully out of stock: hover overlay swaps sizes for a notify prompt */
@@ -687,16 +705,20 @@
     cursor: pointer;
     text-decoration: underline;
     text-underline-offset: 3px;
-}
+}@media (hover: hover) {
 
-.product-item:hover .product-sizes {
-    opacity: 1;
-    transform: translateY(0);
-    background: rgba(0, 0, 0, 0.70) !important;
-}
 
-.products-grid.col-4 .product-item:hover .product-sizes {
-    display: none;
+    .product-item:hover .product-sizes {
+        opacity: 1;
+        transform: translateY(0);
+        background: rgba(0, 0, 0, 0.70) !important;
+    }
+}@media (hover: hover) {
+
+
+    .products-grid.col-4 .product-item:hover .product-sizes {
+        display: none;
+    }
 }
 
 /* Base product building blocks */
@@ -796,10 +818,12 @@
     gap: 0.2rem;
     flex: 1;
     transition: all 0.3s ease;
-}
+}@media (hover: hover) {
 
-.product-item:hover .p-detail {
-    opacity: 1;
+
+    .product-item:hover .p-detail {
+        opacity: 1;
+    }
 }
 
 .p-name {
@@ -815,18 +839,22 @@
     text-overflow: ellipsis;
     align-self: flex-start;
     border-bottom: 0.5px solid transparent;
-}
+}@media (hover: hover) {
 
-.product-item:hover .p-name{
-    opacity: 1;
-    font-weight: 200;
-    overflow: visible;
-    border-bottom-color: rgba(255, 255, 255, 0.815);
-    padding-bottom: 3px;
-}
 
-.product-link:hover {
-    text-decoration: none;
+    .product-item:hover .p-name{
+        opacity: 1;
+        font-weight: 200;
+        overflow: visible;
+        border-bottom-color: rgba(255, 255, 255, 0.815);
+        padding-bottom: 3px;
+    }
+}@media (hover: hover) {
+
+
+    .product-link:hover {
+        text-decoration: none;
+    }
 }
 
 .p-price {
@@ -838,12 +866,14 @@
     transition: opacity 0.3s ease;
     align-self: flex-start;
     border-bottom: 0.5px solid transparent;
-}
+}@media (hover: hover) {
 
-.product-item:hover .p-price {
-    opacity: 1;
-    border-bottom-color: rgba(255, 255, 255, 0.815);
-    padding-bottom: 3px;
+
+    .product-item:hover .p-price {
+        opacity: 1;
+        border-bottom-color: rgba(255, 255, 255, 0.815);
+        padding-bottom: 3px;
+    }
 }
 
 .wishlist-btn {
@@ -862,10 +892,12 @@
     opacity: 1;
     cursor: pointer;
     z-index: 10;
-}
+}@media (hover: hover) {
 
-.wishlist-btn:hover {
-    opacity: 0.7;
+
+    .wishlist-btn:hover {
+        opacity: 0.7;
+    }
 }
 
 .wishlist-btn.active {
@@ -1405,11 +1437,13 @@
     /* Disable hover image swap on mobile — touching turns primary image invisible otherwise */
     .product-image-container .img-hover {
         display: none;
-    }
+    }@media (hover: hover) {
 
-    .product-item:hover .product-image-container .img-primary:not(.img-primary--only) {
-        opacity: 1;
-    }
+
+        .product-item:hover .product-image-container .img-primary:not(.img-primary--only) {
+            opacity: 1;
+        }
+}
 
     .product-sizes {
         gap: 0.5rem;
@@ -1529,10 +1563,12 @@
     font-weight: 400;
     transition: opacity 0.2s;
     margin-top: 4.9rem;
-}
+}@media (hover: hover) {
 
-.back-to-shop:hover {
-    opacity: 0.75;
+
+    .back-to-shop:hover {
+        opacity: 0.75;
+    }
 }
 
 [data-theme='dark'] .back-to-shop {
@@ -1604,42 +1640,4 @@
 [data-theme='dark'] .scroll-top-btn:hover {
     background: #fff;
     color: #000;
-}
-
-/* ---------------------------------------------------------------------------
-   Touch devices: undo the hover reveals above.
-
-   A touch screen has no pointer to move away, so :hover stays applied to the
-   last thing tapped until something else is tapped. In this grid that left one
-   card — the one a shopper touched on the way to a product, or came back to —
-   showing its size row and wearing an underline under its name and price,
-   while every other card looked normal. It reads as a rendering fault, which
-   is what it was reported as.
-
-   Pinned back to the base values above rather than wrapping each rule in
-   (hover: hover), because two of them are repeated inside later media blocks
-   and would have needed the guard in both places.
-   --------------------------------------------------------------------------- */
-@media (hover: none) {
-    .product-item:hover .product-sizes {
-        opacity: 0;
-        transform: translateY(10px);
-        background: transparent !important;
-    }
-
-    .product-item:hover .product-image-container .img-hover {
-        opacity: 0;
-    }
-
-    .product-item:hover .p-name {
-        opacity: 0.9;
-        border-bottom-color: transparent;
-        padding-bottom: 0;
-    }
-
-    .product-item:hover .p-price {
-        opacity: 0.85;
-        border-bottom-color: transparent;
-        padding-bottom: 0;
-    }
 }

@@ -264,22 +264,26 @@
     display: inline-block;
     text-transform: uppercase;
     position: relative;
-}
+}@media (hover: hover) {
 
-.campaign-link:hover {
-    position: relative;
-    text-decoration: none !important;
-}
 
-.campaign-link:hover::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 9.4ch;
-    height: 0.5px;
-    background: #fff;
-    display: block;
+    .campaign-link:hover {
+        position: relative;
+        text-decoration: none !important;
+    }
+}@media (hover: hover) {
+
+
+    .campaign-link:hover::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 9.4ch;
+        height: 0.5px;
+        background: #fff;
+        display: block;
+    }
 }
 
 /* Category Showcase Section */
@@ -319,10 +323,12 @@
     align-items: center;
     gap: 1.5rem;
     transition: transform 0.4s ease;
-}
+}@media (hover: hover) {
 
-.showcase-item:hover {
-    transform: translateY(-5px);
+
+    .showcase-item:hover {
+        transform: translateY(-5px);
+    }
 }
 
 .showcase-img-wrapper {
@@ -337,10 +343,12 @@
     height: 100%;
     object-fit: cover;
     transition: transform 0.6s ease;
-}
+}@media (hover: hover) {
 
-.showcase-item:hover .showcase-img-wrapper img {
-    transform: scale(1.05);
+
+    .showcase-item:hover .showcase-img-wrapper img {
+        transform: scale(1.05);
+    }
 }
 
 .showcase-link {
@@ -575,10 +583,12 @@
     letter-spacing: 0.3rem;
     font-weight: 500;
     margin-right: -0.3rem;
-}
+}@media (hover: hover) {
 
-.fp-hero-shop-link:hover {
-    text-decoration: none;
+
+    .fp-hero-shop-link:hover {
+        text-decoration: none;
+    }
 }
 
 /* ---- Editorial ---- */
@@ -667,12 +677,14 @@
        the gap. One rule covers desktop and handhelds — no breakpoint
        overrides the link. */
     transform: translateY(0.9rem);
-}
+}@media (hover: hover) {
 
-.fp-editorial-link:hover {
-    text-decoration: none;
-    border-bottom: 1.2px solid #fff;
-    opacity: 0.85;
+
+    .fp-editorial-link:hover {
+        text-decoration: none;
+        border-bottom: 1.2px solid #fff;
+        opacity: 0.85;
+    }
 }
 
 /* ---- Categories ---- */
@@ -718,10 +730,12 @@
     object-fit: cover;
     display: block;
     transition: transform 0.7s ease;
-}
+}@media (hover: hover) {
 
-.fp-cat-item:hover .fp-cat-img img {
-    transform: scale(1.04);
+
+    .fp-cat-item:hover .fp-cat-img img {
+        transform: scale(1.04);
+    }
 }
 
 .fp-cat-label {
