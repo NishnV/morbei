@@ -1479,7 +1479,8 @@
     color: rgba(255, 255, 255, 0.9);
 }
 
-@media (--phone-sm) {
+/* --phone, not --phone-sm: see the block below. */
+@media (--phone) {
     .pd-mobile-product-sizes {
         position: absolute;
         top: 50%;
@@ -1598,8 +1599,17 @@
     }
 }
 
-/* iPhone 11 (max-width: 430px) — MUST be last to override all base styles above */
-@media (--phone-sm) {
+/* Phones — MUST be last to override all base styles above.
+   This is the whole phone layout: container, slider, header, price, colour,
+   sizes, actions, description, accordion, recommendations. It was gated at
+   --phone-sm (max 430px), while the portrait-tablet block that does the same
+   job starts at 601px, so a portrait phone between 431 and 600 got neither
+   and fell back to base and desktop rules — two wishlist buttons at once,
+   description and accordion ordered for a three-column layout, and
+   recommendations sized for one. Widening to --phone (max 600px) cannot
+   change anything at 430px or below, since --phone contains --phone-sm; it
+   only covers the band that had nothing. */
+@media (--phone) {
     .product-detail-page {
         padding-top: 30px;
         padding-bottom: max(3rem, env(safe-area-inset-bottom));
