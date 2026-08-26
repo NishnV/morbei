@@ -1572,15 +1572,23 @@
     text-decoration: line-through;
 }
 
-/* iPhone 11 - hide desktop size selector, show mobile sizes overlay container */
-@media (--phone-sm) {
+/* Phones — hide the desktop size selector, show the mobile sizes overlay.
+   --phone, not --phone-sm: the pair below used to switch at 431px while the
+   portrait-tablet override starts at 601px, so a portrait phone between the
+   two got the desktop size box — a wide-column layout — inside the
+   single-column mobile page. Android phones land there routinely: 720
+   physical pixels at a device ratio of 1.5 is 480 CSS px. 600/601 is where
+   --phone and --tablet already meet, so there is no band left over. */
+@media (--phone) {
     .pd-size-selector-desktop {
         display: none;
     }
 }
 
-/* Tablet - show desktop size selector, hide mobile overlay */
-@media (min-width: 431px) {
+/* Tablet and up - show desktop size selector, hide mobile overlay. The
+   --tablet block near the end of this file pulls portrait tablets back to
+   the overlay; this is for landscape and desktop. */
+@media (min-width: 601px) {
     .pd-size-selector-desktop {
         display: block;
     }
