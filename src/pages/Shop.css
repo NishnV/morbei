@@ -1309,6 +1309,12 @@
     .col-1 .product-image-container,
     .col-2 .product-image-container {
         aspect-ratio: 196/246; /* Figma tile */
+        /* The base rule sets flex: 1, which beats aspect-ratio whenever the
+           grid row is taller than the ratio asks for — and a row is as tall as
+           its tallest card. So a card whose name wrapped to two lines left
+           14px less for its image than its one-line neighbour, and the two
+           photos in a row ended at different heights. */
+        flex: 0 0 auto;
     }
 
     /* Figma info zone: 7px above text, 25px below; left inset matches the
@@ -1339,6 +1345,11 @@
     .product-footer .p-name {
         font-size: 9px;
         line-height: 14px;
+        /* Two lines, always. Names wrap at one or two and the price sits under
+           them, so with the image no longer absorbing the difference the
+           prices in a row would stop lining up instead. 2 x the line-height
+           immediately above. */
+        min-height: 28px;
         letter-spacing: 0.9px;
         font-weight: 300;
         margin-bottom: 0;
