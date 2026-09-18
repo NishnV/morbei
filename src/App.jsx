@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useParams, useLocation, Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { ShopProvider } from './context/ShopContext';
@@ -109,6 +109,24 @@ const AppContent = () => {
 
   useEffect(() => {
     document.title = titleForPath(location.pathname);
+  }, [location.pathname]);
+
+  // Meta Pixel PageView on client-side navigation.
+  //
+  // The snippet in index.html tracks PageView when the document loads, which
+  // in a single-page app happens once. Every route after that is a render, not
+  // a load, so without this Meta sees a shopper land on the home page and
+  // never go anywhere. Skipped on the first run so that initial view is not
+  // counted twice.
+  const firstRoute = useRef(true);
+  useEffect(() => {
+    if (firstRoute.current) {
+      firstRoute.current = false;
+      return;
+    }
+    // Absent if the script was blocked or a content blocker removed it —
+    // analytics must never be the reason a page fails to render.
+    if (typeof window.fbq === 'function') window.fbq('track', 'PageView');
   }, [location.pathname]);
 
   // Scroll to top on route change
