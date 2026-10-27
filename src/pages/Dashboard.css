@@ -1,0 +1,170 @@
+/* Funnel dashboard. Internal tool, so it borrows the site's palette and type
+   but none of its restraint — numbers want to be legible, not elegant. */
+.dash-page {
+    background: #000;
+    color: #fff;
+    min-height: 100dvh;
+    padding: 110px clamp(1.25rem, 5vw, 4rem) 6rem;
+    font-family: 'Avenir', 'Avenir Next', sans-serif;
+    font-weight: 300;
+}
+
+.dash-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+}
+
+.dash-title {
+    font-family: 'Castoro Titling', serif;
+    font-size: 16px;
+    letter-spacing: 1.6px;
+    font-weight: 400;
+    margin: 0;
+}
+
+.dash-range { display: flex; gap: 0.5rem; }
+
+.dash-range-btn {
+    background: none;
+    border: 0.5px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+.dash-range-btn.is-active { color: #fff; border-color: #fff; }
+
+/* ---- Headline numbers ---- */
+.dash-headline {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    padding: 1.75rem 0;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.25);
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.25);
+    margin-bottom: 2.5rem;
+}
+
+.dash-stat { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.dash-stat-value {
+    font-family: 'Castoro Titling', serif;
+    font-size: clamp(20px, 5vw, 30px);
+    line-height: 1;
+}
+
+.dash-stat-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+    line-height: 14px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ---- Funnel table ---- */
+.dash-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+}
+
+.dash-table td, .dash-table th {
+    padding: 14px 10px 14px 0;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.12);
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.dash-table th {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.45);
+    font-weight: 300;
+}
+
+.dash-step { text-transform: uppercase; white-space: nowrap; }
+
+.dash-count {
+    font-family: 'Castoro Titling', serif;
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+.dash-rate { white-space: nowrap; }
+.dash-rate-value { color: #fff; }
+.dash-rate-note { color: rgba(255, 255, 255, 0.4); font-size: 10px; }
+
+/* The bar is the point of the table — a column of numbers hides where the
+   drop happens, a column of widths does not. */
+.dash-bar-cell { width: 42%; }
+
+.dash-bar {
+    display: block;
+    height: 2px;
+    min-width: 1px;
+    background: rgba(255, 255, 255, 0.75);
+}
+
+.dash-note {
+    font-size: 10px;
+    line-height: 18px;
+    letter-spacing: 0.6px;
+    color: rgba(255, 255, 255, 0.45);
+    max-width: 60ch;
+    margin: 0 0 2.5rem;
+}
+
+.dash-error {
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    color: #e88;
+    margin-top: 1rem;
+}
+
+/* ---- Token gate ---- */
+.dash-gate {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-width: 320px;
+}
+
+.dash-input {
+    background: none;
+    border: none;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 10px 0;
+    outline: none;
+}
+
+.dash-btn, .dash-signout {
+    background: #fff;
+    color: #000;
+    border: none;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 12px 0;
+    cursor: pointer;
+}
+
+.dash-signout {
+    background: none;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 0;
+    text-align: left;
+}
+
+@media (--phone) {
+    .dash-headline { grid-template-columns: 1fr; gap: 1.75rem; }
+    .dash-bar-cell { display: none; }
+}

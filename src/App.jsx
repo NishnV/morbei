@@ -28,6 +28,8 @@ const Shop = lazy(routeChunks.shop);
 const About = lazy(routeChunks.about);
 const Cart = lazy(routeChunks.cart);
 const Checkout = lazy(routeChunks.checkout);
+// Unlinked internal tool; lazy so it never ships in the shopper's bundle.
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 const ProductDetail = lazy(routeChunks.product);
 const FAQ = lazy(() => import('./pages/FAQ'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -48,6 +50,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { useCustomer } from './hooks/useCustomer';
 import { useCart } from './hooks/useCart';
 import { useOrderRecovery } from './hooks/useOrderRecovery';
+import { track } from './lib/analytics';
 
 // Per-route document titles — ProductDetail overrides with the product name once loaded
 const ROUTE_TITLES = [
@@ -111,22 +114,22 @@ const AppContent = () => {
     document.title = titleForPath(location.pathname);
   }, [location.pathname]);
 
-  // Meta Pixel PageView on client-side navigation.
+  // PageView, to Meta and to our own funnel table.
   //
-  // The snippet in index.html tracks PageView when the document loads, which
-  // in a single-page app happens once. Every route after that is a render, not
-  // a load, so without this Meta sees a shopper land on the home page and
-  // never go anywhere. Skipped on the first run so that initial view is not
-  // counted twice.
+  // The snippet in index.html tracks the document load, which in a single-page
+  // app happens once; every route after that is a render, not a load. Without
+  // this Meta would see a shopper land on the home page and never go anywhere.
+  //
+  // The first route is not skipped outright, only skipMeta'd. The inline
+  // snippet told Meta about it but not us, and our table needs that row — it
+  // is where the session count comes from, so a visitor who lands and bounces
+  // would otherwise be invisible and every conversion rate below would be
+  // computed against too small a denominator.
   const firstRoute = useRef(true);
   useEffect(() => {
-    if (firstRoute.current) {
-      firstRoute.current = false;
-      return;
-    }
-    // Absent if the script was blocked or a content blocker removed it —
-    // analytics must never be the reason a page fails to render.
-    if (typeof window.fbq === 'function') window.fbq('track', 'PageView');
+    const skipMeta = firstRoute.current;
+    firstRoute.current = false;
+    track('PageView', {}, { skipMeta });
   }, [location.pathname]);
 
   // Scroll to top on route change
@@ -179,6 +182,7 @@ const AppContent = () => {
           <Route path="/shop" element={<ShopWrapper />} />
           <Route path="/about" element={<About />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/checkout" element={<RequireCart><Checkout /></RequireCart>} />
           <Route path="/checkout/:step" element={<RequireCart><Checkout /></RequireCart>} />
           <Route path="/product/:id" element={<ProductDetail />} />

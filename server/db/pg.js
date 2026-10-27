@@ -143,5 +143,33 @@ export async function initDB() {
             created_at TIMESTAMPTZ DEFAULT now(),
             UNIQUE(user_id, product_id)
         );
+
+        -- Funnel events, first-party. The same events go to Meta, but a large
+        -- share of those never arrive: Safari's tracking prevention and ad
+        -- blockers drop requests to facebook.com, and the gap is invisible
+        -- from inside Events Manager. These rows come to our own domain, so
+        -- the dashboard can show what actually happened.
+        --
+        -- No IP address and no user agent. visitor_id and session_id are
+        -- random values the browser generates, which is all the funnel needs,
+        -- and keeps this out of personal-data territory under the DPDP Act.
+        CREATE TABLE IF NOT EXISTS site_events (
+            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            event TEXT NOT NULL,
+            path TEXT,
+            visitor_id TEXT,
+            session_id TEXT,
+            product_handle TEXT,
+            value_rupees NUMERIC(12, 2),
+            currency TEXT,
+            event_id TEXT,
+            created_at TIMESTAMPTZ DEFAULT now()
+        );
+
+        -- Every dashboard query is "this event, over this window".
+        CREATE INDEX IF NOT EXISTS idx_site_events_event_created
+            ON site_events (event, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_site_events_created
+            ON site_events (created_at DESC);
     `);
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
+import { track } from '../lib/analytics';
 import { useCustomer } from '../hooks/useCustomer';
 import { formatPrice } from '../utils/formatPrice';
 import { paymentAPI, ordersAPI, ensureBackendSession } from '../lib/api';
@@ -126,6 +127,21 @@ const Checkout = () => {
 
     const { step: stepParam } = useParams();
     const [currentStep, setCurrentStep] = useState(0);
+
+    // InitiateCheckout: fired once per visit to checkout, not per step, so the
+    // number means "shoppers who started checking out" rather than "steps
+    // advanced". This is the point the funnel has been losing people, since
+    // reaching it has so far meant hitting a login wall.
+    const checkoutTracked = useRef(false);
+    useEffect(() => {
+        if (checkoutTracked.current || !cart?.lines?.length) return;
+        checkoutTracked.current = true;
+        track('InitiateCheckout', {
+            value: Number(cart.cost?.totalAmount?.amount) || undefined,
+            currency: cart.cost?.totalAmount?.currencyCode || 'INR',
+            num_items: cart.lines.length,
+        });
+    }, [cart]);
     const [deliveryMethod, setDeliveryMethod] = useState('standard');
     const [paying, setPaying] = useState(false);
     const [validationError, setValidationError] = useState('');

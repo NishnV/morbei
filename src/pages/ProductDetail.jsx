@@ -17,6 +17,7 @@ import { sortSizes } from '../utils/sizes';
 import { colorToSwatch } from '../utils/colors';
 import { contactAPI } from '../lib/api';
 import { isMobileViewport } from '../lib/viewport';
+import { track } from '../lib/analytics';
 import './ProductDetail.css';
 
 // The still that stands in for a media item: the image itself, or a video's
@@ -65,6 +66,22 @@ const ProductDetail = () => {
     const { customer } = useCustomer();
 
     const { data: product, loading } = useProduct(id);
+
+    // ViewContent: a shopper looking at a product is the first real signal of
+    // intent, and the audience Meta can retarget. Keyed on the handle so a
+    // re-render or a colour change does not count as a second view.
+    const viewTracked = useRef(null);
+    useEffect(() => {
+        if (!product || viewTracked.current === product.handle) return;
+        viewTracked.current = product.handle;
+        track('ViewContent', {
+            content_ids: [product.handle],
+            content_name: product.name,
+            content_type: 'product',
+            value: product.priceNum,
+            currency: product.currency || 'INR',
+        });
+    }, [product]);
     // The gallery runs on `media`, not `images`: media is what carries video,
     // and it preserves the order the merchant set in the admin so a clip placed
     // second stays second. `images` is still the right list for the OG tag, the
@@ -335,6 +352,13 @@ const ProductDetail = () => {
         try {
             if (selectedVariant?.id) {
                 await shopifyAddToCart(selectedVariant.id, 1);
+                track('AddToCart', {
+                    content_ids: [product.handle],
+                    content_name: product.name,
+                    content_type: 'product',
+                    value: selectedVariant.priceNum ?? product.priceNum,
+                    currency: product.currency || 'INR',
+                });
                 setIsCartOpen(true);
             }
         } catch (err) {
@@ -349,6 +373,14 @@ const ProductDetail = () => {
         setIsAnimating(true);
         try {
             await shopifyAddToCart(variant.id, 1);
+            // After the await, not before: an add that threw is not an add.
+            track('AddToCart', {
+                content_ids: [product.handle],
+                content_name: product.name,
+                content_type: 'product',
+                value: variant.priceNum ?? product.priceNum,
+                currency: product.currency || 'INR',
+            });
             setIsCartOpen(true);
         } catch (err) {
             console.error('Failed to add to cart:', err);

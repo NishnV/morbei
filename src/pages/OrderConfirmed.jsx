@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
+import { track } from '../lib/analytics';
 import './Checkout.css';
 import { forgetPendingOrder } from '../lib/pendingOrder';
 
@@ -15,6 +16,28 @@ const OrderConfirmed = () => {
     // on /checkout trips RequireCart, which redirects to /cart before the
     // confirmation page can load. By the time we're here the order is placed,
     // so it's safe to empty the cart.
+    // Purchase: the event the ad algorithm actually needs. eventID is the order
+    // number so a refresh, a back-button return or Meta's own retry all collapse
+    // to one purchase instead of inflating the conversion count.
+    useEffect(() => {
+        if (!order?.orderNumber) return;
+        const key = `morbei_purchase_tracked_${order.orderNumber}`;
+        try {
+            if (localStorage.getItem(key)) return;
+            localStorage.setItem(key, '1');
+        } catch { /* private mode — a duplicate is better than a missing sale */ }
+        track('Purchase', {
+            // order.total is the rupee amount the customer actually paid —
+            // the one number Meta needs to report ROAS.
+            value: Number(order.total) || undefined,
+            currency: 'INR',
+            content_type: 'product',
+            // Cart lines carry a Shopify variant id, not a handle.
+            content_ids: (order.items || []).map((i) => i.variantId).filter(Boolean),
+            num_items: (order.items || []).reduce((n, i) => n + (i.quantity || 1), 0),
+        }, { eventID: `order-${order.orderNumber}` });
+    }, [order]);
+
     useEffect(() => {
         if (!order) return;
         if (clearCart) clearCart();

@@ -75,12 +75,18 @@
       fbq('init', '1626259335567493');
       fbq('track', 'PageView');
     </script>
-    <noscript><img height="1" width="1" style="display:none"
-      src="https://www.facebook.com/tr?id=1626259335567493&ev=PageView&noscript=1"
-    /></noscript>
     <!-- End Meta Pixel Code -->
   </head>
   <body>
+    <!-- The pixel's no-JavaScript fallback. Meta's snippet puts this in the
+         head, but <noscript> there may only hold <link>, <style> and <meta>;
+         an <img> makes the document invalid and Vite's HTML parser reports
+         "disallowed-content-in-noscript-in-head". It behaves identically at
+         the top of the body, and only matters for a visitor with JavaScript
+         off, who sees nothing either way. -->
+    <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=1626259335567493&ev=PageView&noscript=1"
+      alt="" /></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
