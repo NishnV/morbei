@@ -19,6 +19,7 @@ const API = import.meta.env.VITE_API_URL || '';
 const TOKEN_KEY = 'morbei_dashboard_token';
 
 const pct = (n) => `${n.toFixed ? n.toFixed(2) : n}%`;
+const titleise = (handle) => String(handle || '').replace(/-/g, ' ').toUpperCase();
 const rs = (n) => `RS. ${Number(n || 0).toLocaleString('en-IN')}`;
 
 const Dashboard = () => {
@@ -157,6 +158,44 @@ const Dashboard = () => {
                         tracker was blocked.
                     </p>
 
+                    {data.products?.length > 0 && (
+                        <>
+                            <h2 className="dash-subtitle">BY PRODUCT</h2>
+                            <table className="dash-table">
+                                <thead>
+                                    <tr><th>PRODUCT</th><th>VIEWS</th><th>BAG</th><th>RATE</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    {data.products.map((p) => (
+                                        <tr key={p.handle}>
+                                            <td className="dash-step">{titleise(p.handle)}</td>
+                                            <td className="dash-count">{p.views}</td>
+                                            <td className="dash-count">{p.adds}</td>
+                                            <td className="dash-rate">
+                                                <span className={p.adds > 0 ? 'dash-rate-value' : 'dash-rate-note'}>{pct(p.addRate)}</span>
+                                            </td>
+                                            <td className="dash-bar-cell">
+                                                <span
+                                                    className="dash-bar"
+                                                    style={{ width: `${data.products[0].views ? (p.views / data.products[0].views) * 100 : 0}%` }}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            <p className="dash-note">
+                                Views are product-page opens; bag is adds from anywhere — the
+                                product page, the shop grid or the wishlist. A product with
+                                views and no adds is telling you something different from one
+                                nobody opens at all.
+                            </p>
+                        </>
+                    )}
+
+                    {data.daily?.length > 0 && (
+                        <h2 className="dash-subtitle">BY DAY</h2>
+                    )}
                     {data.daily?.length > 0 && (
                         <table className="dash-table dash-table--daily">
                             <thead>

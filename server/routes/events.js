@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
 export async function funnelSummary(days = 7) {
     const since = `now() - interval '${Number(days)} days'`;
 
-    const [events, orders, daily] = await Promise.all([
+    const [events, orders, daily, products] = await Promise.all([
         all(`SELECT event,
                     COUNT(*)::int                      AS events,
                     COUNT(DISTINCT session_id)::int    AS sessions,
@@ -83,6 +83,21 @@ export async function funnelSummary(days = 7) {
              FROM site_events
              WHERE created_at > ${since}
              GROUP BY 1 ORDER BY 1`),
+        // Which products pull interest, and which of them convert it. A
+        // product with many views and no adds is a different problem from one
+        // nobody opens: the first is the page or the price, the second is the
+        // photograph or where it sits in the grid.
+        all(`SELECT product_handle,
+                    COUNT(*) FILTER (WHERE event = 'ViewContent')::int                   AS views,
+                    COUNT(DISTINCT session_id) FILTER (WHERE event = 'ViewContent')::int AS view_sessions,
+                    COUNT(*) FILTER (WHERE event = 'AddToCart')::int                     AS adds
+             FROM site_events
+             WHERE created_at > ${since} AND product_handle IS NOT NULL
+             GROUP BY product_handle
+             HAVING COUNT(*) FILTER (WHERE event = 'ViewContent') > 0
+                 OR COUNT(*) FILTER (WHERE event = 'AddToCart') > 0
+             ORDER BY views DESC, adds DESC
+             LIMIT 25`),
     ]);
 
     const by = Object.fromEntries(events.map((r) => [r.event, r]));
@@ -115,6 +130,13 @@ export async function funnelSummary(days = 7) {
             checkoutToPurchase: pct(purchases, by.InitiateCheckout?.sessions || 0),
         },
         daily,
+        products: products.map((p) => ({
+            handle: p.product_handle,
+            views: p.views,
+            viewSessions: p.view_sessions,
+            adds: p.adds,
+            addRate: pct(p.adds, p.views),
+        })),
     };
 }
 

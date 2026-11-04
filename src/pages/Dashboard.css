@@ -168,3 +168,12 @@
     .dash-headline { grid-template-columns: 1fr; gap: 1.75rem; }
     .dash-bar-cell { display: none; }
 }
+
+.dash-subtitle {
+    font-family: 'Castoro Titling', serif;
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    font-weight: 400;
+    margin: 2.5rem 0 1rem;
+    color: rgba(255, 255, 255, 0.75);
+}
