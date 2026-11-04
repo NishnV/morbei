@@ -184,12 +184,6 @@ const Dashboard = () => {
                                     ))}
                                 </tbody>
                             </table>
-                            <p className="dash-note">
-                                Views are product-page opens; bag is adds from anywhere — the
-                                product page, the shop grid or the wishlist. A product with
-                                views and no adds is telling you something different from one
-                                nobody opens at all.
-                            </p>
                         </>
                     )}
 
