@@ -144,6 +144,10 @@ export const authAPI = {
     // Bumps the user's token_version server-side, invalidating every JWT
     // already issued to them — not just the copy in this browser.
     logout: () => apiFetch('/auth/logout', { method: 'POST' }),
+    // Checkout without an account. Throws with status 409 when the address
+    // already belongs to someone, which the caller turns into a prompt to
+    // sign in rather than an error.
+    guest: (body) => apiFetch('/auth/guest', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // Payment

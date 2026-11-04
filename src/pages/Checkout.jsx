@@ -4,7 +4,7 @@ import { useCart } from '../hooks/useCart';
 import { track } from '../lib/analytics';
 import { useCustomer } from '../hooks/useCustomer';
 import { formatPrice } from '../utils/formatPrice';
-import { paymentAPI, ordersAPI, ensureBackendSession } from '../lib/api';
+import { paymentAPI, ordersAPI, ensureBackendSession, authAPI, setToken } from '../lib/api';
 import { rememberPendingOrder } from '../lib/pendingOrder';
 import { SHIPPABLE_COUNTRIES, getStatesForCountry } from '../data/countries';
 import { DELIVERY_OPTIONS, getDeliveryOption, deliveryWindow } from '../data/delivery';
@@ -106,19 +106,17 @@ function loadRazorpayScript() {
 
 const Checkout = () => {
     const { cart, loading: cartLoading } = useCart();
-    const { customer, loading: customerLoading } = useCustomer();
+    const { customer } = useCustomer();
     const navigate = useNavigate();
 
-    // Paying requires a backend session, which is derived from the Shopify one.
-    // Establish that up front: this used to be discovered at the Pay button,
-    // after the shopper had filled in name, phone, address and PIN, and it
-    // announced itself with a browser alert() before dumping them on the
-    // account page. Checking on entry costs them nothing and loses no work.
-    useEffect(() => {
-        if (!customerLoading && !customer) {
-            navigate('/profile', { state: { from: '/checkout' }, replace: true });
-        }
-    }, [customer, customerLoading, navigate]);
+    // Checkout no longer requires an account. A shopper who arrives signed out
+    // fills the same form and pays; the session needed to take the payment is
+    // created from the email they type, at the moment they pay.
+    //
+    // This used to redirect to the login page, which is where the funnel was
+    // losing people: eight days of data showed product views and not one
+    // completed checkout.
+
 
     const lines = cart?.lines || [];
     const cost = cart?.cost;
@@ -263,14 +261,32 @@ const Checkout = () => {
         setPaying(true);
         setPaymentError('');
         try {
-            // Defence in depth: the route guard above should have caught this,
-            // but /checkout/payment can be deep-linked and a session can lapse
-            // while the form is open. ensureBackendSession re-exchanges the
-            // Shopify token when the backend JWT is missing or expired.
+            // A backend session is needed to take the payment. For a signed-in
+            // shopper ensureBackendSession re-exchanges the Shopify token,
+            // which also covers a session that lapsed while the form was open.
+            // For a guest there is nothing to exchange, so one is created from
+            // the email they just typed.
             if (!(await ensureBackendSession())) {
-                setPaying(false);
-                navigate('/profile', { state: { from: '/checkout' } });
-                return;
+                try {
+                    const { token } = await authAPI.guest({
+                        email: form.email,
+                        firstName: form.firstName,
+                        lastName: form.lastName,
+                        phone: form.phone,
+                    });
+                    setToken(token);
+                } catch (err) {
+                    setPaying(false);
+                    if (err.status === 409) {
+                        // The address belongs to a real account. Saying so is
+                        // better than letting them pay into a stranger's
+                        // order history, and better than a generic failure.
+                        setPaymentError('An account already exists with this email. Please sign in to continue.');
+                        return;
+                    }
+                    setPaymentError(err.message || 'Could not start checkout. Please try again.');
+                    return;
+                }
             }
 
             const loaded = await loadRazorpayScript();
