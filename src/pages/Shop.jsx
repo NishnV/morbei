@@ -13,6 +13,7 @@ import { prefetchRoute } from '../lib/routeChunks';
 import { useGlobalLoading } from '../context/LoadingContext';
 import Seo, { breadcrumbJsonLd } from '../components/Seo';
 import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
+import { track } from '../lib/analytics';
 import { sortSizes } from '../utils/sizes';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Modal from '../components/ui/Modal';
@@ -699,6 +700,16 @@ const Shop = ({ category = "ALL" }) => {
                                                         const variant = product.variants?.find(v => v.size === size && v.available);
                                                         if (variant?.id) {
                                                             addToCart(variant.id, 1);
+                                                            // The grid is a second way into the bag, and an
+                                                            // untracked one would make the funnel read zero
+                                                            // adds while shoppers were adding.
+                                                            track('AddToCart', {
+                                                                content_ids: [product.handle || product.id],
+                                                                content_name: product.name,
+                                                                content_type: 'product',
+                                                                value: product.priceNum,
+                                                                currency: product.currency || 'INR',
+                                                            });
                                                             setIsCartOpen(true);
                                                         } else {
                                                             navigate(`/product/${product.handle || product.id}?size=${encodeURIComponent(size)}`);

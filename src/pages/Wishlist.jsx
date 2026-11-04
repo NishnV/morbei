@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
+import { track } from '../lib/analytics';
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import './Wishlist.css';
@@ -103,6 +104,13 @@ const Wishlist = () => {
             setMovingToBagId(item.id);
             setSizePicker(null);
             await shopifyAddToCart(variantId, 1);
+            track('AddToCart', {
+                content_ids: [item.handle || item.id],
+                content_name: item.name,
+                content_type: 'product',
+                value: Number(String(item.price).replace(/[^\d.]/g, '')) || undefined,
+                currency: 'INR',
+            });
             toggleWishlist(item);
         } catch (err) {
             console.error('Failed to move to bag:', err);
