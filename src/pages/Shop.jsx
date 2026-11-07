@@ -604,11 +604,19 @@ const Shop = ({ category = "ALL" }) => {
                                             const key = product.id || idx;
                                             const isHeld = heldProductKey === key;
                                             const currentIdx = swipeIndices[key] || 0;
-                                            const hover = product.images?.length > 1
-                                                ? product.images[product.images.length - 1]
-                                                : null;
-                                            const primary = product.images?.length > 0
-                                                ? product.images[isHeld && hover ? product.images.length - 1 : currentIdx]
+                                            // The second-to-last image, not the last.
+                                            //
+                                            // With only two images there is no second-to-last that
+                                            // is not already the one on show — index length - 2
+                                            // would be 0, the primary — so that case falls back to
+                                            // the last, which is the only alternative there is.
+                                            const count = product.images?.length || 0;
+                                            const hoverIdx = count > 2 ? count - 2 : (count > 1 ? count - 1 : -1);
+                                            const hover = hoverIdx >= 0 ? product.images[hoverIdx] : null;
+                                            const primary = count > 0
+                                                // Press-and-hold on a touch screen is the same
+                                                // affordance, so it shows the same frame as hover.
+                                                ? product.images[isHeld && hover ? hoverIdx : currentIdx]
                                                 : product.img;
                                             // In landscape the 4-up grid promotes every 3rd and 6th
                                             // tile to span two columns (Shop.css, nth-child(6n+3) and
