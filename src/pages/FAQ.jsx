@@ -9,7 +9,7 @@ import './SupportPage.css';
  * it — deliberately, because this copy is the policy and the code is what has
  * drifted:
  *
- *   - Shipping time. This says 2-5 / 4-8 / 5-10 business days by region, which
+ *   - Shipping time. This says 3-5 / 4-8 / 5-10 business days by region, which
  *     matches the Shipping policy page. delivery.js still offers STANDARD as
  *     7-14 business days, and that is what checkout shows.
  *   - Shipping cost. This says standard shipping is free at Rs. 9,900 and
@@ -24,7 +24,7 @@ import './SupportPage.css';
 const FAQS = [
     {
         question: 'HOW LONG DOES SHIPPING TAKE?',
-        answer: 'Shipping typically takes 2\u20135 business days for metro cities, 4\u20138 business '
+        answer: 'Shipping typically takes 3\u20135 business days for metro cities, 4\u20138 business '
             + 'days for other cities and towns, and 5\u201310 business days for remote or rural '
             + 'areas. Delivery times are estimates and may vary due to courier operations, '
             + 'weather, public holidays, or unforeseen circumstances.',

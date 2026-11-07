@@ -13,7 +13,7 @@ const Shipping = () => {
                 <h2 className="sp-section-title">When will my order be processed?</h2>
                 <p className="sp-body">
                     All orders are processed after successful payment confirmation. Orders are
-                    generally prepared and dispatched within 1–3 business days.
+                    generally prepared and dispatched within 3–5 business days.
                 </p>
                 <p className="sp-body">
                     Orders placed on weekends, public holidays, or outside regular business hours
@@ -34,7 +34,7 @@ const Shipping = () => {
                     Delivery times vary depending on your shipping destination.
                 </p>
                 <p className="sp-body">Within India</p>
-                <p className="sp-body">– Metro Cities: Approximately 2–5 business days</p>
+                <p className="sp-body">– Metro Cities: Approximately 3–5 business days</p>
                 <p className="sp-body">– Other Cities &amp; Towns: Approximately 4–8 business days</p>
                 <p className="sp-body">– Remote or Rural Locations: Approximately 5–10 business days</p>
                 <p className="sp-body">
