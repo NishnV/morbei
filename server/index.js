@@ -11,6 +11,7 @@ import orderRoutes from './routes/orders.js';
 import shippingRoutes from './routes/shipping.js';
 import contactRoutes from './routes/contact.js';
 import eventsRoutes, { funnelSummary } from './routes/events.js';
+import returnsRoutes from './routes/returns.js';
 import wishlistRoutes from './routes/wishlist.js';
 import { notifySlackError } from './services/slack.js';
 import { startReconciler } from './services/reconcile.js';
@@ -119,6 +120,11 @@ app.use('/api/payment/create-order', checkoutLimiter);
 // puts many shoppers on one address. Bounded so an open endpoint cannot be
 // used to fill the table.
 app.use('/api/events', rateLimit({ windowMs: 15 * 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false, message: limitMsg }));
+// The return lookup takes an order number and an email and says whether they
+// go together, which is a guessing game if it is cheap to play. Tight enough
+// that walking the order-number range is not worth the effort, loose enough
+// that a shopper mistyping their own number a few times is fine.
+app.use('/api/returns', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: limitMsg }));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -127,6 +133,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/events', eventsRoutes);
+app.use('/api/returns', returnsRoutes);
 
 // The funnel dashboard. Business numbers, so it is not public: it needs
 // ADMIN_DASHBOARD_TOKEN, and refuses outright when that is unset rather than

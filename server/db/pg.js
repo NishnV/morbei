@@ -171,5 +171,52 @@ export async function initDB() {
             ON site_events (event, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_site_events_created
             ON site_events (created_at DESC);
+
+        -- When the order actually reached the customer, which is what the
+        -- seven-day return window runs from. Shopify will not simply tell us:
+        -- fulfillment_status means shipped, and the delivered state lives on
+        -- fulfillments[].shipment_status, which stays null unless a tracking
+        -- number from a carrier Shopify can poll was attached. So this is
+        -- filled from that status where it exists and set by hand otherwise.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ;
+
+        -- Return and exchange requests.
+        --
+        -- order_id is nullable on purpose. The form is filled in by order
+        -- number and email without signing in, and a request is worth keeping
+        -- even if it cannot be matched to a row — someone typing their order
+        -- number wrong is a customer to help, not an error to discard.
+        CREATE TABLE IF NOT EXISTS returns (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            order_id INTEGER REFERENCES orders(id),
+            shopify_order_number BIGINT,
+            email TEXT NOT NULL,
+            full_name TEXT,
+            phone TEXT,
+            -- One row per item: a shopper returning one of three things is the
+            -- normal case, so the request is per item rather than per order.
+            variant_id TEXT,
+            product_title TEXT,
+            reasons TEXT,            -- JSON array, from a fixed list
+            details TEXT,
+            resolution TEXT,         -- refund | exchange_size | exchange_product
+            comments TEXT,
+            media TEXT,              -- JSON array of uploaded photo/video URLs
+            declaration BOOLEAN NOT NULL DEFAULT false,
+            status TEXT NOT NULL DEFAULT 'requested',
+            admin_note TEXT,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_returns_status_created
+            ON returns (status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_returns_order ON returns (order_id);
+
+        -- One open request per item. A shopper pressing submit twice, or
+        -- coming back a day later, must not create two refunds to approve.
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_returns_one_open_per_item
+            ON returns (order_id, variant_id)
+            WHERE status IN ('requested', 'approved');
     `);
 }

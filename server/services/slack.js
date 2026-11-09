@@ -99,3 +99,49 @@ export async function notifySlackError(context, error) {
         console.error('Slack notification failed:', slackErr.message);
     }
 }
+
+const RETURN_WEBHOOK_URL = process.env.RETURNS_SLACK_WEBHOOK_URL || CONTACT_WEBHOOK_URL;
+
+const REASON_LABELS = {
+    size_fit: 'Size / fit',
+    damaged: 'Damaged on arrival',
+    wrong_product: 'Wrong product',
+    quality: 'Quality issue',
+    not_as_expected: 'Not as expected',
+    other: 'Other',
+};
+
+const RESOLUTION_LABELS = {
+    refund: 'Refund',
+    exchange_size: 'Exchange — another size',
+    exchange_product: 'Exchange — another product',
+};
+
+/**
+ * A return request, to the team channel. Every field a decision needs is in
+ * the message, so a straightforward one can be judged without opening the
+ * admin page at all.
+ */
+export async function notifySlackReturn(r) {
+    const lines = [
+        `*Order:* #${slackEscape(r.orderNumber)}`,
+        `*Item:* ${slackEscape(r.product)}`,
+        `*Reason:* ${r.reasons.map((x) => slackEscape(REASON_LABELS[x] || x)).join(', ')}`,
+        `*Wants:* ${slackEscape(RESOLUTION_LABELS[r.resolution] || r.resolution)}`,
+        `*From:* ${slackEscape(r.email)}`,
+        r.mediaCount ? `*Media:* ${r.mediaCount} file(s) attached` : '*Media:* none',
+    ];
+    // Worth saying loudly: the policy is seven days, and approving outside it
+    // should be a decision rather than an oversight.
+    if (r.outsideWindow) {
+        lines.push(`:warning: *Outside the ${r.daysSinceDelivery ?? '?'}-day window* — delivered ${r.daysSinceDelivery} days ago`);
+    }
+
+    return post(RETURN_WEBHOOK_URL, {
+        text: `Return request for order #${slackEscape(r.orderNumber)}`,
+        blocks: [
+            { type: 'header', text: { type: 'plain_text', text: '\u21a9\ufe0f  Return request' } },
+            { type: 'section', text: { type: 'mrkdwn', text: lines.join('\n') } },
+        ],
+    });
+}
