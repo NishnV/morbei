@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../hooks/useCustomer';
 import { useCart } from '../hooks/useCart';
-import { formatPrice } from '../utils/formatPrice';
+import { ordersAPI } from '../lib/api';
+import { getStatusLabel } from '../utils/orderStatus';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './Profile.css';
 import SiteImage from '../components/SiteImage';
@@ -29,6 +30,15 @@ const Profile = () => {
             navigate(dest, { replace: true });
         }
     }, [customer, navigate]);
+
+    // Orders come from our own backend rather than customer.orders. The Shopify
+    // customer record carries fulfillmentStatus only, which cannot tell a
+    // shipped order from a delivered one — it reported FULFILLED forever.
+    const [orders, setOrders] = useState([]);
+    React.useEffect(() => {
+        if (!customer) return;
+        ordersAPI.list().then(setOrders).catch(() => setOrders([]));
+    }, [customer]);
 
     const [view, setView] = useState(() => (location.state?.from ? 'login' : 'signup')); // login | signup | recover
     const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', notify: false });
@@ -140,7 +150,6 @@ const Profile = () => {
 
     // If customer is logged in, show profile
     if (customer) {
-        const orders = customer.orders || [];
         const addresses = customer.addresses || [];
 
         return (
@@ -189,12 +198,12 @@ const Profile = () => {
                                         {orders.slice(0, 3).map(order => (
                                             <Link key={order.id} to="/order-details" className="profile-order-row">
                                                 <div className="profile-order-row-top">
-                                                    <span className="profile-order-num">ORDER #{order.orderNumber}</span>
-                                                    <span className="profile-order-total">{formatPrice(order.currentTotalPrice)}</span>
+                                                    <span className="profile-order-num">ORDER #{order.orderNumber || order.id}</span>
+                                                    <span className="profile-order-total">RS. {Math.round(order.totalAmount).toLocaleString('en-IN')}</span>
                                                 </div>
                                                 <div className="profile-order-row-bottom">
-                                                    <span>{new Date(order.processedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span>
-                                                    <span className="profile-order-status">{(order.fulfillmentStatus || 'PROCESSING').replace(/_/g, ' ')}</span>
+                                                    <span>{new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span>
+                                                    <span className="profile-order-status">{getStatusLabel(order)}</span>
                                                 </div>
                                             </Link>
                                         ))}

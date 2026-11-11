@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import AdminReturns from './AdminReturns';
+import AdminOrders from './AdminOrders';
 import { adminAPI } from '../lib/api';
 import './Dashboard.css';
 
@@ -93,9 +94,9 @@ const Dashboard = () => {
     return (
         <div className="dash-page">
             <div className="dash-head">
-                <h1 className="dash-title">{view === 'returns' ? 'RETURNS' : 'FUNNEL'}</h1>
+                <h1 className="dash-title">{view.toUpperCase()}</h1>
                 <div className="dash-range">
-                    {['funnel', 'returns'].map((v) => (
+                    {['funnel', 'returns', 'orders'].map((v) => (
                         <button
                             key={v}
                             className={`dash-range-btn${view === v ? ' is-active' : ''}`}
@@ -113,9 +114,13 @@ const Dashboard = () => {
             </div>
 
             {view === 'returns' && <AdminReturns token={token} />}
+            {view === 'orders' && <AdminOrders token={token} />}
 
             {view === 'funnel' && loading && <p className="dash-note">LOADING…</p>}
-            {error && <p className="dash-error">{error}</p>}
+            {/* Scoped to the funnel: this holds the funnel's error, and the
+                other views report their own. Unscoped it survived the tab
+                switch and blamed the wrong screen. */}
+            {view === 'funnel' && error && <p className="dash-error">{error}</p>}
 
             {view === 'funnel' && data && (
                 <>

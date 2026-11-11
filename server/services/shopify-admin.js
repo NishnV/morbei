@@ -220,6 +220,32 @@ export async function getVariant(variantId) {
     return request;
 }
 
+/** The most recent fulfillment that was not cancelled, or undefined. */
+function latestFulfillment(order) {
+    return [...(order.fulfillments || [])]
+        .filter(f => f.status !== 'cancelled')
+        .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))[0];
+}
+
+/**
+ * Flatten a Shopify order into the shape every page uses to show progress.
+ *
+ * The answer is split across two fields and both are needed: fulfillment_status
+ * says the parcel left, while delivery lives on fulfillments[].shipment_status.
+ */
+function trackingFromOrder(order) {
+    const latest = latestFulfillment(order);
+    return {
+        fulfillmentStatus: order.fulfillment_status || null, // null | 'partial' | 'fulfilled'
+        shipmentStatus: latest?.shipment_status || null,     // null | 'in_transit' | 'out_for_delivery' | 'delivered' | ...
+        trackingNumber: latest?.tracking_number || latest?.tracking_numbers?.[0] || null,
+        trackingCompany: latest?.tracking_company || null,
+        trackingUrl: latest?.tracking_url || latest?.tracking_urls?.[0] || null,
+    };
+}
+
+const TRACKING_FIELDS = 'id,order_number,fulfillment_status,cancelled_at,fulfillments';
+
 /**
  * Fetch an order's fulfillment + shipment tracking from Shopify.
  * The store fulfils manually and sets tracking/courier + delivered status in
@@ -228,27 +254,49 @@ export async function getVariant(variantId) {
  */
 export async function getOrderTracking(orderId) {
     try {
-        const data = await adminFetch(
-            `orders/${orderId}.json?fields=id,fulfillment_status,cancelled_at,fulfillments`
-        );
-        const order = data.order || {};
-        const fulfillments = order.fulfillments || [];
-        // Use the most recent successful fulfillment for tracking details.
-        const latest = [...fulfillments]
-            .filter(f => f.status !== 'cancelled')
-            .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))[0];
-
-        return {
-            fulfillmentStatus: order.fulfillment_status || null, // null | 'partial' | 'fulfilled'
-            shipmentStatus: latest?.shipment_status || null,     // null | 'in_transit' | 'out_for_delivery' | 'delivered' | ...
-            trackingNumber: latest?.tracking_number || latest?.tracking_numbers?.[0] || null,
-            trackingCompany: latest?.tracking_company || null,
-            trackingUrl: latest?.tracking_url || latest?.tracking_urls?.[0] || null,
-        };
+        const data = await adminFetch(`orders/${orderId}.json?fields=${TRACKING_FIELDS}`);
+        return trackingFromOrder(data.order || {});
     } catch (err) {
         console.error(`getOrderTracking failed for order ${orderId}:`, err.message);
         return null;
     }
+}
+
+/**
+ * The same tracking for the most recent orders in ONE request, keyed by
+ * Shopify order id. The admin order list needs the state of every row at
+ * once; asking per order would spend 25 calls against a bucket that refills
+ * at two a second.
+ */
+export async function listOrdersTracking(limit = 50) {
+    const data = await adminFetch(
+        `orders.json?status=any&limit=${Math.min(limit, 250)}&fields=${TRACKING_FIELDS}`
+    );
+    return new Map((data.orders || []).map(o => [String(o.id), trackingFromOrder(o)]));
+}
+
+/**
+ * Tell Shopify a parcel has been delivered.
+ *
+ * Shopify has no delivered status on an order. shipment_status is driven by
+ * posted fulfillment events — carrier-integrated labels post them, manual
+ * fulfillment posts none, and the admin screen has no button for it. This
+ * store fulfils by hand, so without this call nothing would ever report a
+ * delivery and the whole returns window would have no start date.
+ *
+ * Throws Error('NO_FULFILLMENT') when the order has not been fulfilled yet:
+ * an event has to attach to a shipment that exists.
+ */
+export async function markFulfillmentDelivered(orderId) {
+    const data = await adminFetch(`orders/${orderId}.json?fields=id,fulfillments`);
+    const latest = latestFulfillment(data.order || {});
+    if (!latest) throw new Error('NO_FULFILLMENT');
+
+    await adminFetch(`orders/${orderId}/fulfillments/${latest.id}/events.json`, {
+        method: 'POST',
+        body: JSON.stringify({ event: { status: 'delivered' } }),
+    });
+    return { fulfillmentId: latest.id };
 }
 
 // Convert Shopify GID to numeric ID: "gid://shopify/ProductVariant/12345" → 12345

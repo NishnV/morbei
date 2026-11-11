@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { get, all, run } from '../db/pg.js';
 import { requireDashboardToken } from '../middleware/adminToken.js';
 import { refundPayment } from '../services/razorpay.js';
-import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant }
-    from '../services/shopify-admin.js';
+import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant,
+    listOrdersTracking, markFulfillmentDelivered } from '../services/shopify-admin.js';
+import { primeTracking, invalidateTracking } from '../services/order-tracking.js';
 import { notifySlackError } from '../services/slack.js';
 import { sendReturnUpdate } from '../services/email.js';
 import { funnelSummary } from './events.js';
@@ -19,6 +20,116 @@ router.get('/funnel', async (req, res) => {
     } catch (err) {
         console.error('Funnel summary failed:', err.message);
         res.status(500).json({ error: 'Could not build the funnel' });
+    }
+});
+
+/**
+ * GET /api/dashboard/orders — recent orders with their live fulfillment state.
+ *
+ * One Shopify call covers every row: the state of all of them is wanted at
+ * once, and asking per order would spend 25 requests against a bucket that
+ * refills at two a second.
+ */
+router.get('/orders', async (req, res) => {
+    try {
+        const rows = await all(
+            `SELECT id, shopify_order_id, shopify_order_number, status, total_amount,
+                    items, shipping_address, delivered_at, created_at
+               FROM orders
+              WHERE status <> 'pending'
+              ORDER BY created_at DESC
+              LIMIT 25`
+        );
+
+        // A Shopify outage should leave the list usable with local state only,
+        // not blank the page the operator works from.
+        let tracking = new Map();
+        try {
+            tracking = await listOrdersTracking(50);
+            primeTracking(tracking);
+        } catch (err) {
+            console.error('admin orders tracking failed:', err.message);
+        }
+
+        res.json({
+            orders: rows.map((o) => {
+                let addr = {};
+                try { addr = JSON.parse(o.shipping_address || '{}'); } catch { /* best effort */ }
+                let items = [];
+                try { items = JSON.parse(o.items || '[]'); } catch { /* best effort */ }
+                const t = (o.shopify_order_id && tracking.get(String(o.shopify_order_id))) || {};
+
+                return {
+                    id: o.id,
+                    // Postgres hands back BIGINT as a string; the customer
+                    // routes already number it, so match them.
+                    orderNumber: o.shopify_order_number ? Number(o.shopify_order_number) : null,
+                    status: o.status,
+                    totalPaise: Number(o.total_amount),
+                    customer: [addr.firstName, addr.lastName].filter(Boolean).join(' ') || null,
+                    items: items.map((i) => i.title).filter(Boolean),
+                    deliveredAt: o.delivered_at,
+                    createdAt: o.created_at,
+                    hasShopifyOrder: Boolean(o.shopify_order_id),
+                    fulfillmentStatus: t.fulfillmentStatus || null,
+                    shipmentStatus: t.shipmentStatus || null,
+                    trackingNumber: t.trackingNumber || null,
+                };
+            }),
+        });
+    } catch (err) {
+        console.error('admin orders list failed:', err.message);
+        res.status(500).json({ error: 'Could not load orders' });
+    }
+});
+
+/**
+ * POST /api/dashboard/orders/:id/delivered — record that a parcel landed.
+ *
+ * Shopify has no delivered status of its own and no button for one: delivery
+ * comes from posted fulfillment events, which only carrier-integrated labels
+ * create. This store fulfils by hand, so this is the only thing that will
+ * ever start a returns window.
+ */
+router.post('/orders/:id/delivered', async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
+
+    try {
+        const order = await get(
+            `SELECT id, shopify_order_id, shopify_order_number, status, delivered_at
+               FROM orders WHERE id = $1`,
+            [id]
+        );
+        if (!order) return res.status(404).json({ error: 'Not found' });
+        if (order.status === 'cancelled') return res.status(409).json({ error: 'This order was cancelled.' });
+        if (order.delivered_at) return res.status(409).json({ error: 'Already marked delivered.' });
+        if (!order.shopify_order_id) {
+            return res.status(400).json({ error: 'No Shopify order on this one — fulfilment never completed.' });
+        }
+
+        // Shopify first, local column second. If the event is refused the
+        // column stays null, so the two can never disagree about whether the
+        // parcel landed — and the returns window is measured from the column.
+        try {
+            await markFulfillmentDelivered(order.shopify_order_id);
+        } catch (err) {
+            if (err.message === 'NO_FULFILLMENT') {
+                return res.status(409).json({
+                    error: 'Fulfil this order in Shopify first — there is no shipment to mark delivered.',
+                });
+            }
+            console.error(`mark delivered failed for order ${id}:`, err.message);
+            notifySlackError(`mark delivered failed (order #${order.shopify_order_number})`, err).catch(() => {});
+            return res.status(502).json({ error: 'Shopify refused the delivery event. Nothing was changed.' });
+        }
+
+        await run('UPDATE orders SET delivered_at = now() WHERE id = $1 AND delivered_at IS NULL', [id]);
+        invalidateTracking(order.shopify_order_id);
+        res.json({ id, deliveredAt: new Date().toISOString() });
+    } catch (err) {
+        console.error('mark delivered failed:', err.message);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 

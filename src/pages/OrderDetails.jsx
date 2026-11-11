@@ -4,21 +4,7 @@ import { ordersAPI, shippingAPI } from '../lib/api';
 import Modal from '../components/ui/Modal';
 import './Checkout.css';
 import { shopifyImage } from '../utils/shopifyImage';
-
-const FULFILLMENT_STEPS = ['ORDER PLACED', 'PACKED', 'SHIPPED', 'OUT FOR DELIVERY', 'DELIVERED'];
-
-// Map Shopify fulfillment/shipment data onto the tracker. Shopify has no
-// distinct "packed" state, so a fulfilled order lights PACKED + SHIPPED together.
-function getStatusIndex(order) {
-    const shipment = (order.shipmentStatus || '').toLowerCase();
-    if (shipment === 'delivered') return 4;
-    if (shipment === 'out_for_delivery' || shipment === 'attempted_delivery') return 3;
-    if (shipment === 'in_transit' || shipment === 'confirmed' || shipment === 'picked_up') return 2;
-    // Fulfilled in Shopify (tracking added) but no granular shipment status yet.
-    if (order.fulfillmentStatus === 'fulfilled') return 2;
-    if (order.fulfillmentStatus === 'partial') return 1;
-    return 0; // paid, not yet fulfilled
-}
+import { FULFILLMENT_STEPS, getStatusIndex, canReturn } from '../utils/orderStatus';
 
 function getEstDelivery(createdAt) {
     const base = createdAt ? new Date(createdAt) : new Date();
@@ -142,7 +128,7 @@ const OrderDetails = () => {
                                         <span className="order-item-sub" style={{ color: '#ff4444' }}>
                                             CANCELLED{order.refundId ? ' · REFUNDED' : ''}
                                         </span>
-                                    ) : statusIdx === 4 ? (
+                                    ) : canReturn(order) ? (
                                         <Link to="/returns" className="cancel-order-btn return-exchange-btn">RETURN / EXCHANGE</Link>
                                     ) : statusIdx === 0 ? (
                                         <button className="cancel-order-btn" onClick={handleCancel}>CANCEL</button>
@@ -173,7 +159,15 @@ const OrderDetails = () => {
                                             </div>
                                         ))}
                                     </div>
-                                    {order.trackingNumber ? (
+                                    {/* Once delivered, the parcel is not looked
+                                        up again, so there are no tracking fields
+                                        left to show — and an estimate is no use
+                                        after the thing has arrived. */}
+                                    {order.deliveredAt ? (
+                                        <span className="est-delivery-badge">
+                                            DELIVERED {new Date(order.deliveredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+                                        </span>
+                                    ) : order.trackingNumber ? (
                                         <div className="order-tracking-info">
                                             {order.trackingCompany && (
                                                 <span className="est-delivery-badge">{order.trackingCompany}</span>
