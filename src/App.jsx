@@ -30,6 +30,7 @@ const Cart = lazy(routeChunks.cart);
 const Checkout = lazy(routeChunks.checkout);
 // Unlinked internal tool; lazy so it never ships in the shopper's bundle.
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const ReturnRequest = lazy(() => import('./pages/ReturnRequest'));
 const ProductDetail = lazy(routeChunks.product);
 const FAQ = lazy(() => import('./pages/FAQ'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -68,6 +69,7 @@ const ROUTE_TITLES = [
   [/^\/order-failed/, 'PAYMENT FAILED | MORBEI'],
   [/^\/order-/, 'YOUR ORDER | MORBEI'],
   [/^\/shipping/, 'SHIPPING | MORBEI'],
+  [/^\/returns\/request/, 'RETURN REQUEST | MORBEI'],
   [/^\/returns/, 'RETURNS | MORBEI'],
   [/^\/privacy/, 'PRIVACY POLICY | MORBEI'],
   [/^\/terms/, 'TERMS | MORBEI'],
@@ -182,6 +184,7 @@ const AppContent = () => {
           <Route path="/shop" element={<ShopWrapper />} />
           <Route path="/about" element={<About />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/returns/request" element={<ReturnRequest />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/checkout" element={<RequireCart><Checkout /></RequireCart>} />
           <Route path="/checkout/:step" element={<RequireCart><Checkout /></RequireCart>} />

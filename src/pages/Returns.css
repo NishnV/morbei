@@ -86,3 +86,10 @@
         font-size: 12px;
     }
 }
+
+/* Link out to the request form from the policy copy. */
+.re-link {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}

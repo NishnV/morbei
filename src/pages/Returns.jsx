@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import './Returns.css';
 
 const Returns = () => {
@@ -24,7 +25,11 @@ const Returns = () => {
 
             <section className="re-section">
                 <h2 className="re-section-title">How to Request a Return or Exchange</h2>
-                <p className="re-body">To request a return or exchange:</p>
+                <p className="re-body">
+                    The quickest way is the <Link className="re-link" to="/returns/request">return request form</Link> —
+                    it finds your order and sends the request straight to our team.
+                </p>
+                <p className="re-body">Or, to request a return or exchange by email:</p>
                 <p className="re-body">1. Contact us within 7 days of delivery via:<br />Email: info@morbei.com</p>
                 <p className="re-body">2. Share your order number and the reason for the return or exchange.</p>
                 <p className="re-body">3. If approved, we'll provide the next steps for returning your item.</p>

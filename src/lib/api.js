@@ -156,6 +156,13 @@ export const paymentAPI = {
     verify: (body) => apiFetch('/payment/verify', { method: 'POST', body: JSON.stringify(body) }),
 };
 
+// Returns — the lookup and submit are callable signed out; myOrders is not.
+export const returnsAPI = {
+    myOrders: () => apiFetch('/returns/orders'),
+    lookup: (body) => apiFetch('/returns/lookup', { method: 'POST', body: JSON.stringify(body) }),
+    submit: (body) => apiFetch('/returns', { method: 'POST', body: JSON.stringify(body) }),
+};
+
 // Orders
 export const ordersAPI = {
     list: () => apiFetch('/orders'),

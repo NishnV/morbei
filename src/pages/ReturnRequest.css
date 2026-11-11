@@ -1,0 +1,244 @@
+/* Return request form.
+   Header metrics match the Terms and Contact pages — .tc-header / .tc-rule —
+   so the three read as the same family. */
+.rr-page {
+    background: #000;
+    color: #fff;
+    min-height: 100dvh;
+    padding: 110px clamp(1.5rem, 17.4vw, 250px) 7rem;
+    font-family: 'Avenir', 'Avenir Next', sans-serif;
+    font-weight: 300;
+    text-transform: uppercase;
+}
+
+.rr-head { margin-bottom: 3.5rem; }
+
+.rr-title {
+    font-family: 'Castoro Titling', serif;
+    font-size: 16px;
+    letter-spacing: 1.6px;
+    line-height: 25px;
+    font-weight: 400;
+    text-align: center;
+    margin: 0;
+}
+
+.rr-rule {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.25);
+    margin-top: 2.5rem;
+}
+
+/* The form sits in a column of its own rather than the full page width: a
+   line of input 900px wide is harder to fill in, not easier. */
+.rr-body {
+    max-width: 560px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.rr-section-title {
+    font-family: 'Castoro Titling', serif;
+    font-size: 13px;
+    letter-spacing: 1.3px;
+    font-weight: 400;
+    margin: 0 0 1.25rem;
+}
+
+.rr-intro,
+.rr-help {
+    font-size: 10px;
+    line-height: 22px;
+    letter-spacing: 0.9px;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0 0 2.5rem;
+}
+
+.rr-help { margin: 0 0 1rem; }
+
+.rr-group {
+    font-family: 'Castoro Titling', serif;
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    font-weight: 400;
+    margin: 2rem 0 1.5rem;
+}
+
+/* ---- Fields ---- */
+.rr-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1.75rem;
+}
+
+.rr-field > span,
+.rr-label {
+    font-size: 9px;
+    letter-spacing: 1.1px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.rr-field input,
+.rr-field select,
+.rr-field textarea {
+    background: none;
+    border: none;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.45);
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px 0;
+    outline: none;
+    border-radius: 0;
+}
+
+/* A bordered box rather than a rule: a multi-line answer needs to look like
+   it has room, which an underline does not convey. */
+.rr-field textarea {
+    border: 0.5px solid rgba(255, 255, 255, 0.45);
+    padding: 12px;
+    resize: vertical;
+    line-height: 20px;
+}
+
+.rr-field select { appearance: none; cursor: pointer; }
+.rr-field select option { background: #000; color: #fff; }
+.rr-field select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.rr-field input:focus,
+.rr-field select:focus,
+.rr-field textarea:focus { border-color: #fff; }
+
+.rr-field--area { margin-bottom: 2.5rem; }
+
+/* ---- Checkbox and radio groups ---- */
+.rr-choices {
+    border: none;
+    padding: 0;
+    margin: 0 0 2.5rem;
+}
+
+.rr-choices legend {
+    font-size: 9px;
+    letter-spacing: 1.1px;
+    color: rgba(255, 255, 255, 0.75);
+    padding: 0;
+    margin-bottom: 1rem;
+}
+
+.rr-choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 10px;
+    letter-spacing: 0.9px;
+    line-height: 18px;
+    padding: 7px 0;
+    cursor: pointer;
+}
+
+/* Square, unfilled, 11px — the site has no rounded controls anywhere else. */
+.rr-choice input {
+    appearance: none;
+    width: 11px;
+    height: 11px;
+    flex: 0 0 11px;
+    margin-top: 3px;
+    border: 0.5px solid rgba(255, 255, 255, 0.6);
+    background: none;
+    cursor: pointer;
+    border-radius: 0;
+}
+
+.rr-choice input:checked { background: #fff; }
+
+.rr-declaration {
+    text-transform: none;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 1rem 0 2.5rem;
+    align-items: flex-start;
+}
+
+/* ---- Uploads ---- */
+.rr-upload input { display: none; }
+
+.rr-upload span {
+    display: inline-block;
+    border: 0.5px solid rgba(255, 255, 255, 0.45);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    padding: 11px 22px;
+    cursor: pointer;
+}
+
+.rr-media {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+}
+
+.rr-media li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 9px 0;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.15);
+}
+
+.rr-media button {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+/* ---- Messages ---- */
+.rr-note,
+.rr-error {
+    font-size: 9px;
+    letter-spacing: 1px;
+    line-height: 18px;
+    margin: 0 0 1.5rem;
+}
+
+.rr-note { color: rgba(255, 255, 255, 0.5); }
+.rr-note--ok { color: #88c888; }
+.rr-note--warn { color: #d8c08a; text-transform: none; }
+.rr-error { color: #e88; }
+
+/* ---- Submit ---- */
+.rr-submit {
+    background: #fff;
+    color: #000;
+    border: none;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 15px 0;
+    cursor: pointer;
+    width: 100%;
+}
+
+.rr-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.rr-submit--link {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 2rem;
+}
+
+@media (--phone) {
+    .rr-page { padding: 90px 1.5rem 5rem; }
+    .rr-title { font-size: 14px; }
+    .rr-body { max-width: 100%; }
+}
