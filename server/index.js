@@ -15,7 +15,7 @@ import adminRoutes from './routes/admin.js';
 import wishlistRoutes from './routes/wishlist.js';
 import { notifySlackError } from './services/slack.js';
 import { startReconciler } from './services/reconcile.js';
-import { verifyTransport, smtpTarget } from './services/email.js';
+import { verifyMail, mailTarget } from './services/mailer.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -41,6 +41,12 @@ if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
 }
 if (!process.env.SLACK_WEBHOOK_URL) {
   console.warn('SLACK_WEBHOOK_URL not set — server error alerts will not be sent to Slack');
+}
+// The From address falls back to SMTP_USER, which exists only because this
+// store used to send over SMTP. Once those variables are cleared, nothing
+// would supply one and every message would go out from "MORBEI <undefined>".
+if (!process.env.MAIL_FROM && !process.env.SMTP_USER) {
+  console.warn('Neither MAIL_FROM nor SMTP_USER is set — outgoing mail has no From address');
 }
 
 // Railway/Vercel sit behind a proxy — needed for correct client IPs in rate limiting
@@ -177,10 +183,10 @@ initDB()
     // Prove the mail path before a customer needs it. Non-blocking: a store
     // that cannot send email should still take orders, but it should say so
     // loudly rather than discovering it one failed confirmation at a time.
-    verifyTransport().then((err) => {
-      if (!err) return console.log(`SMTP ready (${smtpTarget})`);
-      console.error(`SMTP unreachable (${smtpTarget}): ${err.message}`);
-      notifySlackError(`SMTP unreachable at boot (${smtpTarget})`, err).catch(() => {});
+    verifyMail().then((err) => {
+      if (!err) return console.log(`Mail ready (${mailTarget})`);
+      console.error(`Mail unusable (${mailTarget}): ${err.message}`);
+      notifySlackError(`Mail unusable at boot (${mailTarget})`, err).catch(() => {});
     });
     // Safety net below the webhook: recovers orders where money was captured
     // but fulfilment never completed. Runs shortly after boot, then hourly.

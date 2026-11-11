@@ -1,55 +1,13 @@
-import nodemailer from 'nodemailer';
+import { deliver } from './mailer.js';
 
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
+// Which transport carries these, and why it is an HTTPS API rather than
+// SMTP, is explained in mailer.js. Templates below never need to know.
 
-// 465 is implicit TLS: the server sends nothing and waits for the client to
-// open the handshake. Connecting to it in plaintext is not an error either
-// side reports — both just wait, until nodemailer gives up with "Greeting
-// never received". Deriving this from the port removes a way to be wrong;
-// SMTP_SECURE still wins where it is set, for hosts that are unusual.
-const SMTP_SECURE = process.env.SMTP_SECURE !== undefined
-    ? process.env.SMTP_SECURE === 'true'
-    : SMTP_PORT === 465;
-
-const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_SECURE,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-    // Nodemailer waits two minutes before giving up on a TCP connect, and ten
-    // on an idle socket. When the host's egress drops SMTP the send does not
-    // fail — it hangs, holding the request's callback open for the whole two
-    // minutes and reporting "Connection timeout" long after the customer has
-    // gone. Fail in seconds instead, so the error reaches the logs while the
-    // event that caused it is still legible.
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 30000,
-});
-
-/**
- * Is the SMTP server actually reachable from here? Resolves to null on
- * success or the error on failure — never throws, so a caller can log it
- * without wrapping. Worth running at boot: otherwise a blocked port is
- * discovered by a customer whose order confirmation never arrives.
- */
-export async function verifyTransport() {
-    try {
-        await transporter.verify();
-        return null;
-    } catch (err) {
-        return err;
-    }
-}
-
-export const smtpTarget = `${SMTP_HOST}:${SMTP_PORT}`;
-
-const STORE_EMAIL = process.env.STORE_NOTIFICATION_EMAIL || process.env.SMTP_USER;
-const STORE_FROM = `"MORBEI" <${process.env.SMTP_USER}>`;
+// SMTP_USER is kept as a fallback so the switch to Resend needs no env
+// rename, but MAIL_FROM is the honest name for it now.
+const FROM_ADDRESS = process.env.MAIL_FROM || process.env.SMTP_USER;
+const STORE_EMAIL = process.env.STORE_NOTIFICATION_EMAIL || FROM_ADDRESS;
+const STORE_FROM = `"MORBEI" <${FROM_ADDRESS}>`;
 
 // User-supplied strings go into HTML emails — escape them so a crafted
 // product title or contact message can't inject markup.
@@ -146,7 +104,7 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
     // Customer confirmation
     if (user.email) {
         mailPromises.push(
-            transporter.sendMail({
+            deliver({
                 from: STORE_FROM,
                 to: user.email,
                 subject: `Your MORBEI order #${orderNo} is confirmed`,
@@ -158,7 +116,7 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
     // Store notification
     if (STORE_EMAIL) {
         mailPromises.push(
-            transporter.sendMail({
+            deliver({
                 from: STORE_FROM,
                 to: STORE_EMAIL,
                 subject: `New Order #${orderNo} — ₹${totalAmount} — ${user.first_name} ${user.last_name}`,
@@ -207,7 +165,7 @@ export async function sendOrderCancellation({ order, user, refundAmountPaise, re
 
     const mailPromises = [];
     if (user.email) {
-        mailPromises.push(transporter.sendMail({
+        mailPromises.push(deliver({
             from: STORE_FROM,
             to: user.email,
             subject: `Your MORBEI order #${orderNo} has been cancelled`,
@@ -215,7 +173,7 @@ export async function sendOrderCancellation({ order, user, refundAmountPaise, re
         }));
     }
     if (STORE_EMAIL) {
-        mailPromises.push(transporter.sendMail({
+        mailPromises.push(deliver({
             from: STORE_FROM,
             to: STORE_EMAIL,
             subject: `Order #${orderNo} cancelled${refunded ? ` — ₹${refundAmount} refunded` : ''}`,
@@ -232,7 +190,7 @@ export async function sendOrderCancellation({ order, user, refundAmountPaise, re
 export async function sendRefundFailureAlert({ orderId, paymentId, amountPaise, errorMessage }) {
     if (!STORE_EMAIL) return;
     const amount = (Number(amountPaise || 0) / 100).toFixed(2);
-    await transporter.sendMail({
+    await deliver({
         from: STORE_FROM,
         to: STORE_EMAIL,
         subject: `⚠️ ACTION NEEDED: refund failed for order #${orderId}`,
@@ -252,7 +210,7 @@ export async function sendRefundFailureAlert({ orderId, paymentId, amountPaise, 
  */
 export async function sendContactNotification({ name, email, subject, message, phone }) {
     if (!STORE_EMAIL) return;
-    await transporter.sendMail({
+    await deliver({
         from: STORE_FROM,
         to: STORE_EMAIL,
         replyTo: email,
@@ -276,7 +234,7 @@ export async function sendContactNotification({ name, email, subject, message, p
  */
 export async function sendRestockRequest({ email, product }) {
     if (!STORE_EMAIL) return;
-    await transporter.sendMail({
+    await deliver({
         from: STORE_FROM,
         to: STORE_EMAIL,
         replyTo: email,
@@ -299,7 +257,7 @@ export async function sendRestockRequest({ email, product }) {
  * unsubscribe link because consent has to be withdrawable to be valid.
  */
 export async function sendNewsletterWelcome(email, unsubscribeUrl) {
-    await transporter.sendMail({
+    await deliver({
         from: STORE_FROM,
         to: email,
         subject: 'Welcome to MORBEI',
@@ -339,7 +297,7 @@ export async function sendNewsletterWelcome(email, unsubscribeUrl) {
  */
 export async function sendFulfillmentFailureAlert({ orderId, razorpayPaymentId, userEmail, amountPaise, errorMessage }) {
     if (!STORE_EMAIL) return;
-    await transporter.sendMail({
+    await deliver({
         from: STORE_FROM,
         to: STORE_EMAIL,
         subject: `⚠️ ACTION NEEDED: payment captured, order #${orderId} not created`,
@@ -423,7 +381,7 @@ export async function sendReturnUpdate(kind, data) {
         </div>
     </div>`;
 
-    await transporter.sendMail({
+    await deliver({
         from: STORE_FROM,
         to: data.to,
         replyTo: STORE_EMAIL || undefined,
