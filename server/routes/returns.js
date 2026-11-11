@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { get, all, run } from '../db/pg.js';
 import { notifySlackError, notifySlackReturn } from '../services/slack.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.js';
+import { sendReturnUpdate } from '../services/email.js';
 
 const router = Router();
 
@@ -220,6 +221,15 @@ router.post('/', optionalAuthenticate, async (req, res) => {
         }
 
         const el = eligibility(order);
+        // Fire-and-forget, both of them: a failed notification must not undo a
+        // request the shopper has already been told we have.
+        sendReturnUpdate('received', {
+            to: order.user_email,
+            name: str(b.fullName, 120) || '',
+            orderNumber: order.shopify_order_number,
+            product: item.title,
+        }).catch((err) => console.error('return received email failed:', err.message));
+
         notifySlackReturn({
             id: inserted.rows[0].id,
             orderNumber: order.shopify_order_number,

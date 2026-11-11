@@ -355,3 +355,79 @@ export async function sendFulfillmentFailureAlert({ orderId, razorpayPaymentId, 
         </div>`,
     });
 }
+
+/**
+ * Return and exchange updates.
+ *
+ * One shell, five states, because a customer who has sent a garment back
+ * wants the same three things at every step: what we know, what happens
+ * next, and when. Sending silence at any of them is how a return becomes a
+ * complaint.
+ *
+ * Fire-and-forget at every call site, like the rest of this file. An email
+ * that fails must never roll back a refund that succeeded.
+ */
+const RETURN_COPY = {
+    received: {
+        subject: (n) => `We have your return request — order #${n}`,
+        heading: 'RETURN REQUEST RECEIVED',
+        body: () => 'Our team will review it and be in touch within 24 hours. There is nothing for you to do until then — please hold on to the item and its packaging.',
+    },
+    approved: {
+        subject: (n) => `Your return has been approved — order #${n}`,
+        heading: 'RETURN APPROVED',
+        body: () => 'We will be in touch shortly with pickup details. Please keep the item unused and unworn, with its tags and original packaging intact.',
+    },
+    rejected: {
+        subject: (n) => `About your return request — order #${n}`,
+        heading: 'RETURN NOT APPROVED',
+        body: (d) => d.note
+            ? `We are not able to approve this one. ${esc(d.note)}`
+            : 'We are not able to approve this one. Reply to this email and we will explain, or look at anything you would like us to reconsider.',
+    },
+    refunded: {
+        subject: (n) => `Your refund is on its way — order #${n}`,
+        heading: 'REFUND ISSUED',
+        body: (d) => `A refund of <strong>₹${d.amount}</strong> has been sent to your original payment method. It typically appears within 5–7 business days, depending on your bank.`,
+    },
+    exchanged: {
+        subject: (n) => `Your replacement is on its way — order #${n}`,
+        heading: 'REPLACEMENT ON ITS WAY',
+        body: (d) => `We have raised a replacement${d.replacementOrderNumber ? ` as order <strong>#${esc(d.replacementOrderNumber)}</strong>` : ''}${d.size ? ` in size <strong>${esc(d.size)}</strong>` : ''}. There is nothing more to pay. We will send tracking as soon as it ships.`,
+    },
+};
+
+export async function sendReturnUpdate(kind, data) {
+    const copy = RETURN_COPY[kind];
+    if (!copy || !data?.to) return;
+
+    const orderNo = data.orderNumber;
+    const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
+        <div style="background:#0a0a0a;padding:32px;text-align:center;">
+            <h1 style="color:#fff;letter-spacing:0.3em;font-size:22px;margin:0;">MORBEI</h1>
+        </div>
+        <div style="padding:32px;">
+            <h2 style="font-size:16px;letter-spacing:0.2em;font-weight:500;">${copy.heading}</h2>
+            <p style="font-size:14px;color:#555;">Hi ${esc(data.name || 'there')},</p>
+            <p style="font-size:14px;color:#555;">
+                ${esc(data.product)} from order #${esc(orderNo)}.
+            </p>
+            <p style="font-size:14px;color:#555;">${copy.body(data)}</p>
+            <p style="margin-top:24px;font-size:12px;color:#888;">
+                For any queries, reply to this email or contact info@morbei.com
+            </p>
+        </div>
+        <div style="background:#f4f4f4;padding:16px;text-align:center;">
+            <p style="font-size:11px;color:#aaa;margin:0;">© ${new Date().getFullYear()} MORBEI. All rights reserved.</p>
+        </div>
+    </div>`;
+
+    await transporter.sendMail({
+        from: STORE_FROM,
+        to: data.to,
+        replyTo: STORE_EMAIL || undefined,
+        subject: copy.subject(orderNo),
+        html,
+    });
+}

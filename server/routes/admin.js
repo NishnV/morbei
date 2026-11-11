@@ -5,6 +5,7 @@ import { refundPayment } from '../services/razorpay.js';
 import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant }
     from '../services/shopify-admin.js';
 import { notifySlackError } from '../services/slack.js';
+import { sendReturnUpdate } from '../services/email.js';
 import { funnelSummary } from './events.js';
 
 const router = Router();
@@ -112,6 +113,13 @@ router.post('/returns/:id', async (req, res) => {
             if (!claimed.rowCount) {
                 return res.status(409).json({ error: `Already ${row.status}` });
             }
+            sendReturnUpdate(action === 'approve' ? 'approved' : 'rejected', {
+                to: row.email,
+                name: row.full_name,
+                orderNumber: row.shopify_order_number,
+                product: row.product_title,
+                note: typeof note === 'string' ? note : '',
+            }).catch((err) => console.error(`return ${next} email failed:`, err.message));
             return res.json({ id, status: next });
         }
 
@@ -144,6 +152,13 @@ router.post('/returns/:id', async (req, res) => {
                             updated_at = now() WHERE id = $2`,
                     [typeof note === 'string' ? note.slice(0, 1000) : null, id]
                 );
+                sendReturnUpdate('refunded', {
+                    to: row.email,
+                    name: row.full_name,
+                    orderNumber: row.shopify_order_number,
+                    product: row.product_title,
+                    amount: (amount / 100).toFixed(2),
+                }).catch((err) => console.error('refund email failed:', err.message));
                 return res.json({ id, status: 'refunded', refundId: refund.id, amountPaise: amount });
             } catch (err) {
                 await run(`UPDATE returns SET status = 'approved', updated_at = now() WHERE id = $1`, [id]);
@@ -233,6 +248,14 @@ router.post('/returns/:id', async (req, res) => {
                       WHERE id = $3`,
                     [newNumber, typeof note === 'string' ? note.slice(0, 1000) : null, id]
                 );
+                sendReturnUpdate('exchanged', {
+                    to: row.email,
+                    name: row.full_name,
+                    orderNumber: row.shopify_order_number,
+                    product: row.product_title,
+                    size: row.exchange_size,
+                    replacementOrderNumber: newNumber,
+                }).catch((err) => console.error('exchange email failed:', err.message));
                 return res.json({ id, status: 'exchanged', replacementOrderNumber: newNumber, sent: label });
             } catch (err) {
                 await run(`UPDATE returns SET status = 'approved', updated_at = now() WHERE id = $1`, [id]);
