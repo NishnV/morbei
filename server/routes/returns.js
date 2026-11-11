@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { get, all, run } from '../db/pg.js';
 import { notifySlackError, notifySlackReturn } from '../services/slack.js';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -70,6 +71,57 @@ function eligibility(order) {
     return { eligible: days <= RETURN_WINDOW_DAYS, basis: 'delivered_at', daysSinceDelivery: days };
 }
 
+/** The order's line items, with the ones already under review marked. */
+async function itemsFor(order) {
+    let items = [];
+    try { items = JSON.parse(order.items || '[]'); } catch { items = []; }
+    const openRows = await all(
+        `SELECT variant_id FROM returns
+          WHERE order_id = $1 AND status IN ('requested', 'approved')`,
+        [order.id]
+    );
+    const open = new Set(openRows.map((r) => r.variant_id));
+    return items.map((i) => ({
+        variantId: i.variantId,
+        title: i.title,
+        quantity: i.quantity,
+        options: i.selectedOptions || [],
+        image: i.image || null,
+        alreadyRequested: open.has(i.variantId),
+    }));
+}
+
+/**
+ * GET /api/returns/orders — the signed-in shopper's own orders.
+ *
+ * The other half of the dual path. Someone signed in should not have to go
+ * and find an order number: they pick from a list, and are authenticated
+ * outright rather than by knowing two matching fields.
+ */
+router.get('/orders', authenticate, async (req, res) => {
+    try {
+        const orders = await all(
+            `SELECT * FROM orders
+              WHERE user_id = $1 AND razorpay_payment_id IS NOT NULL
+              ORDER BY created_at DESC LIMIT 25`,
+            [req.user.id]
+        );
+        res.json({
+            email: req.user.email,
+            orders: await Promise.all(orders.map(async (o) => ({
+                orderNumber: o.shopify_order_number,
+                placedAt: o.created_at,
+                deliveredAt: o.delivered_at,
+                ...eligibility(o),
+                items: await itemsFor(o),
+            }))),
+        });
+    } catch (err) {
+        console.error('return orders failed:', err.message);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
 // POST /api/returns/lookup — the order's items, for the product dropdown.
 router.post('/lookup', async (req, res) => {
     try {
@@ -80,31 +132,12 @@ router.post('/lookup', async (req, res) => {
             return res.status(404).json({ error: 'We could not find an order with those details.' });
         }
 
-        let items = [];
-        try { items = JSON.parse(order.items || '[]'); } catch { items = []; }
-
-        const openRows = await all(
-            `SELECT variant_id FROM returns
-              WHERE order_id = $1 AND status IN ('requested', 'approved')`,
-            [order.id]
-        );
-        const alreadyRequested = new Set(openRows.map((r) => r.variant_id));
-
         res.json({
             orderNumber: order.shopify_order_number,
             placedAt: order.created_at,
             deliveredAt: order.delivered_at,
             ...eligibility(order),
-            items: items.map((i) => ({
-                variantId: i.variantId,
-                title: i.title,
-                quantity: i.quantity,
-                options: i.selectedOptions || [],
-                image: i.image || null,
-                // Already has an open request — the form greys it out rather
-                // than letting someone file a second one and wonder why.
-                alreadyRequested: alreadyRequested.has(i.variantId),
-            })),
+            items: await itemsFor(order),
         });
     } catch (err) {
         console.error('return lookup failed:', err.message);
@@ -113,10 +146,22 @@ router.post('/lookup', async (req, res) => {
 });
 
 // POST /api/returns — submit a request.
-router.post('/', async (req, res) => {
+router.post('/', optionalAuthenticate, async (req, res) => {
     try {
         const b = req.body || {};
-        const order = await findOrder(b.orderNumber, b.email);
+        // Signed in: the order has to be theirs, and the email they typed is
+        // irrelevant — a session is the stronger claim. Signed out: the order
+        // number and the email that placed it, both.
+        const order = req.user
+            ? await get(
+                `SELECT o.*, u.email AS user_email
+                   FROM orders o JOIN users u ON u.id = o.user_id
+                  WHERE o.shopify_order_number = $1
+                    AND o.user_id = $2
+                    AND o.razorpay_payment_id IS NOT NULL`,
+                [parseInt(String(b.orderNumber).replace(/[^0-9]/g, ''), 10) || 0, req.user.id]
+            )
+            : await findOrder(b.orderNumber, b.email);
         if (!order) {
             return res.status(404).json({ error: 'We could not find an order with those details.' });
         }

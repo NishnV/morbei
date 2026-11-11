@@ -16,39 +16,63 @@ const TOKEN_TTL = '7d';
  * authenticated request — cheap at this volume, and the alternative is a token
  * that stays valid for a week after the user believes they signed out.
  */
-export async function authenticate(req, res, next) {
+async function resolveUser(req) {
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Authentication required' });
+        return { status: 401, error: 'Authentication required' };
     }
 
     let payload;
     try {
         payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
     } catch {
-        return res.status(401).json({ error: 'Invalid or expired token' });
+        return { status: 401, error: 'Invalid or expired token' };
     }
 
     try {
         const user = await get('SELECT id, email, token_version FROM users WHERE id = $1', [payload.id]);
         if (!user) {
-            return res.status(401).json({ error: 'Invalid or expired token' });
+            return { status: 401, error: 'Invalid or expired token' };
         }
         // Tokens issued before this file existed have no `tv` claim; treat them
         // as version 0 so existing sessions survive the deploy rather than
         // logging every customer out mid-checkout.
         const tokenVersion = payload.tv ?? 0;
         if (tokenVersion !== user.token_version) {
-            return res.status(401).json({ error: 'Session ended, please sign in again' });
+            return { status: 401, error: 'Session ended, please sign in again' };
         }
-        req.user = { id: user.id, email: user.email };
-        next();
+        return { user: { id: user.id, email: user.email } };
     } catch (err) {
         // A database blip must not read as an auth failure — that would log
         // people out and, worse, hide the real problem behind a 401.
         console.error('authenticate: user lookup failed:', err.message);
-        return res.status(503).json({ error: 'Service temporarily unavailable, please retry' });
+        return { status: 503, error: 'Service temporarily unavailable, please retry' };
     }
+}
+
+export async function authenticate(req, res, next) {
+    const result = await resolveUser(req);
+    if (result.user) {
+        req.user = result.user;
+        return next();
+    }
+    return res.status(result.status).json({ error: result.error });
+}
+
+/**
+ * Identify the caller when they are signed in, and carry on when they are not.
+ *
+ * For the return form, which serves both: a signed-in shopper picks from their
+ * own orders and is authenticated outright, while a guest — who by definition
+ * has no password, having never been asked for one — proves themselves with
+ * the order number and the email that placed it. A failed or expired token
+ * degrades to the guest path rather than blocking, because someone chasing a
+ * refund should never be stopped by a stale session.
+ */
+export async function optionalAuthenticate(req, _res, next) {
+    const result = await resolveUser(req);
+    if (result.user) req.user = result.user;
+    next();
 }
 
 export function signToken(userId, email, tokenVersion = 0) {
