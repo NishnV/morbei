@@ -1,222 +1,91 @@
-.order-details-page {
+/* ============================================================
+   /track
+
+   Every selector here is prefixed `track-` and nested under
+   `.track-order-page`. The file used to define `.order-details-page`,
+   `.order-details-container`, `.order-details-header`, `.cancel-order-btn`
+   and `.active` — all of which Checkout.css also defines, with different
+   values. Both are lazy route chunks, so whichever route was visited
+   first won the cascade and /order-details rendered differently
+   depending on whether /track had been opened. Nothing in here is
+   shared any more.
+
+   Colours come from the tokens in index.css, whose :root values are the
+   literals this file used to hardcode (#888 muted, #333 border,
+   #111 offset), so the dark design is unchanged.
+   ============================================================ */
+
+.track-order-page {
     padding-top: 100px;
-    min-height: 100vh;
+    min-height: 100svh;
 }
 
-.order-details-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 4rem 4rem;
-}
+/* ─── Search ───────────────────────────────────────────────── */
 
-.order-details-header {
-    border-bottom: 1px solid #1a1a1a;
-    padding-bottom: 2.5rem;
-    margin-bottom: 2.5rem;
-}
-
-.order-details-header h1 {
-    font-size: 1.2rem;
-    letter-spacing: 0.2em;
-    font-weight: 500;
-}
-
-.order-row-v3 {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1.5fr;
-    gap: 4rem;
-    padding: 4rem 0;
-    border-bottom: 1px solid #1a1a1a;
-    align-items: start;
-}
-
-/* Product Info Column */
-.order-item-img-v3 {
-    width: 100px;
-    aspect-ratio: 3/4;
-    background: #111;
-    margin-bottom: 1.5rem;
-}
-
-.order-item-img-v3 img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.order-item-meta-v3 h3 {
-    font-size: 0.75rem;
-    letter-spacing: 0.15em;
-    margin-bottom: 1rem;
-    font-weight: 400;
-}
-
-.order-item-meta-v3 p {
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
-    color: #888;
-    margin-bottom: 0.8rem;
-}
-
-.cancel-order-btn {
-    margin-top: 1.5rem;
-    background: transparent;
-    border: 1px solid #333;
-    color: #fff;
-    padding: 0.8rem 3rem;
-    font-size: 0.85rem;
-    letter-spacing: 0.15em;
-    cursor: pointer;
-    transition: all 0.2s;
-}@media (hover: hover) {
-
-
-    .cancel-order-btn:hover {
-        border-color: #666;
-        background: rgba(255, 255, 255, 0.05);
-    }
-}
-
-/* Address detail reuse */
-.summary-address-details p {
-    font-size: 0.85rem;
-    letter-spacing: 0.05em;
-    color: #888;
-    margin-bottom: 0.5rem;
-    line-height: 1.6;
-    text-transform: uppercase;
-}
-
-/* Tracking Timeline */
-.tracking-info-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-.tracking-timeline-v3 {
-    position: relative;
-    width: 100%;
-    max-width: 500px;
-    padding-top: 10px;
-}
-
-.timeline-line-v3 {
-    position: absolute;
-    top: 18px;
-    /* Center of the 16px box */
-    left: 8px;
-    right: 8px;
-    height: 1px;
-    background: #333;
-    z-index: 1;
-}
-
-.timeline-steps-v3 {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    justify-content: space-between;
-}
-
-.timeline-step-v3 {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
-    text-align: center;
-}
-
-.step-box-v3 {
-    width: 16px;
-    height: 16px;
-    border: 1px solid #444;
-    background: #000;
-}
-
-.timeline-step-v3.active .step-box-v3 {
-    background: #fff;
-    border-color: #fff;
-}
-
-.step-label-v3 {
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
-    color: #666;
-    width: 60px;
-    line-height: 1.4;
-}
-
-.timeline-step-v3.active .step-label-v3 {
-    color: #fff;
-}
-
-.est-delivery-text {
-    margin-top: 2rem;
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
-    color: #fff;
-    opacity: 0.8;
-}
-
-/* Empty/Search State */
-.track-container-minimal {
+.track-order-page .track-search {
     max-width: 500px;
     margin: 0 auto;
     padding: 10rem 2rem;
     text-align: center;
 }
 
-.track-header-minimal h1 {
+/* With a result below it, the search block is a header rather than the
+   whole page, so it stops reserving a screenful of space for itself. */
+.track-order-page .track-search.is-compact {
+    padding-top: 6rem;
+    padding-bottom: 3rem;
+}
+
+.track-order-page .track-search-head h1 {
     font-size: 1.5rem;
     letter-spacing: 0.15em;
     margin-bottom: 1rem;
 }
 
-.track-header-minimal p {
+.track-order-page .track-search-head p {
     font-size: 0.95rem;
-    color: #888;
+    color: var(--text-muted);
     margin-bottom: 2rem;
 }
 
-.track-form-minimal {
+.track-order-page .track-form {
     text-align: left;
 }
 
-.minimal-input-group {
+.track-order-page .track-field {
     display: flex;
     flex-direction: column;
     margin-bottom: 1.5rem;
 }
 
-.minimal-input-group label {
+.track-order-page .track-field label {
     font-size: 0.85rem;
     letter-spacing: 0.15em;
-    color: #fff;
+    color: var(--text);
     margin-bottom: 1.2rem;
     font-weight: 500;
 }
 
-.minimal-input-group input {
+.track-order-page .track-field input {
     background: transparent;
     border: none;
     border-bottom: 1px solid #1a1a1a;
-    color: #fff;
+    color: var(--text);
     padding: 0.2rem 0 1rem 0;
     font-size: 0.8rem;
     letter-spacing: 0.05em;
     width: 100%;
 }
 
-.minimal-input-group input:focus {
+.track-order-page .track-field input:focus {
     outline: none;
-    border-bottom-color: #333;
+    border-bottom-color: var(--border);
 }
 
-.track-submit-btn {
+.track-order-page .track-submit {
     width: 100%;
-    background: #fff;
-    color: #000;
+    background: var(--text);
+    color: var(--bg);
     padding: 1.2rem;
     font-size: 0.95rem;
     font-weight: 600;
@@ -225,21 +94,284 @@
     margin-top: 3rem;
     cursor: pointer;
     transition: opacity 0.2s;
-}@media (hover: hover) {
+}
 
+.track-order-page .track-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
-    .track-submit-btn:hover {
+@media (hover: hover) {
+    .track-order-page .track-submit:not(:disabled):hover {
         opacity: 0.9;
     }
 }
 
+.track-order-page .track-empty {
+    letter-spacing: 0.1em;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 1rem 0 4rem;
+}
+
+.track-order-page .track-signin {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.track-order-page .track-signin a {
+    text-decoration: underline;
+}
+
+/* ─── Result ───────────────────────────────────────────────── */
+
+.track-order-page .track-result {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 4rem 8rem;
+}
+
+.track-order-page .track-result-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 2rem;
+    border-bottom: 1px solid #1a1a1a;
+    padding-bottom: 2.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.track-order-page .track-result-head h2 {
+    font-size: 1.2rem;
+    letter-spacing: 0.2em;
+    font-weight: 500;
+}
+
+.track-order-page .track-result-status {
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.track-order-page .track-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.5fr;
+    gap: 4rem;
+    align-items: start;
+}
+
+/* Product column */
+.track-order-page .track-item + .track-item {
+    margin-top: 2.5rem;
+}
+
+.track-order-page .track-item-img {
+    width: 100px;
+    aspect-ratio: 3 / 4;
+    background: var(--bg-offset);
+    margin-bottom: 1.5rem;
+}
+
+.track-order-page .track-item-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.track-order-page .track-item-meta h3 {
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    margin-bottom: 1rem;
+    font-weight: 400;
+}
+
+.track-order-page .track-item-meta p {
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 0.8rem;
+}
+
+/* Address column */
+.track-order-page .track-address strong {
+    display: block;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+    margin-bottom: 0.8rem;
+}
+
+.track-order-page .track-address p {
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+/* Timeline column */
+.track-order-page .track-timeline-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.track-order-page .track-timeline {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    padding-top: 10px;
+}
+
+/* Sits behind the step boxes, inset by half a box so it starts and ends
+   at the centre of the first and last one. */
+.track-order-page .track-timeline-line {
+    position: absolute;
+    top: 18px;
+    left: 8px;
+    right: 8px;
+    height: 1px;
+    background: var(--border);
+    z-index: 1;
+}
+
+.track-order-page .track-steps {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+}
+
+.track-order-page .track-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: center;
+}
+
+.track-order-page .track-step-box {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #444;
+    background: var(--bg);
+}
+
+.track-order-page .track-step.is-done .track-step-box {
+    background: var(--text);
+    border-color: var(--text);
+}
+
+.track-order-page .track-step-label {
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    color: #666;
+    width: 60px;
+    line-height: 1.4;
+}
+
+.track-order-page .track-step.is-done .track-step-label {
+    color: var(--text);
+}
+
+.track-order-page .track-note {
+    margin-top: 2rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    opacity: 0.8;
+}
+
+.track-order-page .track-note a {
+    text-decoration: underline;
+}
+
+.track-order-page .track-link {
+    display: inline-block;
+    margin-top: 1.5rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.8rem 3rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+@media (hover: hover) {
+    .track-order-page .track-link:hover {
+        border-color: #666;
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
+
+/* ─── Narrow desktop windows ───────────────────────────────── */
+
 @media (--narrow-desktop) {
-    .order-row-v3 {
+    .track-order-page .track-row {
         grid-template-columns: 1fr;
         gap: 3rem;
     }
 
-    .tracking-info-col {
+    .track-order-page .track-timeline-col {
         align-items: flex-start;
+    }
+}
+
+/* ─── Mobile design ───────────────────────────────────────── */
+
+@media (--mobile) {
+    .track-order-page .track-search {
+        padding: 5rem 1.5rem;
+    }
+
+    .track-order-page .track-search.is-compact {
+        padding-top: 4rem;
+        padding-bottom: 2rem;
+    }
+
+    .track-order-page .track-result {
+        padding: 0 1.5rem 5rem;
+    }
+
+    /* A portrait tablet is wider than --narrow-desktop reaches, so the
+       collapse is repeated here rather than left to that query. */
+    .track-order-page .track-row {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+    }
+
+    .track-order-page .track-timeline-col {
+        align-items: flex-start;
+    }
+
+    .track-order-page .track-timeline {
+        max-width: none;
+    }
+}
+
+@media (--phone-sm) {
+    .track-order-page .track-result-head {
+        flex-direction: column;
+        gap: 0.8rem;
+        padding-bottom: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Five labels across a 393px frame: narrower and smaller so the
+       columns stay apart instead of running into each other. */
+    .track-order-page .track-step {
+        gap: 1rem;
+    }
+
+    .track-order-page .track-step-label {
+        font-size: 0.7rem;
+        width: 52px;
+        letter-spacing: 0.06em;
     }
 }

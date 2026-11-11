@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Package, Truck, CheckCircle } from 'lucide-react';
 import { ordersAPI } from '../lib/api';
 import { FULFILLMENT_STEPS, getStatusIndex, getStatusLabel } from '../utils/orderStatus';
+import { shopifyImage } from '../utils/shopifyImage';
 import './TrackOrder.css';
+
+const fmtDate = (iso) =>
+    new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
 
 /**
  * Orders come from our own backend, not from the Shopify customer record.
@@ -41,97 +44,132 @@ const TrackOrder = () => {
         setSearched(true);
     };
 
+    const statusIdx = getStatusIndex(matchedOrder);
+    const items = matchedOrder?.items || [];
+    const addr = matchedOrder?.shippingAddress || {};
+
     return (
         <div className="track-order-page">
-            <div className="track-container">
-                <h1 className="serif">TRACK YOUR ORDER</h1>
-                <p className="track-desc">ENTER YOUR ORDER NUMBER TO SEE THE CURRENT STATUS AND ESTIMATED DELIVERY DATE.</p>
+            <div className={`track-search${matchedOrder ? ' is-compact' : ''}`}>
+                <div className="track-search-head">
+                    <h1 className="serif">TRACK YOUR ORDER</h1>
+                    <p>ENTER YOUR ORDER NUMBER TO SEE ITS STATUS.</p>
+                </div>
 
                 {!token && !loading && (
-                    <p style={{ textAlign: 'center', fontSize: '0.75rem', letterSpacing: '0.1em', opacity: 0.6, marginBottom: '1.5rem' }}>
-                        <Link to="/profile" style={{ textDecoration: 'underline' }}>LOG IN</Link> TO TRACK YOUR ORDERS
+                    <p className="track-signin">
+                        <Link to="/profile">LOG IN</Link> TO TRACK YOUR ORDERS
                     </p>
                 )}
 
                 <form className="track-form" onSubmit={handleTrack}>
-                    <div className="search-input-wrapper">
-                        <Search size={20} />
+                    <div className="track-field">
+                        <label htmlFor="track-order-number">ORDER NUMBER</label>
                         <input
+                            id="track-order-number"
                             type="text"
-                            placeholder="ORDER NUMBER (e.g. 1001)"
+                            inputMode="numeric"
+                            placeholder="E.G. 1001"
                             value={searchId}
                             onChange={(e) => { setSearchId(e.target.value); setSearched(false); }}
                             required
                         />
                     </div>
-                    <button type="submit" className="track-btn" disabled={loading}>
+                    <button type="submit" className="track-submit" disabled={loading}>
                         {loading ? 'LOADING...' : 'TRACK STATUS'}
                     </button>
                 </form>
+            </div>
 
-                {searched && !matchedOrder && (
-                    <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-                        <p style={{ letterSpacing: '0.1em', fontSize: '0.85rem' }}>
-                            {token ? 'NO ORDER FOUND WITH THAT NUMBER' : 'PLEASE LOG IN TO TRACK YOUR ORDERS'}
-                        </p>
+            {searched && !matchedOrder && (
+                <p className="track-empty">
+                    {token ? 'NO ORDER FOUND WITH THAT NUMBER' : 'PLEASE LOG IN TO TRACK YOUR ORDERS'}
+                </p>
+            )}
+
+            {matchedOrder && (
+                <div className="track-result">
+                    <div className="track-result-head">
+                        <h2>ORDER #{matchedOrder.orderNumber || matchedOrder.id}</h2>
+                        <span className="track-result-status">
+                            {getStatusLabel(matchedOrder)} &middot; PLACED {fmtDate(matchedOrder.createdAt)}
+                        </span>
                     </div>
-                )}
 
-                {matchedOrder && (() => {
-                    const statusIdx = getStatusIndex(matchedOrder);
-
-                    return (
-                        <div className="tracking-results reveal active">
-                            <div className="status-header">
-                                <div>
-                                    <span className="order-label">ORDER #{matchedOrder.orderNumber || matchedOrder.id}</span>
-                                    <h2 className="current-status">{getStatusLabel(matchedOrder)}</h2>
+                    <div className="track-row">
+                        <div>
+                            {items.map((item, idx) => (
+                                <div key={idx} className="track-item">
+                                    <div className="track-item-img">
+                                        <img
+                                            src={shopifyImage(item.image || '/placeholder.png', 200)}
+                                            loading="lazy"
+                                            decoding="async"
+                                            alt={item.title}
+                                        />
+                                    </div>
+                                    <div className="track-item-meta">
+                                        <h3>{item.title}</h3>
+                                        {item.selectedOptions && (
+                                            <p>{item.selectedOptions.map(o => o.value).join(' | ')}</p>
+                                        )}
+                                        <p>QTY {item.quantity}</p>
+                                    </div>
                                 </div>
-                                <div className="est-delivery">
-                                    <span className="order-label">TOTAL</span>
-                                    <h3>RS. {Math.round(matchedOrder.totalAmount).toLocaleString('en-IN')}</h3>
-                                </div>
-                            </div>
+                            ))}
+                        </div>
 
-                            <div className="tracking-timeline">
-                                {FULFILLMENT_STEPS.map((label, index) => {
-                                    const completed = index <= statusIdx;
-                                    return (
-                                        <div key={label} className={`timeline-step ${completed ? 'completed' : ''}`}>
-                                            <div className="step-marker">
-                                                {completed ? <CheckCircle size={24} /> : (index === 3 ? <Truck size={24} /> : <Package size={24} />)}
-                                            </div>
-                                            <div className="step-info">
-                                                <span className="step-label">{label}</span>
-                                            </div>
+                        <div className="track-address">
+                            {addr.firstName && (
+                                <>
+                                    <strong>{addr.firstName} {addr.lastName}</strong>
+                                    <p>{addr.address}</p>
+                                    <p>{addr.city} {addr.state} {addr.zip}</p>
+                                    <p>{addr.country}</p>
+                                    {addr.phone && <p>{addr.phone}</p>}
+                                </>
+                            )}
+                        </div>
+
+                        <div className="track-timeline-col">
+                            <div className="track-timeline">
+                                <div className="track-timeline-line" aria-hidden="true"></div>
+                                <div className="track-steps">
+                                    {FULFILLMENT_STEPS.map((label, index) => (
+                                        <div
+                                            key={label}
+                                            className={`track-step${index <= statusIdx ? ' is-done' : ''}`}
+                                        >
+                                            <div className="track-step-box"></div>
+                                            <span className="track-step-label">{label}</span>
                                         </div>
-                                    );
-                                })}
+                                    ))}
+                                </div>
                             </div>
 
-                            {matchedOrder.trackingNumber && (
-                                <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                            {/* Facts only. Once delivered there is nothing left to
+                                track, and before dispatch there is nothing to show
+                                but the status already in the header. */}
+                            {matchedOrder.deliveredAt ? (
+                                <p className="track-note">DELIVERED {fmtDate(matchedOrder.deliveredAt)}</p>
+                            ) : matchedOrder.trackingNumber ? (
+                                <p className="track-note">
+                                    {matchedOrder.trackingCompany ? `${matchedOrder.trackingCompany} ` : ''}
                                     {matchedOrder.trackingUrl ? (
-                                        <a href={matchedOrder.trackingUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline', letterSpacing: '0.1em', fontSize: '0.8rem' }}>
-                                            TRACK SHIPMENT: {matchedOrder.trackingNumber}
+                                        <a href={matchedOrder.trackingUrl} target="_blank" rel="noopener noreferrer">
+                                            TRACK {matchedOrder.trackingNumber}
                                         </a>
                                     ) : (
-                                        <span style={{ letterSpacing: '0.1em', fontSize: '0.8rem', opacity: 0.7 }}>
-                                            {matchedOrder.trackingCompany ? `${matchedOrder.trackingCompany} · ` : ''}AWB {matchedOrder.trackingNumber}
-                                        </span>
+                                        <>AWB {matchedOrder.trackingNumber}</>
                                     )}
-                                </div>
-                            )}
+                                </p>
+                            ) : null}
 
-                            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-                                <Link to="/order-details" style={{ textDecoration: 'underline', letterSpacing: '0.1em', fontSize: '0.75rem', opacity: 0.7 }}>
-                                    VIEW FULL ORDER DETAILS
-                                </Link>
-                            </div>
+                            <Link to="/order-details" className="track-link">ORDER DETAILS</Link>
                         </div>
-                    );
-                })()}
-            </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
