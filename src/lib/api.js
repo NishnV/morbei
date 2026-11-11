@@ -156,6 +156,31 @@ export const paymentAPI = {
     verify: (body) => apiFetch('/payment/verify', { method: 'POST', body: JSON.stringify(body) }),
 };
 
+/**
+ * Admin. Authenticated by the dashboard token rather than a customer session,
+ * so these bypass apiFetch, which attaches the customer's bearer token.
+ */
+const ADMIN_BASE = import.meta.env.VITE_API_URL || '';
+
+async function adminFetch(path, token, options = {}) {
+    const res = await fetch(`${ADMIN_BASE}/dashboard${path}`, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', 'x-dashboard-token': token },
+    });
+    if (res.status === 401) throw new Error('That token was not accepted.');
+    if (res.status === 503) throw new Error('ADMIN_DASHBOARD_TOKEN is not set on the server.');
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || 'Request failed');
+    return data;
+}
+
+export const adminAPI = {
+    funnel: (token, days) => adminFetch(`/funnel?days=${days}`, token),
+    returns: (token, status) => adminFetch(`/returns${status ? `?status=${status}` : ''}`, token),
+    act: (token, id, action, note) =>
+        adminFetch(`/returns/${id}`, token, { method: 'POST', body: JSON.stringify({ action, note }) }),
+};
+
 // Returns — the lookup and submit are callable signed out; myOrders is not.
 export const returnsAPI = {
     myOrders: () => apiFetch('/returns/orders'),

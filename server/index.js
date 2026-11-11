@@ -1,5 +1,4 @@
 import express from 'express';
-import crypto from 'node:crypto';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -10,8 +9,9 @@ import paymentRoutes from './routes/payment.js';
 import orderRoutes from './routes/orders.js';
 import shippingRoutes from './routes/shipping.js';
 import contactRoutes from './routes/contact.js';
-import eventsRoutes, { funnelSummary } from './routes/events.js';
+import eventsRoutes from './routes/events.js';
 import returnsRoutes from './routes/returns.js';
+import adminRoutes from './routes/admin.js';
 import wishlistRoutes from './routes/wishlist.js';
 import { notifySlackError } from './services/slack.js';
 import { startReconciler } from './services/reconcile.js';
@@ -135,26 +135,10 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/returns', returnsRoutes);
 
-// The funnel dashboard. Business numbers, so it is not public: it needs
-// ADMIN_DASHBOARD_TOKEN, and refuses outright when that is unset rather than
-// defaulting to open.
-app.get('/api/dashboard/funnel', async (req, res) => {
-  const expected = process.env.ADMIN_DASHBOARD_TOKEN;
-  if (!expected) return res.status(503).json({ error: 'Dashboard is not configured' });
-  const given = req.get('x-dashboard-token') || '';
-  // Length check first: timingSafeEqual throws on a length mismatch.
-  if (given.length !== expected.length ||
-      !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected))) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  try {
-    const days = Math.min(Math.max(parseInt(req.query.days || '7', 10) || 7, 1), 90);
-    res.json(await funnelSummary(days));
-  } catch (err) {
-    console.error('Funnel summary failed:', err.message);
-    res.status(500).json({ error: 'Could not build the funnel' });
-  }
-});
+// Admin surface: the funnel and the returns queue, behind
+// ADMIN_DASHBOARD_TOKEN (see middleware/adminToken.js).
+app.use('/api/dashboard', adminRoutes);
+
 app.use('/api/wishlist', wishlistRoutes);
 
 // Liveness — the process is up and serving. This is what Railway's deploy

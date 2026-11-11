@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import AdminReturns from './AdminReturns';
+import { adminAPI } from '../lib/api';
 import './Dashboard.css';
 
 /**
@@ -27,6 +29,7 @@ const Dashboard = () => {
         try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; }
     });
     const [input, setInput] = useState('');
+    const [view, setView] = useState('funnel');
     const [days, setDays] = useState(7);
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
@@ -37,11 +40,7 @@ const Dashboard = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await fetch(`${API}/dashboard/funnel?days=${d}`, { headers: { 'x-dashboard-token': t } });
-            if (res.status === 401) throw new Error('That token was not accepted.');
-            if (res.status === 503) throw new Error('ADMIN_DASHBOARD_TOKEN is not set on the server.');
-            if (!res.ok) throw new Error('Could not load the funnel.');
-            setData(await res.json());
+            setData(await adminAPI.funnel(t, d));
         } catch (err) {
             setError(err.message);
             setData(null);
@@ -50,7 +49,7 @@ const Dashboard = () => {
         }
     }, []);
 
-    useEffect(() => { load(token, days); }, [token, days, load]);
+    useEffect(() => { if (view === 'funnel') load(token, days); }, [token, days, view, load]);
 
     if (!token) {
         return (
@@ -94,9 +93,16 @@ const Dashboard = () => {
     return (
         <div className="dash-page">
             <div className="dash-head">
-                <h1 className="dash-title">FUNNEL</h1>
+                <h1 className="dash-title">{view === 'returns' ? 'RETURNS' : 'FUNNEL'}</h1>
                 <div className="dash-range">
-                    {[7, 30, 90].map((d) => (
+                    {['funnel', 'returns'].map((v) => (
+                        <button
+                            key={v}
+                            className={`dash-range-btn${view === v ? ' is-active' : ''}`}
+                            onClick={() => setView(v)}
+                        >{v.toUpperCase()}</button>
+                    ))}
+                    {view === 'funnel' && [7, 30, 90].map((d) => (
                         <button
                             key={d}
                             className={`dash-range-btn${days === d ? ' is-active' : ''}`}
@@ -106,10 +112,12 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {loading && <p className="dash-note">LOADING…</p>}
+            {view === 'returns' && <AdminReturns token={token} />}
+
+            {view === 'funnel' && loading && <p className="dash-note">LOADING…</p>}
             {error && <p className="dash-error">{error}</p>}
 
-            {data && (
+            {view === 'funnel' && data && (
                 <>
                     <div className="dash-headline">
                         <div className="dash-stat">
