@@ -209,6 +209,12 @@ export async function initDB() {
             updated_at TIMESTAMPTZ DEFAULT now()
         );
 
+        -- Which size they want back, for an exchange. The form asks only when
+        -- the shopper picks an exchange, so it is null on a refund.
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS exchange_size TEXT;
+        -- The replacement order raised in Shopify, once one exists.
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS replacement_order_number BIGINT;
+
         CREATE INDEX IF NOT EXISTS idx_returns_status_created
             ON returns (status, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_returns_order ON returns (order_id);

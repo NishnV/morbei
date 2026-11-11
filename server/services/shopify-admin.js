@@ -22,7 +22,7 @@ async function adminFetch(endpoint, options = {}) {
     return res.json();
 }
 
-export async function createDraftOrder({ lineItems, shippingAddress, email, note, shippingLine }) {
+export async function createDraftOrder({ lineItems, shippingAddress, email, note, shippingLine, appliedDiscount }) {
     // lineItems: [{ variant_id (numeric), quantity }]
     // shippingLine: { title, price } in rupees — omitted for free shipping.
     // Without it the customer pays for priority delivery via Razorpay but the
@@ -36,6 +36,11 @@ export async function createDraftOrder({ lineItems, shippingAddress, email, note
             shipping_address: shippingAddress,
             ...(shippingLine ? { shipping_line: shippingLine } : {}),
             email,
+            // A replacement for an exchange is sent at no charge: the customer
+            // already paid on the original order. A 100% discount rather than
+            // zero-priced lines, so the order still records what the garment
+            // is worth and stock and reporting stay honest.
+            ...(appliedDiscount ? { applied_discount: appliedDiscount } : {}),
             note: note || 'Order via MORBEI website',
         },
     };
@@ -251,4 +256,44 @@ export function gidToNumeric(gid) {
     if (!gid) return null;
     const parts = gid.split('/');
     return parseInt(parts[parts.length - 1], 10);
+}
+
+/**
+ * A product with all of its variants, used to find the size a customer wants
+ * in exchange for the one they are sending back.
+ */
+export async function getProduct(productId) {
+    const data = await adminFetch(`products/${productId}.json`);
+    return data.product;
+}
+
+/**
+ * The same garment in a different size.
+ *
+ * Resolved from the variant that was bought rather than from a product handle,
+ * because the order stores variant ids and nothing else. Returns null when the
+ * size does not exist or is out of stock, which the caller reports instead of
+ * creating an order that cannot be fulfilled.
+ */
+export async function findSiblingVariant(originalVariantId, wantedSize) {
+    const original = await getVariant(originalVariantId);
+    if (!original?.product_id) return { error: 'Could not find the original product.' };
+
+    const product = await getProduct(original.product_id);
+    const variants = product?.variants || [];
+
+    const wanted = String(wantedSize).trim().toUpperCase();
+    const match = variants.find((v) =>
+        [v.option1, v.option2, v.option3]
+            .filter(Boolean)
+            .some((o) => String(o).trim().toUpperCase() === wanted)
+    );
+
+    if (!match) return { error: `${product?.title || 'This product'} is not available in ${wantedSize}.` };
+    // inventory_quantity can be negative when oversold, so compare rather than
+    // trusting truthiness, and respect "continue selling" the way the shop does.
+    const inStock = match.inventory_policy === 'continue' || Number(match.inventory_quantity) > 0;
+    if (!inStock) return { error: `${product?.title || 'This product'} is out of stock in ${wantedSize}.` };
+
+    return { variant: match, product };
 }

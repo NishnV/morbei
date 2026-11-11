@@ -29,6 +29,7 @@ const TABS = [
     ['requested', 'NEW'],
     ['approved', 'APPROVED'],
     ['refunded', 'REFUNDED'],
+    ['exchanged', 'EXCHANGED'],
     ['rejected', 'REJECTED'],
     ['', 'ALL'],
 ];
@@ -41,6 +42,9 @@ const AdminReturns = ({ token }) => {
     const [error, setError] = useState('');
     const [busyId, setBusyId] = useState(null);
     const [notes, setNotes] = useState({});
+    // Only needed for an exchange of a different product, where the customer
+    // described what they want in words and a person has to resolve it.
+    const [variantIds, setVariantIds] = useState({});
 
     const load = useCallback(async () => {
         setError('');
@@ -56,10 +60,11 @@ const AdminReturns = ({ token }) => {
     const act = async (id, action) => {
         // Money leaving the account should not be one unguarded click.
         if (action === 'refund' && !window.confirm('Issue this refund to the customer now?')) return;
+        if (action === 'exchange' && !window.confirm('Raise a free replacement order in Shopify now?')) return;
         setBusyId(id);
         setError('');
         try {
-            await adminAPI.act(token, id, action, notes[id] || '');
+            await adminAPI.act(token, id, action, notes[id] || '', variantIds[id] || undefined);
             await load();
         } catch (err) {
             setError(err.message);
@@ -98,6 +103,8 @@ const AdminReturns = ({ token }) => {
                     <dl className="ret-meta">
                         <div><dt>WANTS</dt><dd>{RESOLUTION_LABELS[r.resolution] || r.resolution}</dd></div>
                         <div><dt>REASON</dt><dd>{r.reasons.map((x) => REASON_LABELS[x] || x).join(', ')}</dd></div>
+                        {r.exchangeSize && <div><dt>WANTS SIZE</dt><dd>{r.exchangeSize}</dd></div>}
+                        {r.replacementOrderNumber && <div><dt>REPLACEMENT</dt><dd>#{r.replacementOrderNumber}</dd></div>}
                         <div><dt>REFUNDABLE</dt><dd>{rs(r.refundablePaise)}</dd></div>
                         <div><dt>FROM</dt><dd>{r.fullName} · {r.email} · {r.phone}</dd></div>
                         <div><dt>RAISED</dt><dd>{new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</dd></div>
@@ -130,9 +137,24 @@ const AdminReturns = ({ token }) => {
                                     <button className="ret-btn ret-btn--ghost" disabled={busyId === r.id} onClick={() => act(r.id, 'reject')}>REJECT</button>
                                 </>
                             )}
+                            {r.status === 'approved' && r.resolution?.startsWith('exchange') && (
+                                <>
+                                    {r.resolution === 'exchange_product' && (
+                                        <input
+                                            className="ret-note"
+                                            placeholder="SHOPIFY VARIANT ID"
+                                            value={variantIds[r.id] || ''}
+                                            onChange={(e) => setVariantIds((p) => ({ ...p, [r.id]: e.target.value }))}
+                                        />
+                                    )}
+                                    <button className="ret-btn" disabled={busyId === r.id} onClick={() => act(r.id, 'exchange')}>
+                                        SEND {r.exchangeSize ? `SIZE ${r.exchangeSize}` : 'REPLACEMENT'}
+                                    </button>
+                                </>
+                            )}
                             {r.status === 'approved' && (
                                 <button
-                                    className="ret-btn"
+                                    className={`ret-btn${r.resolution?.startsWith('exchange') ? ' ret-btn--ghost' : ''}`}
                                     disabled={busyId === r.id || !r.refundable || !r.refundablePaise}
                                     onClick={() => act(r.id, 'refund')}
                                     title={!r.refundable ? 'No captured payment on this order' : ''}

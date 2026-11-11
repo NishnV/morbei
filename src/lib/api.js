@@ -177,8 +177,8 @@ async function adminFetch(path, token, options = {}) {
 export const adminAPI = {
     funnel: (token, days) => adminFetch(`/funnel?days=${days}`, token),
     returns: (token, status) => adminFetch(`/returns${status ? `?status=${status}` : ''}`, token),
-    act: (token, id, action, note) =>
-        adminFetch(`/returns/${id}`, token, { method: 'POST', body: JSON.stringify({ action, note }) }),
+    act: (token, id, action, note, variantId) =>
+        adminFetch(`/returns/${id}`, token, { method: 'POST', body: JSON.stringify({ action, note, variantId }) }),
 };
 
 // Returns — the lookup and submit are callable signed out; myOrders is not.

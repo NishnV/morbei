@@ -182,6 +182,14 @@ router.post('/', optionalAuthenticate, async (req, res) => {
         const item = items.find((i) => i.variantId === b.variantId);
         if (!item) return res.status(400).json({ error: 'Please choose a product from your order.' });
 
+        // An exchange is not actionable without knowing what to send instead.
+        const exchangeSize = resolution === 'exchange_size'
+            ? str(b.exchangeSize, 20)
+            : null;
+        if (resolution === 'exchange_size' && !exchangeSize) {
+            return res.status(400).json({ error: 'Please choose the size you would like instead.' });
+        }
+
         const media = cleanMedia(b.media);
         // Photographs are what make a damage claim reviewable without posting
         // the item back first, so they are required for exactly those reasons.
@@ -193,8 +201,8 @@ router.post('/', optionalAuthenticate, async (req, res) => {
         const inserted = await run(
             `INSERT INTO returns
                (order_id, shopify_order_number, email, full_name, phone, variant_id,
-                product_title, reasons, details, resolution, comments, media, declaration)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true)
+                product_title, reasons, details, resolution, comments, media, exchange_size, declaration)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true)
              ON CONFLICT (order_id, variant_id)
                WHERE status IN ('requested', 'approved') DO NOTHING
              RETURNING id`,
@@ -202,7 +210,7 @@ router.post('/', optionalAuthenticate, async (req, res) => {
                 order.id, order.shopify_order_number, order.user_email,
                 str(b.fullName, 120), str(b.phone, 40), item.variantId,
                 str(item.title, 200), JSON.stringify(reasons), str(b.details, 2000),
-                resolution, str(b.comments, 2000), JSON.stringify(media),
+                resolution, str(b.comments, 2000), JSON.stringify(media), exchangeSize,
             ]
         );
 

@@ -36,6 +36,13 @@ const NEEDS_MEDIA = ['damaged', 'wrong_product', 'quality'];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// The size run the shop sells. Offered as a plain list rather than the
+// product's live variants: the order stores variant ids and no handle, so the
+// other sizes of that garment cannot be looked up from the browser. The
+// server resolves this to a real variant — and checks stock — when the
+// replacement is raised.
+const SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL'];
+
 const itemLabel = (item) => {
     const opts = (item.options || []).map((o) => o.value).filter(Boolean).join(' / ');
     return opts ? `${item.title} — ${opts}` : item.title;
@@ -50,6 +57,7 @@ const ReturnRequest = () => {
     });
     const [reasons, setReasons] = useState([]);
     const [resolution, setResolution] = useState('');
+    const [exchangeSize, setExchangeSize] = useState('');
     const [declared, setDeclared] = useState(false);
 
     const [myOrders, setMyOrders] = useState(null);   // null until we know
@@ -158,6 +166,9 @@ const ReturnRequest = () => {
         if (!form.variantId) return setError('Please choose the product you are returning.');
         if (!reasons.length) return setError('Please choose a reason for the return.');
         if (!resolution) return setError('Please choose a refund or an exchange.');
+        if (resolution === 'exchange_size' && !exchangeSize) {
+            return setError('Please choose the size you would like instead.');
+        }
         if (mediaRequired && media.length === 0) {
             return setError('Please upload a photo or video showing the issue.');
         }
@@ -174,6 +185,7 @@ const ReturnRequest = () => {
                 reasons,
                 details: form.details,
                 resolution,
+                exchangeSize,
                 comments: form.comments,
                 media,
                 declaration: true,
@@ -347,6 +359,22 @@ const ReturnRequest = () => {
                         </label>
                     ))}
                 </fieldset>
+
+                {resolution === 'exchange_size' && (
+                    <label className="rr-field">
+                        <span>WHICH SIZE WOULD YOU LIKE?*</span>
+                        <select value={exchangeSize} onChange={(e) => setExchangeSize(e.target.value)} required>
+                            <option value="">SELECT A SIZE</option>
+                            {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </label>
+                )}
+
+                {resolution === 'exchange_product' && (
+                    <p className="rr-note">
+                        TELL US WHICH PRODUCT YOU WOULD LIKE IN THE COMMENTS BELOW.
+                    </p>
+                )}
 
                 <label className="rr-field rr-field--area">
                     <span>ADDITIONAL COMMENTS</span>

@@ -220,6 +220,7 @@
 .ret-status--requested { color: #d8c08a; }
 .ret-status--approved  { color: #88c888; }
 .ret-status--refunded  { color: #8aa8d8; }
+.ret-status--exchanged { color: #c8a8d8; }
 .ret-status--rejected  { color: #e88; }
 
 .ret-meta {

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { get, all, run } from '../db/pg.js';
 import { requireDashboardToken } from '../middleware/adminToken.js';
 import { refundPayment } from '../services/razorpay.js';
+import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant }
+    from '../services/shopify-admin.js';
 import { notifySlackError } from '../services/slack.js';
 import { funnelSummary } from './events.js';
 
@@ -19,7 +21,7 @@ router.get('/funnel', async (req, res) => {
     }
 });
 
-const STATUSES = ['requested', 'approved', 'rejected', 'refunded'];
+const STATUSES = ['requested', 'approved', 'rejected', 'refunded', 'exchanged'];
 
 /** What this one item is worth, in paise, from the order's stored lines. */
 function itemAmountPaise(order, variantId) {
@@ -56,6 +58,8 @@ router.get('/returns', async (req, res) => {
                 reasons: JSON.parse(r.reasons || '[]'),
                 details: r.details,
                 resolution: r.resolution,
+                exchangeSize: r.exchange_size,
+                replacementOrderNumber: r.replacement_order_number,
                 comments: r.comments,
                 media: JSON.parse(r.media || '[]'),
                 status: r.status,
@@ -146,6 +150,95 @@ router.post('/returns/:id', async (req, res) => {
                 console.error(`Return refund failed for ${id}:`, err.message);
                 notifySlackError(`return refund failed (return ${id}, order #${row.shopify_order_number})`, err).catch(() => {});
                 return res.status(502).json({ error: 'Razorpay refused the refund. Nothing has been charged back.' });
+            }
+        }
+
+        if (action === 'exchange') {
+            if (row.status !== 'approved') {
+                return res.status(409).json({ error: 'Approve the return before sending a replacement.' });
+            }
+            if (!row.resolution?.startsWith('exchange')) {
+                return res.status(400).json({ error: 'This request asked for a refund, not an exchange.' });
+            }
+
+            const order = await get('SELECT * FROM orders WHERE id = $1', [row.order_id]);
+            if (!order) return res.status(400).json({ error: 'Original order not found.' });
+
+            // The admin may name a variant directly — that is how an exchange
+            // for a different product is handled, since the customer describes
+            // it in words and only a person can decide what they meant.
+            const override = req.body?.variantId ? String(req.body.variantId) : null;
+            let variantId = override ? gidToNumeric(override) || override : null;
+            let label = override ? `variant ${variantId}` : null;
+
+            if (!variantId) {
+                if (!row.exchange_size) {
+                    return res.status(400).json({ error: 'No size was requested — supply a variant id.' });
+                }
+                // Resolving the size talks to Shopify, so it can fail for
+                // reasons that have nothing to do with the request. Caught
+                // here rather than left to the generic handler, which would
+                // report "something went wrong" and leave the operator
+                // guessing whether the size was wrong or Shopify was down.
+                let found;
+                try {
+                    found = await findSiblingVariant(gidToNumeric(row.variant_id), row.exchange_size);
+                } catch (err) {
+                    console.error(`Variant lookup failed for return ${id}:`, err.message);
+                    return res.status(502).json({ error: 'Could not reach Shopify to find that size. Nothing was sent.' });
+                }
+                if (found.error) return res.status(409).json({ error: found.error });
+                variantId = found.variant.id;
+                label = `${found.product.title} — ${row.exchange_size}`;
+            }
+
+            // Claim first: raising two replacement orders is as bad as
+            // refunding twice, and a slow Shopify call invites a second click.
+            const claimed = await run(
+                `UPDATE returns SET status = 'exchanging', updated_at = now()
+                  WHERE id = $1 AND status = 'approved'`,
+                [id]
+            );
+            if (!claimed.rowCount) return res.status(409).json({ error: 'Already in progress' });
+
+            try {
+                let shippingAddress = {};
+                try { shippingAddress = JSON.parse(order.shipping_address || '{}'); } catch { /* best effort */ }
+
+                const draft = await createDraftOrder({
+                    lineItems: [{ variant_id: Number(variantId), quantity: 1 }],
+                    shippingAddress,
+                    email: row.email,
+                    note: `Exchange for order #${row.shopify_order_number} — return ${row.id}`,
+                    // Already paid for on the original order.
+                    appliedDiscount: {
+                        description: `Exchange for #${row.shopify_order_number}`,
+                        value_type: 'percentage',
+                        value: '100.0',
+                        title: 'Exchange',
+                    },
+                });
+                const completed = await completeDraftOrder(draft.draft_order.id);
+                const newOrderId = completed.draft_order.order_id;
+
+                let newNumber = null;
+                try {
+                    const fresh = await getOrder(newOrderId);
+                    newNumber = fresh?.order?.order_number ?? null;
+                } catch { /* the order exists either way */ }
+
+                await run(
+                    `UPDATE returns SET status = 'exchanged', replacement_order_number = $1,
+                            admin_note = COALESCE($2, admin_note), updated_at = now()
+                      WHERE id = $3`,
+                    [newNumber, typeof note === 'string' ? note.slice(0, 1000) : null, id]
+                );
+                return res.json({ id, status: 'exchanged', replacementOrderNumber: newNumber, sent: label });
+            } catch (err) {
+                await run(`UPDATE returns SET status = 'approved', updated_at = now() WHERE id = $1`, [id]);
+                console.error(`Exchange order failed for return ${id}:`, err.message);
+                notifySlackError(`exchange replacement failed (return ${id}, order #${row.shopify_order_number})`, err).catch(() => {});
+                return res.status(502).json({ error: 'Shopify refused the replacement order. Nothing was sent.' });
             }
         }
 
