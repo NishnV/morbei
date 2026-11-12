@@ -298,6 +298,11 @@ export async function initDB() {
         -- then discarded, so reconciling a disputed refund meant going
         -- through Razorpay's dashboard by hand.
         ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_id TEXT;
+        -- And for how much. Without it there is no way to know what remains
+        -- refundable on an order, so the amount could only be compared against
+        -- the whole capture — which refused outright whenever a line was worth
+        -- more than was taken, as on a one-rupee test order.
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_amount_paise BIGINT;
 
         -- Set when the piece comes back and is sent on again because it
         -- failed inspection — worn, no tags, or not the item claimed.

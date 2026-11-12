@@ -244,14 +244,40 @@ const STATUSES = ['requested', 'approved', 'in_transit', 'received', 'rejected',
     'refunded', 'exchanged'];
 
 /** What this one item is worth, in paise, from the order's stored lines. */
-function itemAmountPaise(order, variantId) {
+/** The line's face value, uncapped — shown beside the refundable amount. */
+function lineValuePaise(itemsJson, variantId) {
+    try {
+        const line = JSON.parse(itemsJson || '[]').find((i) => i.variantId === variantId);
+        if (!line || !Number.isFinite(Number(line.price))) return null;
+        return Math.round(Number(line.price) * (line.quantity || 1) * 100);
+    } catch { return null; }
+}
+
+/**
+ * What this line is worth, bounded by what is actually left on the payment.
+ *
+ * This used to return null whenever the line was worth more than the whole
+ * capture, which reads as "no refund possible" and disabled the button with
+ * no explanation. On a one-rupee test order that is every line — the stored
+ * price is the real one, the capture is ₹1 — so a test order could be taken
+ * all the way to the shelf and then never refunded.
+ *
+ * Refusing was the wrong shape for the rule. The rule is never to send back
+ * more than came in, which is a cap, not a veto.
+ */
+function itemAmountPaise(order, variantId, alreadyRefundedPaise = 0) {
     let items = [];
     try { items = JSON.parse(order.items || '[]'); } catch { return null; }
     const line = items.find((i) => i.variantId === variantId);
     if (!line || !Number.isFinite(Number(line.price))) return null;
-    const paise = Math.round(Number(line.price) * (line.quantity || 1) * 100);
-    // Never refund more than was taken, whatever the stored line says.
-    return paise > 0 && paise <= Number(order.total_amount) ? paise : null;
+
+    const lineValue = Math.round(Number(line.price) * (line.quantity || 1) * 100);
+    if (lineValue <= 0) return null;
+
+    const remaining = Number(order.total_amount) - Number(alreadyRefundedPaise || 0);
+    if (remaining <= 0) return null;
+
+    return Math.min(lineValue, remaining);
 }
 
 // GET /api/dashboard/returns?status=requested
@@ -259,7 +285,10 @@ router.get('/returns', async (req, res) => {
     try {
         const status = STATUSES.includes(req.query.status) ? req.query.status : null;
         const rows = await all(
-            `SELECT r.*, o.total_amount, o.items AS order_items, o.razorpay_payment_id, o.delivered_at
+            `SELECT r.*, o.total_amount, o.items AS order_items, o.razorpay_payment_id, o.delivered_at,
+                    COALESCE((SELECT SUM(r2.refund_amount_paise) FROM returns r2
+                               WHERE r2.order_id = r.order_id AND r2.status = 'refunded'), 0)
+                      AS order_refunded_paise
                FROM returns r
                LEFT JOIN orders o ON o.id = r.order_id
               ${status ? 'WHERE r.status = $1' : ''}
@@ -294,8 +323,14 @@ router.get('/returns', async (req, res) => {
                 // Shown next to the button, so the amount is known before the
                 // refund is pressed rather than discovered afterwards.
                 refundablePaise: r.order_id ? itemAmountPaise(
-                    { items: r.order_items, total_amount: r.total_amount }, r.variant_id
+                    { items: r.order_items, total_amount: r.total_amount },
+                    r.variant_id,
+                    Number(r.order_refunded_paise || 0)
                 ) : null,
+                // So a ₹1 refund against a ₹2,550 line reads as a cap rather
+                // than a mistake.
+                lineValuePaise: r.order_id ? lineValuePaise(r.order_items, r.variant_id) : null,
+                refundedPaise: r.refund_amount_paise ? Number(r.refund_amount_paise) : null,
                 refundable: Boolean(r.razorpay_payment_id),
             })),
             counts: Object.fromEntries(
@@ -440,9 +475,18 @@ router.post('/returns/:id', async (req, res) => {
             if (!order?.razorpay_payment_id) {
                 return res.status(400).json({ error: 'No captured payment found for this order.' });
             }
-            const amount = itemAmountPaise(order, row.variant_id);
+            const prior = await get(
+                `SELECT COALESCE(SUM(refund_amount_paise), 0)::bigint AS paid
+                   FROM returns WHERE order_id = $1 AND status = 'refunded'`,
+                [row.order_id]
+            );
+            const amount = itemAmountPaise(order, row.variant_id, Number(prior?.paid || 0));
             if (!amount) {
-                return res.status(400).json({ error: 'Could not work out the amount — refund this one in Razorpay.' });
+                return res.status(400).json({
+                    error: Number(prior?.paid || 0) >= Number(order.total_amount)
+                        ? 'This order has already been refunded in full.'
+                        : 'Could not work out the amount — refund this one in Razorpay.',
+                });
             }
 
             // Claim before calling Razorpay, so a double click cannot refund
@@ -466,10 +510,10 @@ router.post('/returns/:id', async (req, res) => {
                 // the refund. It used to be returned to the browser and
                 // dropped, leaving nothing to reconcile a dispute against.
                 await run(
-                    `UPDATE returns SET status = 'refunded', refund_id = $3,
+                    `UPDATE returns SET status = 'refunded', refund_id = $3, refund_amount_paise = $4,
                             admin_note = COALESCE($1, admin_note),
                             updated_at = now() WHERE id = $2`,
-                    [typeof note === 'string' ? note.slice(0, 1000) : null, id, refund.id || null]
+                    [typeof note === 'string' ? note.slice(0, 1000) : null, id, refund.id || null, amount]
                 );
                 // Shopify is the order of record and the inventory of record,
                 // and until now neither heard about a return: the order stayed

@@ -123,7 +123,18 @@ const AdminReturns = ({ token }) => {
                         <div><dt>REASON</dt><dd>{r.reasons.map((x) => REASON_LABELS[x] || x).join(', ')}</dd></div>
                         {r.exchangeSize && <div><dt>WANTS SIZE</dt><dd>{r.exchangeSize}</dd></div>}
                         {r.replacementOrderNumber && <div><dt>REPLACEMENT</dt><dd>#{r.replacementOrderNumber}</dd></div>}
-                        <div><dt>REFUNDABLE</dt><dd>{rs(r.refundablePaise)}</dd></div>
+                        <div>
+                            <dt>REFUNDABLE</dt>
+                            <dd>
+                                {rs(r.refundablePaise)}
+                                {/* A test order's line is worth its real price while only
+                                    ₹1 was captured, so say that the figure is a cap rather
+                                    than leaving it looking like a miscalculation. */}
+                                {r.lineValuePaise && r.refundablePaise
+                                    && r.lineValuePaise !== r.refundablePaise
+                                    && ` (capped — line is ${rs(r.lineValuePaise)})`}
+                            </dd>
+                        </div>
                         <div><dt>FROM</dt><dd>{r.fullName} · {r.email} · {r.phone}</dd></div>
                         <div><dt>RAISED</dt><dd>{new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</dd></div>
                         {(r.returnCarrier || r.returnAwb) && (
