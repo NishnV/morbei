@@ -214,6 +214,17 @@ export async function initDB() {
         CREATE INDEX IF NOT EXISTS idx_orders_guest_session ON orders (guest_session_id)
             WHERE guest_session_id IS NOT NULL;
 
+        -- Cancellation claim, kept apart from the status column for the same
+        -- reason claimed_at is: overloading status as a mutex means a process
+        -- that dies mid-cancel leaves the row in a state no transition
+        -- accepts, and nothing can release it.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancel_claimed_at TIMESTAMPTZ;
+
+        -- A free replacement raised for an exchange. The parent is kept so
+        -- the two can be told apart in reporting — a replacement is not a
+        -- second sale.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS replacement_for_order_id INTEGER;
+
         -- Return and exchange requests.
         --
         -- order_id is nullable on purpose. The form is filled in by order
@@ -257,14 +268,45 @@ export async function initDB() {
         ALTER TABLE returns ADD COLUMN IF NOT EXISTS return_awb TEXT;
         ALTER TABLE returns ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ;
 
+        -- Claims for the two operations that call an external API and then
+        -- write the result. Status used to carry these as 'refunding' and
+        -- 'exchanging', which meant a deploy or a timeout between the claim
+        -- and the final update stranded the row forever: no transition
+        -- accepted either value and nothing swept them. Holding the claim in
+        -- its own column lets the status stay honest and lets a stale claim
+        -- be released by age.
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_claimed_at TIMESTAMPTZ;
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS exchange_claimed_at TIMESTAMPTZ;
+
+        -- What Razorpay called the refund. It was returned to the browser and
+        -- then discarded, so reconciling a disputed refund meant going
+        -- through Razorpay's dashboard by hand.
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_id TEXT;
+
+        -- Set when the piece comes back and is sent on again because it
+        -- failed inspection — worn, no tags, or not the item claimed.
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS inspection_note TEXT;
+
+        -- Whether the piece went back into Shopify's inventory. Null means
+        -- nobody has decided yet; false is a deliberate "do not restock".
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS restocked_at TIMESTAMPTZ;
+
         CREATE INDEX IF NOT EXISTS idx_returns_status_created
             ON returns (status, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_returns_order ON returns (order_id);
 
         -- One open request per item. A shopper pressing submit twice, or
         -- coming back a day later, must not create two refunds to approve.
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_returns_one_open_per_item
+        -- One request per item, ever, unless it was turned down. This used to
+        -- cover only 'requested' and 'approved', so once a return reached
+        -- 'refunded' the same item could be requested again and refunded a
+        -- second time — the amount cap is per order line, not per refund
+        -- already issued, so on a multi-line order it stayed inside the
+        -- captured total and Razorpay would accept it. A rejected request may
+        -- be raised again; everything else is settled.
+        DROP INDEX IF EXISTS idx_returns_one_open_per_item;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_returns_one_per_item
             ON returns (order_id, variant_id)
-            WHERE status IN ('requested', 'approved');
+            WHERE status <> 'rejected';
     `);
 }

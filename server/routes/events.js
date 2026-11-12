@@ -75,7 +75,10 @@ export async function funnelSummary(days = 7) {
                     COALESCE(SUM(total_amount), 0)::bigint AS revenue_paise
              FROM orders
              WHERE created_at > ${since} AND razorpay_payment_id IS NOT NULL
-               AND is_test = false`),
+               AND is_test = false
+               -- A free replacement carries the parent's payment id so the
+               -- returns lookup can find it. It is not a second sale.
+               AND replacement_for_order_id IS NULL`),
         all(`SELECT date_trunc('day', created_at)::date AS day,
                     COUNT(DISTINCT session_id)::int     AS sessions,
                     COUNT(*) FILTER (WHERE event = 'ViewContent')::int      AS view_content,

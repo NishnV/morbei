@@ -654,6 +654,13 @@ const RETURN_COPY = {
         body: () => `It has arrived and we are checking it over. You will hear from us within
              two working days with your refund or replacement.`,
     },
+    inspection_failed: {
+        subject: (n) => `About the item you returned — order #${n}`,
+        heading: 'RETURN NOT ACCEPTED',
+        body: (d) => `${d.note ? `${esc(d.note)} ` : 'The piece did not meet our returns condition when we checked it over. '}`
+            + `We are sending it back to you at no charge${d.returnAwb ? ` — tracking <span class="c-w" style="color:#ffffff;">${esc(d.returnAwb)}</span>` : ''}. `
+            + 'Reply to this email if you would like to talk it through.',
+    },
     rejected: {
         subject: (n) => `About your return request — order #${n}`,
         heading: 'RETURN NOT APPROVED',

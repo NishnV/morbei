@@ -8,6 +8,11 @@ import { get, run } from '../db/pg.js';
 
 const router = Router();
 
+// How long a cancellation claim may sit before another attempt may take it.
+// Covers a slow Razorpay call without blocking the customer for long if the
+// process died holding it.
+const CANCEL_CLAIM_STALE_MINUTES = 10;
+
 // Find the captured payment for an order. Paid orders record the id directly;
 // orders still 'pending' (verify never completed) may still have a captured
 // payment on the Razorpay order — look it up so money is never left behind.
@@ -82,11 +87,21 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
             }
         }
 
-        // Atomically claim the cancellation so a double-click / concurrent call
-        // can't refund twice. Only one caller flips it out of its current state.
+        // Atomically claim the cancellation so a double-click or a concurrent
+        // call can't refund twice — in a column of its own, not by moving the
+        // status to 'cancelling'. That value was accepted by no transition and
+        // swept by nothing, so a deploy or a crash anywhere between here and
+        // the final update stranded the order permanently: the reconciler only
+        // looks at 'pending' and 'processing', the webhook only at 'pending',
+        // and the customer's retry met a 409 forever. Worse, if the Razorpay
+        // refund had already succeeded there was no local record of it. A
+        // stale claim is now released by age.
         const claim = await run(
-            `UPDATE orders SET status = 'cancelling' WHERE id = $1 AND status IN ('pending', 'paid')`,
-            [order.id]
+            `UPDATE orders SET cancel_claimed_at = now()
+              WHERE id = $1 AND status IN ('pending', 'paid')
+                AND (cancel_claimed_at IS NULL
+                     OR cancel_claimed_at < now() - make_interval(mins => $2::int))`,
+            [order.id, CANCEL_CLAIM_STALE_MINUTES]
         );
         if (claim.rowCount === 0) {
             return res.status(409).json({ error: 'Order cannot be cancelled in its current state' });
@@ -103,11 +118,16 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
                 const refund = await refundPayment(payment.id, Number(order.total_amount));
                 refundId = refund.id;
                 refundedPaise = Number(order.total_amount);
+                // Write it down before doing anything else. The Shopify call
+                // below, a crash, or a deploy must never be able to lose the
+                // only record that this customer's money went back.
+                await run('UPDATE orders SET refund_id = $1 WHERE id = $2', [refundId, order.id])
+                    .catch((e) => console.error(`Could not persist refund id for order ${order.id}:`, e.message));
             } catch (err) {
                 // Money is still with us — revert the claim so it can be retried,
                 // and alert the owner to refund manually.
                 console.error(`Refund failed for order ${order.id}:`, err.message);
-                await run(`UPDATE orders SET status = $1 WHERE id = $2 AND status = 'cancelling'`, [order.status, order.id]);
+                await run(`UPDATE orders SET cancel_claimed_at = NULL WHERE id = $1`, [order.id]);
                 // Alert on BOTH channels. This is the one failure where the
                 // customer has been told "our team has been notified" — if the
                 // only notification is an email and SMTP is having a bad day,
@@ -140,7 +160,14 @@ router.post('/cancel/:orderId', authenticate, async (req, res) => {
             }
         }
 
-        await run('UPDATE orders SET status = $1, refund_id = $2 WHERE id = $3', ['cancelled', refundId, order.id]);
+        // COALESCE so a refund id already persisted above survives, and the
+        // claim is released in the same statement that settles the status.
+        await run(
+            `UPDATE orders SET status = 'cancelled', refund_id = COALESCE($1, refund_id),
+                    cancel_claimed_at = NULL
+              WHERE id = $2`,
+            [refundId, order.id]
+        );
 
         const user = await get('SELECT * FROM users WHERE id = $1', [order.user_id]).catch(() => null);
         if (user) {

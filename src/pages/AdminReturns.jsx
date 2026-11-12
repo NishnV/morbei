@@ -25,12 +25,18 @@ const RESOLUTION_LABELS = {
     exchange_product: 'Exchange — product',
 };
 
+// in_transit and received were added without tabs, so the two states that
+// exist to show what you are waiting on were the only two with no queue — a
+// return marked "coming back" vanished from NEW and APPROVED into ALL.
 const TABS = [
     ['requested', 'NEW'],
     ['approved', 'APPROVED'],
+    ['in_transit', 'COMING BACK'],
+    ['received', 'ON THE SHELF'],
     ['refunded', 'REFUNDED'],
     ['exchanged', 'EXCHANGED'],
     ['rejected', 'REJECTED'],
+    ['inspection_failed', 'NOT ACCEPTED'],
     ['', 'ALL'],
 ];
 
@@ -63,7 +69,15 @@ const AdminReturns = ({ token }) => {
 
     const act = async (id, action, extras = {}) => {
         // Money leaving the account should not be one unguarded click.
-        if (action === 'refund' && !window.confirm('Issue this refund to the customer now?')) return;
+        if (action === 'refund') {
+            if (!window.confirm('Issue this refund to the customer now?')) return;
+            // Shopify is told about the return either way. Whether the piece
+            // goes back on sale is a judgement about its condition, and a
+            // damaged return must not silently reappear in stock.
+            extras.restockOnRefund = window.confirm(
+                'Put this piece back on sale in Shopify?\n\nOK = restock.  Cancel = record the return but leave it out of stock.'
+            );
+        }
         if (action === 'exchange' && !window.confirm('Raise a free replacement order in Shopify now?')) return;
         setBusyId(id);
         setError('');
@@ -180,6 +194,26 @@ const AdminReturns = ({ token }) => {
                             {(r.status === 'approved' || r.status === 'in_transit') && (
                                 <button className="ret-btn" disabled={busyId === r.id} onClick={() => act(r.id, 'received')}>
                                     MARK RECEIVED
+                                </button>
+                            )}
+
+                            {/* The piece came back but failed inspection. Without
+                                this the return sat at 'received' forever with live
+                                refund and exchange buttons on it. */}
+                            {r.status === 'received' && (
+                                <button
+                                    className="ret-btn ret-btn--ghost"
+                                    disabled={busyId === r.id}
+                                    onClick={() => {
+                                        if (!window.confirm(
+                                            'Reject this return after inspection?\n\n'
+                                            + 'The customer is emailed that it was not accepted and is being sent back. '
+                                            + 'No refund is issued. Put the reason in the note first.'
+                                        )) return;
+                                        act(r.id, 'inspection_failed', { awb: awbs[r.id] || '' });
+                                    }}
+                                >
+                                    FAILED INSPECTION
                                 </button>
                             )}
                             {r.status === 'received' && r.resolution?.startsWith('exchange') && (

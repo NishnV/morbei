@@ -100,6 +100,52 @@ export async function cancelOrder(orderId, { restock = true, reason = 'customer'
     });
 }
 
+/**
+ * Record a return against the Shopify order and put the piece back on sale.
+ *
+ * Shopify is the order of record, but the money moved through Razorpay, so
+ * without this an order stayed "fully paid" there forever and the returned
+ * garment stayed sold: it sits on the shelf while the product page says sold
+ * out, and the revenue reports permanently overstate takings.
+ *
+ * The refund is created with no `transactions`, which records the return and
+ * the restock without Shopify trying to move money it never held. The line is
+ * matched by variant, because that is what the return row stores.
+ *
+ * `restock: false` for a piece that came back damaged — recording the return
+ * is still right, putting it back on sale is not.
+ */
+export async function refundOrderLine(orderId, variantId, { restock = true, note } = {}) {
+    const data = await adminFetch(`orders/${orderId}.json?fields=id,line_items`);
+    const wanted = String(variantId);
+    const line = (data.order?.line_items || []).find(
+        (li) => String(li.variant_id) === wanted || String(li.id) === wanted
+    );
+    if (!line) throw new Error('LINE_NOT_FOUND');
+
+    const body = {
+        refund: {
+            note: note || 'Returned via MORBEI returns',
+            notify: false,
+            refund_line_items: [{
+                line_item_id: line.id,
+                quantity: 1,
+                // 'return' puts it back into sellable stock; 'no_restock'
+                // records the return and leaves inventory alone.
+                restock_type: restock ? 'return' : 'no_restock',
+                ...(restock ? { location_id: null } : {}),
+            }],
+            // Deliberately empty: Razorpay moved the money. A transaction here
+            // would ask Shopify to refund through a gateway it does not hold.
+            transactions: [],
+        },
+    };
+    return adminFetch(`orders/${orderId}/refunds.json`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+}
+
 export async function listOrders(email) {
     return adminFetch(`orders.json?email=${encodeURIComponent(email)}&status=any&limit=50`);
 }

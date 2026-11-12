@@ -3,6 +3,7 @@ import { get, all, run } from '../db/pg.js';
 import { requireDashboardToken } from '../middleware/adminToken.js';
 import { refundPayment } from '../services/razorpay.js';
 import { createDraftOrder, completeDraftOrder, setOrderEmail, getOrder, gidToNumeric, findSiblingVariant,
+    refundOrderLine,
     listOrdersTracking, markFulfillmentDelivered } from '../services/shopify-admin.js';
 import { primeTracking, invalidateTracking } from '../services/order-tracking.js';
 import { notifySlackError } from '../services/slack.js';
@@ -35,10 +36,18 @@ router.get('/orders', async (req, res) => {
         const rows = await all(
             `SELECT id, shopify_order_id, shopify_order_number, status, total_amount,
                     items, shipping_address, shipping_method, delivered_at, created_at, is_test,
-                    shipped_email_at, shopify_order_missing_at
+                    shipped_email_at, shopify_order_missing_at, razorpay_payment_id,
+                    replacement_for_order_id
                FROM orders
-              WHERE status <> 'pending'
-              ORDER BY created_at DESC
+              -- 'pending' normally means an abandoned checkout, which is noise.
+              -- But a pending order WITH a captured payment is the worst state
+              -- in the system: the customer paid, fulfilment failed, and it was
+              -- hidden from their order history and from this screen alike
+              -- while the reconciler retried for three days and then gave up in
+              -- silence. Those belong at the top of this list, not nowhere.
+              WHERE status <> 'pending' OR razorpay_payment_id IS NOT NULL
+              ORDER BY (status = 'pending' AND razorpay_payment_id IS NOT NULL) DESC,
+                       created_at DESC
               LIMIT 25`
         );
 
@@ -86,6 +95,9 @@ router.get('/orders', async (req, res) => {
                         .filter(Boolean).join(', ') || null,
                     shippingMethod: o.shipping_method || null,
                     isTest: Boolean(o.is_test),
+                    // Paid, but no Shopify order was ever created for it.
+                    needsAttention: o.status === 'pending' && Boolean(o.razorpay_payment_id),
+                    isReplacement: Boolean(o.replacement_for_order_id),
                     shippedEmailAt: o.shipped_email_at,
                     shopifyOrderMissing: Boolean(o.shopify_order_missing_at),
                     deliveredAt: o.delivered_at,
@@ -223,7 +235,13 @@ router.post('/orders/:id/delivered', async (req, res) => {
     }
 });
 
-const STATUSES = ['requested', 'approved', 'in_transit', 'received', 'rejected', 'refunded', 'exchanged'];
+// How long a refund or exchange claim may sit before another attempt may take
+// it. Long enough that a slow Razorpay or Shopify call is never cut off,
+// short enough that a crash does not block the return for a working day.
+const STALE_CLAIM_MINUTES = 10;
+
+const STATUSES = ['requested', 'approved', 'in_transit', 'received', 'rejected', 'inspection_failed',
+    'refunded', 'exchanged'];
 
 /** What this one item is worth, in paise, from the order's stored lines. */
 function itemAmountPaise(order, variantId) {
@@ -301,7 +319,7 @@ router.get('/returns', async (req, res) => {
  * decision and a payment.
  */
 router.post('/returns/:id', async (req, res) => {
-    const { action, note, selfShip, carrier, awb } = req.body || {};
+    const { action, note, selfShip, carrier, awb, restockOnRefund } = req.body || {};
     const id = parseInt(req.params.id, 10);
     if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
 
@@ -385,6 +403,35 @@ router.post('/returns/:id', async (req, res) => {
             return res.json({ id, status: 'received' });
         }
 
+        // The piece came back and failed inspection — worn, no tags, or not
+        // what was claimed. Previously this had nowhere to go: reject was
+        // reachable only from 'requested', so the most likely real outcome of
+        // a declaration-based policy left the return sitting at 'received'
+        // forever with live refund and exchange buttons on it.
+        if (action === 'inspection_failed') {
+            if (row.status !== 'received') {
+                return res.status(409).json({ error: 'Mark the item received first.' });
+            }
+            const inspectionNote = typeof note === 'string' ? note.trim().slice(0, 1000) : '';
+            const claimed = await run(
+                `UPDATE returns SET status = 'inspection_failed', inspection_note = $1,
+                        return_awb = COALESCE($2, return_awb), updated_at = now()
+                  WHERE id = $3 AND status = 'received'`,
+                [inspectionNote || null, typeof awb === 'string' && awb.trim() ? awb.trim().slice(0, 80) : null, id]
+            );
+            if (!claimed.rowCount) return res.status(409).json({ error: `Already ${row.status}` });
+
+            sendReturnUpdate('inspection_failed', {
+                to: row.email,
+                name: row.full_name,
+                orderNumber: row.shopify_order_number,
+                product: row.product_title,
+                note: inspectionNote,
+                returnAwb: typeof awb === 'string' ? awb.trim() : '',
+            }).catch((err) => console.error('inspection_failed email failed:', err.message));
+            return res.json({ id, status: 'inspection_failed' });
+        }
+
         if (action === 'refund') {
             if (row.status !== 'received') {
                 return res.status(409).json({ error: 'Mark the item received before refunding.' });
@@ -399,21 +446,56 @@ router.post('/returns/:id', async (req, res) => {
             }
 
             // Claim before calling Razorpay, so a double click cannot refund
-            // twice. On failure the claim is released and the status restored.
+            // twice — but in a column of its own rather than by moving the
+            // status to 'refunding'. That value was accepted by no transition
+            // and swept by nothing, so a deploy or a timeout between here and
+            // the update below stranded the return permanently. A stale claim
+            // can now be released by age; the status stays honest throughout.
             const claimed = await run(
-                `UPDATE returns SET status = 'refunding', updated_at = now()
-                  WHERE id = $1 AND status = 'received'`,
-                [id]
+                `UPDATE returns SET refund_claimed_at = now(), updated_at = now()
+                  WHERE id = $1 AND status = 'received'
+                    AND (refund_claimed_at IS NULL
+                         OR refund_claimed_at < now() - make_interval(mins => $2::int))`,
+                [id, STALE_CLAIM_MINUTES]
             );
             if (!claimed.rowCount) return res.status(409).json({ error: 'Already being refunded' });
 
             try {
                 const refund = await refundPayment(order.razorpay_payment_id, amount);
+                // Razorpay's id is written in the same statement that records
+                // the refund. It used to be returned to the browser and
+                // dropped, leaving nothing to reconcile a dispute against.
                 await run(
-                    `UPDATE returns SET status = 'refunded', admin_note = COALESCE($1, admin_note),
+                    `UPDATE returns SET status = 'refunded', refund_id = $3,
+                            admin_note = COALESCE($1, admin_note),
                             updated_at = now() WHERE id = $2`,
-                    [typeof note === 'string' ? note.slice(0, 1000) : null, id]
+                    [typeof note === 'string' ? note.slice(0, 1000) : null, id, refund.id || null]
                 );
+                // Shopify is the order of record and the inventory of record,
+                // and until now neither heard about a return: the order stayed
+                // fully paid there and the garment stayed sold, so a piece back
+                // on the shelf still read out of stock on the storefront.
+                // Non-fatal — the customer's money has already gone back, and
+                // an inventory correction must never undo that.
+                if (order.shopify_order_id) {
+                    const restock = restockOnRefund !== false;
+                    refundOrderLine(order.shopify_order_id, row.variant_id, {
+                        restock,
+                        note: `Return ${row.id} — refunded ₹${(amount / 100).toFixed(2)} via Razorpay`,
+                    }).then(() => (
+                        restock
+                            ? run('UPDATE returns SET restocked_at = now() WHERE id = $1', [id])
+                            : null
+                    )).catch((err) => {
+                        console.error(`Shopify refund/restock failed for return ${id}:`, err.message);
+                        notifySlackError(
+                            `Shopify was not told about return ${row.id} (order #${row.shopify_order_number}) — `
+                            + 'record the refund and restock there by hand',
+                            err
+                        ).catch(() => {});
+                    });
+                }
+
                 sendReturnUpdate('refunded', {
                     to: row.email,
                     name: row.full_name,
@@ -423,7 +505,9 @@ router.post('/returns/:id', async (req, res) => {
                 }).catch((err) => console.error('refund email failed:', err.message));
                 return res.json({ id, status: 'refunded', refundId: refund.id, amountPaise: amount });
             } catch (err) {
-                await run(`UPDATE returns SET status = 'received', updated_at = now() WHERE id = $1`, [id]);
+                // Release the claim; the status never moved, so there is
+                // nothing to restore.
+                await run(`UPDATE returns SET refund_claimed_at = NULL, updated_at = now() WHERE id = $1`, [id]);
                 console.error(`Return refund failed for ${id}:`, err.message);
                 notifySlackError(`return refund failed (return ${id}, order #${row.shopify_order_number})`, err).catch(() => {});
                 return res.status(502).json({ error: 'Razorpay refused the refund. Nothing has been charged back.' });
@@ -472,9 +556,13 @@ router.post('/returns/:id', async (req, res) => {
             // Claim first: raising two replacement orders is as bad as
             // refunding twice, and a slow Shopify call invites a second click.
             const claimed = await run(
-                `UPDATE returns SET status = 'exchanging', updated_at = now()
-                  WHERE id = $1 AND status = 'received'`,
-                [id]
+                // Same reasoning as the refund claim above: a column, not a
+                // status value nothing accepts.
+                `UPDATE returns SET exchange_claimed_at = now(), updated_at = now()
+                  WHERE id = $1 AND status = 'received'
+                    AND (exchange_claimed_at IS NULL
+                         OR exchange_claimed_at < now() - make_interval(mins => $2::int))`,
+                [id, STALE_CLAIM_MINUTES]
             );
             if (!claimed.rowCount) return res.status(409).json({ error: 'Already in progress' });
 
@@ -513,6 +601,47 @@ router.post('/returns/:id', async (req, res) => {
                     newNumber = fresh?.order?.order_number ?? null;
                 } catch { /* the order exists either way */ }
 
+                // Give the replacement a local row. Without one it existed
+                // only in Shopify, so it could never be marked delivered (the
+                // dashboard reads this table), never started a returns window,
+                // could not be tracked by the customer, and could not itself
+                // be returned if it arrived damaged.
+                //
+                // It carries the parent's payment id so the returns and lookup
+                // queries, which require one, can find it — economically it is
+                // the same payment — and total_amount 0 because nothing more
+                // was charged. replacement_for_order_id keeps it out of being
+                // mistaken for a second sale.
+                try {
+                    await run(
+                        `INSERT INTO orders (user_id, total_amount, status, shipping_method, shipping_address,
+                                             items, shopify_order_id, shopify_order_number,
+                                             razorpay_payment_id, replacement_for_order_id, is_test)
+                         SELECT user_id, 0, 'paid', shipping_method, shipping_address,
+                                $1, $2, $3, razorpay_payment_id, id, is_test
+                           FROM orders WHERE id = $4`,
+                        [
+                            JSON.stringify([{
+                                title: row.product_title,
+                                quantity: 1,
+                                price: 0,
+                                variantId: String(variantId),
+                                selectedOptions: row.exchange_size ? [{ name: 'Size', value: row.exchange_size }] : [],
+                            }]),
+                            String(newOrderId),
+                            newNumber,
+                            row.order_id,
+                        ]
+                    );
+                } catch (rowErr) {
+                    console.error(`Could not record replacement order for return ${id}:`, rowErr.message);
+                    notifySlackError(
+                        `Replacement #${newNumber || newOrderId} has no local order row — it cannot be `
+                        + 'marked delivered or tracked until one is added',
+                        rowErr
+                    ).catch(() => {});
+                }
+
                 await run(
                     `UPDATE returns SET status = 'exchanged', replacement_order_number = $1,
                             admin_note = COALESCE($2, admin_note), updated_at = now()
@@ -529,7 +658,7 @@ router.post('/returns/:id', async (req, res) => {
                 }).catch((err) => console.error('exchange email failed:', err.message));
                 return res.json({ id, status: 'exchanged', replacementOrderNumber: newNumber, sent: label });
             } catch (err) {
-                await run(`UPDATE returns SET status = 'received', updated_at = now() WHERE id = $1`, [id]);
+                await run(`UPDATE returns SET exchange_claimed_at = NULL, updated_at = now() WHERE id = $1`, [id]);
                 console.error(`Exchange order failed for return ${id}:`, err.message);
                 notifySlackError(`exchange replacement failed (return ${id}, order #${row.shopify_order_number})`, err).catch(() => {});
                 return res.status(502).json({ error: 'Shopify refused the replacement order. Nothing was sent.' });

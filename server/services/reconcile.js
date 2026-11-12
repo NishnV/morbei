@@ -41,6 +41,14 @@ export async function reconcileStuckOrders() {
          WHERE status IN ('pending', 'processing')
            AND created_at < now() - make_interval(mins => $1::int)
            AND created_at > now() - make_interval(hours => $2::int)
+           -- Never fulfil an order someone is cancelling, or one whose money
+           -- has already gone back. The cancellation claim used to live in
+           -- the status column, which this query ignored by accident; now
+           -- that it is a column of its own the order sits here at 'pending'
+           -- while the refund may already have succeeded, and fulfilling it
+           -- would ship goods against a refunded payment.
+           AND refund_id IS NULL
+           AND cancel_claimed_at IS NULL
          ORDER BY created_at ASC`,
         [STUCK_AFTER_MINUTES, LOOK_BACK_HOURS]
     );
@@ -172,6 +180,75 @@ export async function notifyShippedOrders() {
     return { checked: pending.length, sent };
 }
 
+// A cancellation claim older than this was abandoned by a process that died.
+const STRANDED_CANCEL_MINUTES = 30;
+
+/**
+ * Surface cancellations that never finished.
+ *
+ * The claim is released so the customer can try again — but only when no
+ * refund was issued. If one was, the money is already back and finishing the
+ * cancellation is a judgement call about a real customer's order, so it is
+ * reported rather than guessed at.
+ */
+/**
+ * Say so before giving up.
+ *
+ * reconcileStuckOrders only looks back LOOK_BACK_HOURS, so an order it could
+ * never fix simply fell out of the window — after three days of hourly alerts,
+ * silence, which reads exactly like "resolved". This fires once, at the edge,
+ * for anything about to be abandoned with the customer's money captured.
+ */
+export async function reportAbandonedRecoveries() {
+    const giving_up = await all(
+        `SELECT id, total_amount, razorpay_payment_id
+           FROM orders
+          WHERE status IN ('pending', 'processing')
+            AND razorpay_payment_id IS NOT NULL
+            AND shopify_order_id IS NULL
+            AND created_at < now() - make_interval(hours => $1::int)
+            AND created_at > now() - make_interval(hours => $2::int)`,
+        [LOOK_BACK_HOURS, LOOK_BACK_HOURS + 1]
+    );
+
+    for (const order of giving_up) {
+        notifySlackError(
+            `GIVING UP on order ${order.id} — ₹${Number(order.total_amount) / 100} captured `
+            + `(Razorpay ${order.razorpay_payment_id}) and no Shopify order after ${LOOK_BACK_HOURS}h. `
+            + 'The reconciler will stop retrying it. Fulfil or refund this by hand.',
+            new Error('reconciler look-back window exceeded')
+        ).catch(() => {});
+    }
+    return { abandoned: giving_up.length };
+}
+
+export async function releaseStrandedCancellations() {
+    const stranded = await all(
+        `SELECT id, status, refund_id, total_amount
+           FROM orders
+          WHERE cancel_claimed_at IS NOT NULL
+            AND status NOT IN ('cancelled')
+            AND cancel_claimed_at < now() - make_interval(mins => $1::int)`,
+        [STRANDED_CANCEL_MINUTES]
+    );
+    if (stranded.length === 0) return { stranded: 0 };
+
+    for (const order of stranded) {
+        if (order.refund_id) {
+            notifySlackError(
+                `Cancellation did not finish for order ${order.id} — Razorpay refund ${order.refund_id} `
+                + `(₹${Number(order.total_amount) / 100}) WAS issued but the order is still '${order.status}'. `
+                + 'Cancel it in Shopify and mark it cancelled by hand.',
+                new Error('stranded cancellation with refund issued')
+            ).catch(() => {});
+            continue;
+        }
+        await run('UPDATE orders SET cancel_claimed_at = NULL WHERE id = $1', [order.id]);
+        console.warn(`Released stranded cancellation claim on order ${order.id} (no refund was issued)`);
+    }
+    return { stranded: stranded.length };
+}
+
 /**
  * Start the periodic sweep. Never throws — a broken reconciler must not be able
  * to take down the server it is meant to protect.
@@ -184,6 +261,19 @@ export function startReconciler() {
                 console.log(
                     `Reconciler: scanned ${result.scanned}, recovered ${result.recovered}, failed ${result.failed}`
                 );
+            }
+
+            try {
+                await reportAbandonedRecoveries();
+            } catch (err) {
+                console.error('Abandoned-recovery report failed:', err.message);
+            }
+
+            try {
+                await releaseStrandedCancellations();
+            } catch (err) {
+                console.error('Stranded cancellation sweep failed:', err.message);
+                notifySlackError('Stranded cancellation sweep failed', err).catch(() => {});
             }
 
             // Separately caught: a Shopify outage must not stop the sweep that

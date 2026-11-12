@@ -117,11 +117,20 @@ export function AuthProvider({ children }) {
   /**
    * Clear stored token and customer state.
    */
-  const clearAuth = useCallback(() => {
+  /**
+   * Drop the Shopify session, and by default the backend one with it.
+   *
+   * `keepBackend` exists for one case: a visitor with no Shopify token at all.
+   * That is what a guest looks like, and a guest's backend token is their only
+   * session — wiping it on every mount meant their just-placed order vanished
+   * from /order-details on a reload, and they lost the ability to cancel it,
+   * while the server-side copy stayed valid for a week regardless.
+   */
+  const clearAuth = useCallback(({ keepBackend = false } = {}) => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     tokenRef.current = null;
-    clearBackendToken();
+    if (!keepBackend) clearBackendToken();
     // Signing out must take the in-progress checkout with it. It holds the
     // customer's name, phone number and home address, and sessionStorage
     // outlives a sign-out — so on a shared device the next person to sign in
@@ -174,7 +183,16 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     async function initAuth() {
       const token = localStorage.getItem(TOKEN_KEY);
-      if (!token || isTokenExpired()) {
+      if (!token) {
+        // No Shopify token has nothing to say about a guest session, which is
+        // issued separately at checkout and is all a guest has.
+        clearAuth({ keepBackend: true });
+        setLoading(false);
+        return;
+      }
+      if (isTokenExpired()) {
+        // A lapsed Shopify session does take its backend token with it: that
+        // one is bound to the account, not to a guest checkout.
         clearAuth();
         setLoading(false);
         return;
