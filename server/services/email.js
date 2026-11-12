@@ -42,17 +42,166 @@ async function deliverAll(promises, label) {
     );
 }
 
+// The storefront, for links out of an email. CLIENT_URL may hold several
+// origins (CORS takes a list); the first is the canonical one.
+const PRODUCTION_SITE = 'https://www.morbei.com';
+
+// Where a link or an image in an email points. CLIENT_URL exists for CORS and
+// holds whatever origins the browser may call from — in development that is
+// http://localhost:5173, which would put an unreachable logo and dead links
+// into a real email. Take the first https origin, so a local run still writes
+// production URLs, and let PUBLIC_SITE_URL override the lot.
+const SITE_URL = process.env.PUBLIC_SITE_URL?.trim().replace(/\/$/, '')
+    || (process.env.CLIENT_URL || '')
+        .split(',')
+        .map((u) => u.trim().replace(/\/$/, ''))
+        .find((u) => u.startsWith('https://'))
+    || PRODUCTION_SITE;
+
+// Shopify's CDN resizes on request. Asking for double the display width keeps
+// the thumbnail sharp on the phone screens most of these are opened on.
+function thumb(url, width = 160) {
+    if (!url) return '';
+    return `${url}${url.includes('?') ? '&' : '?'}width=${width}`;
+}
+
+const rupees = (n) => `RS. ${Number(n || 0).toLocaleString('en-IN')}`;
+
+// Standard is free and slow, priority is paid and quick. The confirmation
+// page quotes 7–14 days whatever was chosen, which is wrong for priority.
+const DELIVERY_ESTIMATE = { standard: '7–14 DAYS', priority: '3–5 DAYS' };
+
+/**
+ * The wrapper every customer-facing message shares.
+ *
+ * One place for the black ground, the wordmark, the typographic rhythm and
+ * the footer, so a confirmation, a cancellation and a return update read as
+ * the same brand rather than three different senders. Store and ops alerts
+ * deliberately do not use it — those are worksheets, and dressing them up
+ * only makes the useful line harder to find.
+ *
+ * Tables and inline styles throughout: Outlook renders with Word's engine
+ * and understands little else. The logo is a PNG because every mail client
+ * strips inline SVG, and it carries styled alt text so a blocked image still
+ * reads as MORBEI rather than a broken-image icon.
+ */
+function shell({ title, eyebrow, heading, intro = '', body = '', cta, footerNote = '', isTest = false }) {
+    const headingSize = String(heading).length <= 12 ? 34 : 24;
+    return `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<title>${esc(String(title || heading))}</title>
+</head>
+<body style="margin:0;padding:0;background:#0a0a0a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a0a0a" style="background:#0a0a0a;margin:0;padding:0;">
+  <tr><td align="center" style="padding:0;">
+    <!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+    <!-- Fluid, capped at 600. A fixed 600 runs off the side of a phone and
+         takes the price column with it, and these are read on phones.
+         Outlook ignores max-width, hence the conditional table above. -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+
+      <tr><td align="center" style="padding:40px 24px 44px 24px;">
+        <img src="${SITE_URL}/email-logo.png" width="200" alt="MORBEI"
+             style="display:block;width:200px;max-width:60%;height:auto;border:0;margin:0 auto;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-size:18px;letter-spacing:0.42em;">
+      </td></tr>
+${isTest ? `
+      <tr><td align="center" style="padding:0 24px 24px 24px;">
+        <div style="border:1px solid #d08a28;color:#d08a28;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.2em;padding:8px 0;">TEST ORDER — CHARGED RS. 1</div>
+      </td></tr>` : ''}
+${eyebrow ? `
+      <tr><td align="center" style="padding:0 24px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.3em;color:#8a8a8a;">
+        ${esc(eyebrow)}
+      </td></tr>` : ''}
+      <tr><td align="center" style="padding:14px 24px 0 24px;font-family:Georgia,'Times New Roman',serif;font-size:${headingSize}px;letter-spacing:0.14em;color:#ffffff;">
+        ${esc(heading)}
+      </td></tr>
+${intro ? `
+      <tr><td align="center" style="padding:20px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:22px;letter-spacing:0.08em;color:#8a8a8a;">
+        ${intro}
+      </td></tr>` : ''}
+
+${body}
+
+${cta ? `
+      <tr><td align="center" style="padding:44px 24px 0 24px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+          <tr><td bgcolor="#ffffff" style="padding:16px 44px;">
+            <a href="${esc(cta.href)}" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#0a0a0a;text-decoration:none;">${esc(cta.label)}</a>
+          </td></tr>
+        </table>
+      </td></tr>` : ''}
+
+      <tr><td align="center" style="padding:44px 24px 12px 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:20px;color:#6a6a6a;">
+        For any queries, reply to this email or contact
+        <a href="mailto:${esc(STORE_EMAIL)}" style="color:#8a8a8a;">${esc(STORE_EMAIL)}</a>.
+      </td></tr>
+      <tr><td align="center" style="padding:0 24px 44px 24px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.16em;color:#4a4a4a;">
+        © ${new Date().getFullYear()} MORBEI${footerNote ? `<br><br>${footerNote}` : ''}
+      </td></tr>
+
+    </table>
+    <!--[if mso]></td></tr></table><![endif]-->
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+/** A labelled block inside the shell's body — "ORDER SUMMARY", "DELIVERY". */
+function section(label, html, topPadding = 40) {
+    return `      <tr><td style="padding:${topPadding}px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#ffffff;">
+        ${esc(label)}
+      </td></tr>
+      <tr><td style="padding:18px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:22px;letter-spacing:0.1em;color:#8a8a8a;">
+        ${html}
+      </td></tr>`;
+}
+
+/** The hairline the page uses between sections. */
+const RULE = `      <tr><td style="padding:40px 24px 0 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+      </td></tr>`;
+
 export async function sendOrderConfirmation({ order, user, cartLines, shippingAddress, shopifyOrderId }) {
-    // Include variant options (size/color) — essential for packing the right item
+    // Variant options (size/colour) matter twice over: the customer checks
+    // them, and whoever packs the parcel reads the same line.
+    const lineOptions = (l) => (l.selectedOptions || [])
+        .map((o) => o.value)
+        .filter((v) => v && v.toLowerCase() !== 'default title')
+        .join(' / ');
+
+    // Plain rows for the store's copy, which is a worksheet, not a showpiece.
     const itemsHtml = cartLines.map(l => {
-        const options = (l.selectedOptions || [])
-            .map(o => o.value)
-            .filter(v => v && v.toLowerCase() !== 'default title')
-            .join(' / ');
+        const options = lineOptions(l);
         return `<tr>
             <td style="padding:6px 0;font-size:13px;">${esc(l.title)}${options ? `<br><span style="color:#888;font-size:12px;">${esc(options)}</span>` : ''}</td>
             <td style="padding:6px 0;font-size:13px;text-align:center;">${l.quantity}</td>
             <td style="padding:6px 0;font-size:13px;text-align:right;">₹${(l.price * l.quantity).toFixed(2)}</td>
+        </tr>`;
+    }).join('');
+
+    // The customer's copy, laid out like the confirmation page they just left:
+    // thumbnail, name, options, quantity, line total.
+    const customerItemsHtml = cartLines.map((l) => {
+        const options = lineOptions(l);
+        const img = thumb(l.image);
+        return `<tr>
+            <td width="72" valign="top" style="padding:0 16px 24px 0;">
+                ${img ? `<img src="${esc(img)}" width="72" alt="" style="display:block;width:72px;height:auto;border:0;">` : ''}
+            </td>
+            <td valign="top" style="padding:0 0 24px 0;font-family:Helvetica,Arial,sans-serif;">
+                <div style="font-size:13px;letter-spacing:0.12em;color:#ffffff;text-transform:uppercase;">${esc(l.title)}</div>
+                ${options ? `<div style="font-size:11px;letter-spacing:0.12em;color:#8a8a8a;text-transform:uppercase;padding-top:6px;">${esc(options)}</div>` : ''}
+                <div style="font-size:11px;letter-spacing:0.12em;color:#8a8a8a;padding-top:6px;">QTY ${Number(l.quantity)}</div>
+            </td>
+            <td valign="top" align="right" style="padding:0 0 24px 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.08em;color:#ffffff;white-space:nowrap;">
+                ${rupees(l.price * l.quantity)}
+            </td>
         </tr>`;
     }).join('');
 
@@ -61,49 +210,64 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
     const addr = shippingAddress;
     // The checkout form has no city field — build the line from whatever
     // parts exist so a missing field never prints "undefined"
-    const addressLine = esc([
+    const addressParts = [
         addr.address || addr.address1,
         addr.city,
         [addr.state || addr.province, addr.zip].filter(Boolean).join(' '),
         addr.country || 'India',
-    ].filter(part => part && String(part).trim()).join(', '));
+    ].filter(part => part && String(part).trim());
+    const addressLine = esc(addressParts.join(', '));
+    // Upper-case the parts, then escape. The other way round would rewrite an
+    // escaped "&amp;" in a street name as "&AMP;".
+    const addressLineUpper = esc(addressParts.join(', ').toUpperCase());
 
-    const customerHtml = `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
-        <div style="background:#0a0a0a;padding:32px;text-align:center;">
-            <h1 style="color:#fff;letter-spacing:0.3em;font-size:22px;margin:0;">MORBEI</h1>
-        </div>
-        <div style="padding:32px;">
-            <h2 style="font-size:16px;letter-spacing:0.2em;font-weight:500;">ORDER CONFIRMED</h2>
-            <p style="font-size:14px;color:#555;">Thank you, ${esc(user.first_name)}. Your order has been placed successfully.</p>
-            <p style="font-size:13px;"><strong>Order No:</strong> #${orderNo}</p>
-            <table style="width:100%;border-collapse:collapse;margin-top:16px;">
-                <thead>
-                    <tr style="border-bottom:1px solid #eee;">
-                        <th style="text-align:left;padding:8px 0;font-size:11px;letter-spacing:0.15em;color:#999;">ITEM</th>
-                        <th style="text-align:center;padding:8px 0;font-size:11px;letter-spacing:0.15em;color:#999;">QTY</th>
-                        <th style="text-align:right;padding:8px 0;font-size:11px;letter-spacing:0.15em;color:#999;">PRICE</th>
-                    </tr>
-                </thead>
-                <tbody>${itemsHtml}</tbody>
-                <tfoot>
-                    <tr style="border-top:1px solid #eee;">
-                        <td colspan="2" style="padding:10px 0;font-weight:bold;font-size:13px;">TOTAL</td>
-                        <td style="padding:10px 0;font-weight:bold;font-size:13px;text-align:right;">₹${totalAmount}</td>
-                    </tr>
-                </tfoot>
-            </table>
-            <div style="margin-top:24px;padding:16px;background:#f9f9f9;border-radius:4px;">
-                <p style="font-size:11px;letter-spacing:0.15em;color:#999;margin:0 0 8px 0;">SHIPPING TO</p>
-                <p style="font-size:13px;margin:0;">${esc(addr.firstName || user.first_name)} ${esc(addr.lastName || user.last_name)}</p>
-                <p style="font-size:13px;margin:4px 0 0 0;color:#555;">${addressLine}</p>
-            </div>
-            <p style="margin-top:32px;font-size:12px;color:#888;">We will notify you once your order ships. For any queries, reply to this email or contact care@morbei.com</p>
-        </div>
-        <div style="background:#f4f4f4;padding:16px;text-align:center;">
-            <p style="font-size:11px;color:#aaa;margin:0;">© ${new Date().getFullYear()} MORBEI. All rights reserved.</p>
-        </div>
-    </div>`;
+    const method = (order.shipping_method || 'standard').toLowerCase();
+    const deliveryLabel = method === 'priority' ? 'PRIORITY' : 'STANDARD';
+    const estimate = DELIVERY_ESTIMATE[method] || DELIVERY_ESTIMATE.standard;
+    const itemsTotal = cartLines.reduce((sum, l) => sum + l.price * l.quantity, 0);
+    const paid = Number(order.total_amount) / 100;
+    const shippingPaid = Math.max(0, paid - itemsTotal);
+
+    const customerHtml = shell({
+        title: `Order ${orderNo}`,
+        eyebrow: 'ORDER PLACED',
+        heading: 'THANK YOU',
+        intro: `THANK YOU, ${esc(String(user.first_name || '').toUpperCase())}. YOUR ORDER HAS BEEN CONFIRMED.<br>
+                <span style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
+        isTest: Boolean(order.is_test),
+        cta: { label: 'VIEW ORDER', href: `${SITE_URL}/order-details` },
+        body: `${RULE}
+      <tr><td style="padding:32px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#ffffff;">
+        ORDER SUMMARY
+      </td></tr>
+      <tr><td style="padding:24px 24px 0 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          ${customerItemsHtml}
+        </table>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Helvetica,Arial,sans-serif;">
+          <tr><td colspan="2" style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;padding-bottom:16px;">&nbsp;</td></tr>
+          <tr>
+            <td style="font-size:11px;letter-spacing:0.18em;color:#8a8a8a;padding-bottom:10px;">SUBTOTAL</td>
+            <td align="right" style="font-size:12px;letter-spacing:0.08em;color:#ffffff;padding-bottom:10px;">${rupees(Math.max(0, paid - shippingPaid))}</td>
+          </tr>
+          <tr>
+            <td style="font-size:11px;letter-spacing:0.18em;color:#8a8a8a;padding-bottom:16px;">SHIPPING</td>
+            <td align="right" style="font-size:12px;letter-spacing:0.08em;color:#ffffff;padding-bottom:16px;">${shippingPaid > 0 ? rupees(shippingPaid) : 'FREE'}</td>
+          </tr>
+          <tr><td colspan="2" style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;padding-bottom:16px;">&nbsp;</td></tr>
+          <tr>
+            <td style="font-size:12px;letter-spacing:0.22em;color:#ffffff;">TOTAL</td>
+            <td align="right" style="font-size:15px;letter-spacing:0.08em;color:#ffffff;">${rupees(paid)}</td>
+          </tr>
+        </table>
+      </td></tr>
+${section('SHIPPING TO', `<span style="color:#ffffff;">${esc(String(`${addr.firstName || user.first_name} ${addr.lastName || user.last_name}`).toUpperCase())}</span><br>
+        ${addressLineUpper}
+        ${addr.phone || user.phone ? `<br>${esc(addr.phone || user.phone)}` : ''}
+        ${user.email ? `<br><span style="text-transform:lowercase;">${esc(user.email)}</span>` : ''}`)}
+${section('DELIVERY', `<span style="color:#ffffff;">${deliveryLabel}</span><br>ESTIMATED ${estimate}`, 32)}`,
+    });
 
     const storeHtml = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
@@ -157,23 +321,18 @@ export async function sendOrderCancellation({ order, user, refundAmountPaise, re
     const refundAmount = (Number(refundAmountPaise || 0) / 100).toFixed(2);
     const orderNo = order.shopify_order_number || order.id;
 
-    const customerHtml = `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
-        <div style="background:#0a0a0a;padding:32px;text-align:center;">
-            <h1 style="color:#fff;letter-spacing:0.3em;font-size:22px;margin:0;">MORBEI</h1>
-        </div>
-        <div style="padding:32px;">
-            <h2 style="font-size:16px;letter-spacing:0.2em;font-weight:500;">ORDER CANCELLED</h2>
-            <p style="font-size:14px;color:#555;">Hi ${esc(user.first_name)}, your order #${orderNo} has been cancelled.</p>
-            ${refunded
-            ? `<p style="font-size:14px;color:#555;">A refund of <strong>₹${refundAmount}</strong> has been initiated to your original payment method. It typically appears within 5–7 business days.</p>`
-            : `<p style="font-size:14px;color:#555;">No payment had been captured for this order, so there is nothing to refund.</p>`}
-            <p style="margin-top:24px;font-size:12px;color:#888;">For any queries, reply to this email or contact care@morbei.com</p>
-        </div>
-        <div style="background:#f4f4f4;padding:16px;text-align:center;">
-            <p style="font-size:11px;color:#aaa;margin:0;">© ${new Date().getFullYear()} MORBEI. All rights reserved.</p>
-        </div>
-    </div>`;
+    const customerHtml = shell({
+        title: `Order ${orderNo} cancelled`,
+        eyebrow: 'ORDER UPDATE',
+        heading: 'ORDER CANCELLED',
+        intro: `HI ${esc(String(user.first_name || '').toUpperCase())}, YOUR ORDER HAS BEEN CANCELLED.<br>
+                <span style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
+        body: refunded
+            ? section('REFUND', `A refund of <span style="color:#ffffff;">${rupees(Number(refundAmountPaise) / 100)}</span> has been
+                 initiated to your original payment method. It typically appears
+                 within 5–7 business days, depending on your bank.`)
+            : section('REFUND', 'No payment had been captured for this order, so there is nothing to refund.'),
+    });
 
     const storeHtml = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
@@ -282,32 +441,17 @@ export async function sendNewsletterWelcome(email, unsubscribeUrl) {
         to: email,
         subject: 'Welcome to MORBEI',
         ...(unsubscribeUrl ? { list: { unsubscribe: { url: unsubscribeUrl } } } : {}),
-        html: `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
-            <div style="background:#0a0a0a;padding:32px;text-align:center;">
-                <h1 style="color:#fff;letter-spacing:0.3em;font-size:22px;margin:0;">MORBEI</h1>
-            </div>
-            <div style="padding:32px;">
-                <h2 style="font-size:15px;letter-spacing:0.2em;font-weight:500;">YOU'RE ON THE LIST</h2>
-                <p style="font-size:14px;color:#555;line-height:1.7;">
-                    Thank you for subscribing. You'll be first to hear about new arrivals,
-                    editorials and pre-launch access.
-                </p>
-                <p style="margin-top:32px;">
-                    <a href="https://morbei.com/shop/all"
-                       style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;
-                              padding:14px 32px;font-size:11px;letter-spacing:0.2em;">EXPLORE THE COLLECTION</a>
-                </p>
-            </div>
-            <div style="background:#f4f4f4;padding:16px;text-align:center;">
-                <p style="font-size:11px;color:#aaa;margin:0;">© ${new Date().getFullYear()} MORBEI. All rights reserved.</p>
-                ${unsubscribeUrl
-                    ? `<p style="font-size:11px;color:#aaa;margin:8px 0 0 0;">
-                         <a href="${esc(unsubscribeUrl)}" style="color:#aaa;">Unsubscribe</a>
-                       </p>`
-                    : ''}
-            </div>
-        </div>`,
+        html: shell({
+            title: 'Welcome to MORBEI',
+            eyebrow: 'WELCOME',
+            heading: "YOU'RE ON THE LIST",
+            intro: `Thank you for subscribing. You will be first to hear about new
+                    arrivals, editorials and pre-launch access.`,
+            cta: { label: 'EXPLORE THE COLLECTION', href: `${SITE_URL}/shop/all` },
+            footerNote: unsubscribeUrl
+                ? `<a href="${esc(unsubscribeUrl)}" style="color:#4a4a4a;">Unsubscribe</a>`
+                : '',
+        }),
     });
 }
 
@@ -380,26 +524,15 @@ export async function sendReturnUpdate(kind, data) {
     if (!copy || !data?.to) return;
 
     const orderNo = data.orderNumber;
-    const html = `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
-        <div style="background:#0a0a0a;padding:32px;text-align:center;">
-            <h1 style="color:#fff;letter-spacing:0.3em;font-size:22px;margin:0;">MORBEI</h1>
-        </div>
-        <div style="padding:32px;">
-            <h2 style="font-size:16px;letter-spacing:0.2em;font-weight:500;">${copy.heading}</h2>
-            <p style="font-size:14px;color:#555;">Hi ${esc(data.name || 'there')},</p>
-            <p style="font-size:14px;color:#555;">
-                ${esc(data.product)} from order #${esc(orderNo)}.
-            </p>
-            <p style="font-size:14px;color:#555;">${copy.body(data)}</p>
-            <p style="margin-top:24px;font-size:12px;color:#888;">
-                For any queries, reply to this email or contact info@morbei.com
-            </p>
-        </div>
-        <div style="background:#f4f4f4;padding:16px;text-align:center;">
-            <p style="font-size:11px;color:#aaa;margin:0;">© ${new Date().getFullYear()} MORBEI. All rights reserved.</p>
-        </div>
-    </div>`;
+    const html = shell({
+        title: copy.heading,
+        eyebrow: 'RETURN UPDATE',
+        heading: copy.heading,
+        intro: `HI ${esc(String(data.name || 'THERE').toUpperCase())}<br>
+                <span style="color:#ffffff;">${esc(data.product)}</span><br>
+                <span style="letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
+        body: section('WHAT HAPPENS NEXT', copy.body(data)),
+    });
 
     await deliver({
         from: STORE_FROM,
