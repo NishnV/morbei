@@ -115,7 +115,7 @@ const ORDER_WEBHOOK_URL = process.env.ORDERS_SLACK_WEBHOOK_URL || CONTACT_WEBHOO
  * Everything needed to start packing is in here, so a straightforward order
  * needs no other screen.
  */
-export async function notifySlackOrder({ orderNumber, totalPaise, customerName, email, phone, items, address }) {
+export async function notifySlackOrder({ orderNumber, totalPaise, customerName, email, phone, items, address, isTest }) {
     const lines = [
         `*Total:* \u20b9${(Number(totalPaise || 0) / 100).toLocaleString('en-IN')}`,
         `*Customer:* ${slackEscape(customerName)}`,
@@ -126,10 +126,14 @@ export async function notifySlackOrder({ orderNumber, totalPaise, customerName, 
 
     const itemLines = (items || []).map((i) => `\u2022 ${slackEscape(i)}`).join('\n');
 
+    // Said twice, in the fallback text and the header: a test order that reads
+    // as a sale at a glance is worse than no notification at all.
+    const label = isTest ? 'TEST order' : 'New order';
+
     return post(ORDER_WEBHOOK_URL, {
-        text: `New order #${slackEscape(orderNumber)}`,
+        text: `${label} #${slackEscape(orderNumber)}`,
         blocks: [
-            { type: 'header', text: { type: 'plain_text', text: `\ud83d\udce6  New order #${orderNumber}` } },
+            { type: 'header', text: { type: 'plain_text', text: `${isTest ? '\ud83e\uddea  TEST order' : '\ud83d\udce6  New order'} #${orderNumber}` } },
             { type: 'section', text: { type: 'mrkdwn', text: lines.join('\n') } },
             ...(itemLines ? [{ type: 'section', text: { type: 'mrkdwn', text: itemLines } }] : []),
         ],

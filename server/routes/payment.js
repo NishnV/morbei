@@ -96,6 +96,34 @@ function validateShippingAddress(addr) {
 }
 
 // Step 1: Create Razorpay order — prices come from Shopify, never from the client
+/**
+ * Who may place a one-rupee test order.
+ *
+ * Testing the live payment path used to mean editing a real product down to
+ * ₹1 in Shopify, which puts that price in front of every shopper for as long
+ * as the test takes. This replaces that: the order is real — same stock check,
+ * same Shopify prices, same fulfilment, same emails — and only the amount
+ * charged differs.
+ *
+ * The gate is a server-side allowlist of email addresses and nothing else.
+ * There is no token for a client to hold and therefore none to leak: a caller
+ * must already be signed in as one of these accounts, which means holding that
+ * person's Shopify login. The request flag alone does nothing. Leave
+ * TEST_ORDER_EMAILS unset and the feature does not exist.
+ */
+const TEST_ORDER_EMAILS = (process.env.TEST_ORDER_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+const TEST_ORDER_PAISE = 100;
+
+function mayPlaceTestOrder(user) {
+    if (TEST_ORDER_EMAILS.length === 0) return false;
+    const email = String(user?.email || '').trim().toLowerCase();
+    return Boolean(email) && TEST_ORDER_EMAILS.includes(email);
+}
+
 router.post('/create-order', authenticate, async (req, res) => {
     try {
         const { cartLines, shippingAddress, shippingMethod } = req.body;
@@ -178,13 +206,24 @@ router.post('/create-order', authenticate, async (req, res) => {
             (sum, l) => sum + Math.round(l.price * 100) * l.quantity,
             0
         );
-        const totalPaise = itemsPaise + shippingCost * 100;
+        const realTotalPaise = itemsPaise + shippingCost * 100;
+
+        // Everything above this line is untouched by test mode on purpose: a
+        // test order that skipped the stock check or the Shopify re-pricing
+        // would not be testing the thing that matters. Only the amount the
+        // customer is charged changes, and only for an allowlisted account
+        // that asked for it.
+        const isTest = req.body.testOrder === true && mayPlaceTestOrder(req.user);
+        const totalPaise = isTest ? TEST_ORDER_PAISE : realTotalPaise;
+        if (isTest) {
+            console.log(`Test order for ${req.user.email}: ₹${realTotalPaise / 100} charged as ₹1`);
+        }
 
         // Save pending order in DB with server-verified prices
         const inserted = await get(
-            `INSERT INTO orders (user_id, total_amount, shipping_method, shipping_address, items, status)
-             VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING id`,
-            [req.user.id, totalPaise, method, JSON.stringify(shippingAddress), JSON.stringify(pricedLines)]
+            `INSERT INTO orders (user_id, total_amount, shipping_method, shipping_address, items, status, is_test)
+             VALUES ($1, $2, $3, $4, $5, 'pending', $6) RETURNING id`,
+            [req.user.id, totalPaise, method, JSON.stringify(shippingAddress), JSON.stringify(pricedLines), isTest]
         );
 
         const receipt = `order_${inserted.id}`;
@@ -198,6 +237,9 @@ router.post('/create-order', authenticate, async (req, res) => {
             amount: totalPaise,
             currency: 'INR',
             keyId: process.env.RAZORPAY_KEY_ID,
+            // Only ever true when the server agreed. The checkout must not
+            // decide this for itself, or the banner lies.
+            isTest,
         });
     } catch (err) {
         console.error('create-order error:', err);

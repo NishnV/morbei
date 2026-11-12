@@ -74,7 +74,8 @@ export async function funnelSummary(days = 7) {
         all(`SELECT COUNT(*)::int AS orders,
                     COALESCE(SUM(total_amount), 0)::bigint AS revenue_paise
              FROM orders
-             WHERE created_at > ${since} AND razorpay_payment_id IS NOT NULL`),
+             WHERE created_at > ${since} AND razorpay_payment_id IS NOT NULL
+               AND is_test = false`),
         all(`SELECT date_trunc('day', created_at)::date AS day,
                     COUNT(DISTINCT session_id)::int     AS sessions,
                     COUNT(*) FILTER (WHERE event = 'ViewContent')::int      AS view_content,

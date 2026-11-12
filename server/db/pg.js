@@ -180,6 +180,11 @@ export async function initDB() {
         -- filled from that status where it exists and set by hand otherwise.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ;
 
+        -- A ₹1 order placed by the owner to exercise the live payment path.
+        -- Real in every respect except the amount charged, so it must be
+        -- excluded from revenue and conversion figures rather than deleted.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT false;
+
         -- Return and exchange requests.
         --
         -- order_id is nullable on purpose. The form is filled in by order

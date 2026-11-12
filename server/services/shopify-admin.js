@@ -42,7 +42,7 @@ async function adminFetch(endpoint, options = {}) {
  * Callers must follow this with setOrderEmail, or the order of record will
  * have no customer on it.
  */
-export async function createDraftOrder({ lineItems, shippingAddress, note, shippingLine, appliedDiscount }) {
+export async function createDraftOrder({ lineItems, shippingAddress, note, shippingLine, appliedDiscount, tags }) {
     // lineItems: [{ variant_id (numeric), quantity }]
     // shippingLine: { title, price } in rupees — omitted for free shipping.
     // Without it the customer pays for priority delivery via Razorpay but the
@@ -61,6 +61,7 @@ export async function createDraftOrder({ lineItems, shippingAddress, note, shipp
             // is worth and stock and reporting stay honest.
             ...(appliedDiscount ? { applied_discount: appliedDiscount } : {}),
             note: note || 'Order via MORBEI website',
+            ...(tags ? { tags } : {}),
         },
     };
     return adminFetch('draft_orders.json', { method: 'POST', body: JSON.stringify(body) });

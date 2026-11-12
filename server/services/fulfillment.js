@@ -67,7 +67,10 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
         const draft = await createDraftOrder({
             lineItems: shopifyLineItems,
             shippingAddress: shopifyAddr,
-            note: `Razorpay Payment: ${razorpayPaymentId}`,
+            note: order.is_test
+                ? `TEST ORDER — charged ₹1. Razorpay Payment: ${razorpayPaymentId}`
+                : `Razorpay Payment: ${razorpayPaymentId}`,
+            ...(order.is_test ? { tags: 'test-order' } : {}),
             shippingLine: {
                 title: shippingMethodKey === 'priority' ? 'Priority' : 'Standard',
                 price: shippingRupees.toFixed(2),
@@ -108,7 +111,10 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
             // prices. Alert rather than fail — the customer has already paid.
             const shopifyTotalPaise = Math.round(parseFloat(orderData?.order?.total_price || '0') * 100);
             const capturedPaise = Number(order.total_amount);
-            if (shopifyTotalPaise && shopifyTotalPaise !== capturedPaise) {
+            // A test order is a deliberate mismatch — it carries the real
+            // Shopify total and a ₹1 capture — so comparing them would page
+            // someone every single time one is placed.
+            if (!order.is_test && shopifyTotalPaise && shopifyTotalPaise !== capturedPaise) {
                 const msg = `Order ${order.id} (Shopify #${shopifyOrderNumber}): captured ₹${capturedPaise / 100} `
                     + `but Shopify order total is ₹${shopifyTotalPaise / 100}. Check tax settings and shipping lines.`;
                 console.error(msg);
@@ -127,6 +133,7 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
         // has to arrive. An order the store never hears about cannot be packed,
         // and email has already failed that job once.
         notifySlackOrder({
+            isTest: order.is_test,
             orderNumber: shopifyOrderNumber || order.id,
             totalPaise: order.total_amount,
             customerName: `${shippingAddress.firstName || user.first_name} ${shippingAddress.lastName || user.last_name}`,

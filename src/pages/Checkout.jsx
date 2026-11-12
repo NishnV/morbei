@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { track } from '../lib/analytics';
 import { useCustomer } from '../hooks/useCustomer';
@@ -105,6 +105,16 @@ function loadRazorpayScript() {
 }
 
 const Checkout = () => {
+    // ?test=1 asks the backend to charge ₹1 instead of the cart total, so the
+    // live payment path can be exercised without editing a real product's
+    // price down in Shopify where every shopper can see it. Read through the
+    // router rather than window.location: this module is lazy-loaded, and at
+    // module scope the URL would be whichever one happened to load the chunk.
+    //
+    // The URL is a request, not a permission. The server checks the signed-in
+    // account against its own allowlist and ignores this otherwise.
+    const [searchParams] = useSearchParams();
+    const wantsTestOrder = searchParams.get('test') === '1';
     const { cart, loading: cartLoading } = useCart();
     const { customer } = useCustomer();
     const navigate = useNavigate();
@@ -307,7 +317,15 @@ const Checkout = () => {
                 cartLines,
                 shippingAddress: form,
                 shippingMethod: deliveryMethod,
+                // Asking is not the same as being allowed. The server honours
+                // this only for an allowlisted account and reports back what it
+                // decided; nothing here can make an order cheap on its own.
+                testOrder: wantsTestOrder,
             });
+
+            if (wantsTestOrder && !orderData.isTest) {
+                throw new Error('This account cannot place test orders.');
+            }
 
             // Record the attempt BEFORE the gateway opens. If the customer
             // closes the tab after paying, this note is the only trace the
