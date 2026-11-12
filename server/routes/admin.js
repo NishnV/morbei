@@ -6,7 +6,7 @@ import { createDraftOrder, completeDraftOrder, setOrderEmail, getOrder, gidToNum
     listOrdersTracking, markFulfillmentDelivered } from '../services/shopify-admin.js';
 import { primeTracking, invalidateTracking } from '../services/order-tracking.js';
 import { notifySlackError } from '../services/slack.js';
-import { sendReturnUpdate } from '../services/email.js';
+import { sendReturnUpdate, sendDeliveryNotice } from '../services/email.js';
 import { funnelSummary } from './events.js';
 
 const router = Router();
@@ -97,7 +97,7 @@ router.post('/orders/:id/delivered', async (req, res) => {
 
     try {
         const order = await get(
-            `SELECT id, shopify_order_id, shopify_order_number, status, delivered_at
+            `SELECT id, user_id, items, is_test, shopify_order_id, shopify_order_number, status, delivered_at
                FROM orders WHERE id = $1`,
             [id]
         );
@@ -132,8 +132,33 @@ router.post('/orders/:id/delivered', async (req, res) => {
             return res.status(502).json({ error: 'Shopify refused the delivery event. Nothing was changed.' });
         }
 
-        await run('UPDATE orders SET delivered_at = now() WHERE id = $1 AND delivered_at IS NULL', [id]);
+        const marked = await run(
+            'UPDATE orders SET delivered_at = now() WHERE id = $1 AND delivered_at IS NULL',
+            [id]
+        );
         invalidateTracking(order.shopify_order_id);
+
+        // After the column, not before: the email tells the customer their
+        // return window has opened, and the window is counted from that
+        // column. Only on the update that actually set it, so pressing the
+        // button twice cannot send it twice. Not awaited — a mail failure
+        // must not make a recorded delivery look like it failed.
+        if (marked.rowCount > 0) {
+            get('SELECT * FROM users WHERE id = $1', [order.user_id])
+                .then((user) => {
+                    let cartLines = [];
+                    try { cartLines = JSON.parse(order.items); } catch { /* the notice stands without a list */ }
+                    return sendDeliveryNotice({ order, user, cartLines });
+                })
+                .catch((err) => {
+                    console.error(`Delivery notice failed for order ${id}:`, err.message);
+                    notifySlackError(
+                        `Delivery email failed for order #${order.shopify_order_number || id}`,
+                        err
+                    ).catch(() => {});
+                });
+        }
+
         res.json({ id, deliveredAt: new Date().toISOString() });
     } catch (err) {
         console.error('mark delivered failed:', err.message);

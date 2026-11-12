@@ -71,6 +71,42 @@ const rupees = (n) => `RS. ${Number(n || 0).toLocaleString('en-IN')}`;
 // page quotes 7–14 days whatever was chosen, which is wrong for priority.
 const DELIVERY_ESTIMATE = { standard: '7–14 DAYS', priority: '3–5 DAYS' };
 
+/** Variant options as one line: "IVORY / M". */
+function lineOptions(l) {
+    return (l.selectedOptions || [])
+        .map((o) => o.value)
+        .filter((v) => v && v.toLowerCase() !== 'default title')
+        .join(' / ');
+}
+
+/**
+ * Product rows with a thumbnail, as the confirmation page shows them.
+ *
+ * Shared by the confirmation and the shipping notice so a customer sees the
+ * same garment twice rather than a picture once and a line of text later.
+ * `price` is optional: a shipping notice says what is in the parcel, not what
+ * it cost. A line with no image keeps its cell, so the text stays aligned.
+ */
+function itemRowsHtml(cartLines, { showPrice = false } = {}) {
+    return (cartLines || []).map((l) => {
+        const options = lineOptions(l);
+        const img = thumb(l.image);
+        return `<tr>
+            <td width="72" valign="top" style="padding:0 16px 24px 0;">
+                ${img ? `<img src="${esc(img)}" width="72" alt="" style="display:block;width:72px;height:auto;border:0;">` : ''}
+            </td>
+            <td valign="top" style="padding:0 0 24px 0;font-family:Helvetica,Arial,sans-serif;">
+                <div class="c-w" style="font-size:13px;letter-spacing:0.12em;color:#ffffff;text-transform:uppercase;">${esc(l.title)}</div>
+                ${options ? `<div class="c-m" style="font-size:11px;letter-spacing:0.12em;color:#8a8a8a;text-transform:uppercase;padding-top:6px;">${esc(options)}</div>` : ''}
+                <div class="c-m" style="font-size:11px;letter-spacing:0.12em;color:#8a8a8a;padding-top:6px;">QTY ${Number(l.quantity)}</div>
+            </td>
+            ${showPrice ? `<td valign="top" align="right" class="c-w" style="padding:0 0 24px 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.08em;color:#ffffff;white-space:nowrap;">
+                ${rupees(l.price * l.quantity)}
+            </td>` : ''}
+        </tr>`;
+    }).join('');
+}
+
 /**
  * The wrapper every customer-facing message shares.
  *
@@ -94,9 +130,30 @@ function shell({ title, eyebrow, heading, intro = '', body = '', cta, footerNote
 <meta name="color-scheme" content="dark">
 <meta name="supported-color-schemes" content="dark">
 <title>${esc(String(title || heading))}</title>
+<style>
+  :root { color-scheme: dark; supported-color-schemes: dark; }
+  /* Gmail's dark-mode pass rewrites colours and stamps data-ogsc (text) or
+     data-ogsb (background) on whatever it changed, holding the original.
+     Without this it flips a dark email to light — and because it never
+     inverts images, the white logo then disappears against a light ground.
+     Putting the palette back here keeps the design intact; the tiled
+     background image below holds the ground, since background images are the
+     one thing the pass leaves alone. */
+  [data-ogsc].c-w, [data-ogsb].c-w, [data-ogsc] .c-w, [data-ogsb] .c-w { color: #ffffff !important; }
+  [data-ogsc].c-m, [data-ogsb].c-m, [data-ogsc] .c-m, [data-ogsb] .c-m { color: #8a8a8a !important; }
+  [data-ogsc].c-f, [data-ogsb].c-f, [data-ogsc] .c-f, [data-ogsb] .c-f { color: #6a6a6a !important; }
+  [data-ogsc].c-c, [data-ogsb].c-c, [data-ogsc] .c-c, [data-ogsb] .c-c { color: #4a4a4a !important; }
+  [data-ogsc].c-a, [data-ogsb].c-a, [data-ogsc] .c-a, [data-ogsb] .c-a { color: #d08a28 !important; }
+  [data-ogsc].c-k, [data-ogsb].c-k, [data-ogsc] .c-k, [data-ogsb] .c-k { color: #0a0a0a !important; }
+  [data-ogsc].bg-d, [data-ogsb].bg-d, [data-ogsc] .bg-d, [data-ogsb] .bg-d { background-color: #0a0a0a !important; }
+  [data-ogsc].bg-w, [data-ogsb].bg-w, [data-ogsc] .bg-w, [data-ogsb] .bg-w { background-color: #ffffff !important; }
+  [data-ogsc].br, [data-ogsb].br, [data-ogsc] .br, [data-ogsb] .br { border-color: #2a2a2a !important; }
+</style>
 </head>
-<body style="margin:0;padding:0;background:#0a0a0a;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a0a0a" style="background:#0a0a0a;margin:0;padding:0;">
+<body class="bg-d" style="margin:0;padding:0;background:#0a0a0a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a0a0a" class="bg-d"
+       background="${SITE_URL}/email-bg.png"
+       style="background-color:#0a0a0a;background-image:url('${SITE_URL}/email-bg.png');background-repeat:repeat;margin:0;padding:0;">
   <tr><td align="center" style="padding:0;">
     <!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
     <!-- Fluid, capped at 600. A fixed 600 runs off the side of a phone and
@@ -105,22 +162,22 @@ function shell({ title, eyebrow, heading, intro = '', body = '', cta, footerNote
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
 
       <tr><td align="center" style="padding:40px 24px 44px 24px;">
-        <img src="${SITE_URL}/email-logo.png" width="200" alt="MORBEI"
+        <img src="${SITE_URL}/email-logo.png" width="200" alt="MORBEI" class="c-w"
              style="display:block;width:200px;max-width:60%;height:auto;border:0;margin:0 auto;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-size:18px;letter-spacing:0.42em;">
       </td></tr>
 ${isTest ? `
       <tr><td align="center" style="padding:0 24px 24px 24px;">
-        <div style="border:1px solid #d08a28;color:#d08a28;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.2em;padding:8px 0;">TEST ORDER — CHARGED RS. 1</div>
+        <div class="c-a br" style="border:1px solid #d08a28;color:#d08a28;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.2em;padding:8px 0;">TEST ORDER — CHARGED RS. 1</div>
       </td></tr>` : ''}
 ${eyebrow ? `
-      <tr><td align="center" style="padding:0 24px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.3em;color:#8a8a8a;">
+      <tr><td align="center" class="c-m" style="padding:0 24px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.3em;color:#8a8a8a;">
         ${esc(eyebrow)}
       </td></tr>` : ''}
-      <tr><td align="center" style="padding:14px 24px 0 24px;font-family:Georgia,'Times New Roman',serif;font-size:${headingSize}px;letter-spacing:0.14em;color:#ffffff;">
+      <tr><td align="center" class="c-w" style="padding:14px 24px 0 24px;font-family:Georgia,'Times New Roman',serif;font-size:${headingSize}px;letter-spacing:0.14em;color:#ffffff;">
         ${esc(heading)}
       </td></tr>
 ${intro ? `
-      <tr><td align="center" style="padding:20px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:22px;letter-spacing:0.08em;color:#8a8a8a;">
+      <tr><td align="center" class="c-m" style="padding:20px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:22px;letter-spacing:0.08em;color:#8a8a8a;">
         ${intro}
       </td></tr>` : ''}
 
@@ -129,17 +186,17 @@ ${body}
 ${cta ? `
       <tr><td align="center" style="padding:44px 24px 0 24px;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-          <tr><td bgcolor="#ffffff" style="padding:16px 44px;">
-            <a href="${esc(cta.href)}" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#0a0a0a;text-decoration:none;">${esc(cta.label)}</a>
+          <tr><td bgcolor="#ffffff" class="bg-w" style="background-color:#ffffff;padding:16px 44px;">
+            <a href="${esc(cta.href)}" class="c-k" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#0a0a0a;text-decoration:none;">${esc(cta.label)}</a>
           </td></tr>
         </table>
       </td></tr>` : ''}
 
-      <tr><td align="center" style="padding:44px 24px 12px 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:20px;color:#6a6a6a;">
+      <tr><td align="center" class="c-f" style="padding:44px 24px 12px 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:20px;color:#6a6a6a;">
         For any queries, reply to this email or contact
-        <a href="mailto:${esc(STORE_EMAIL)}" style="color:#8a8a8a;">${esc(STORE_EMAIL)}</a>.
+        <a href="mailto:${esc(STORE_EMAIL)}" class="c-m" style="color:#8a8a8a;">${esc(STORE_EMAIL)}</a>.
       </td></tr>
-      <tr><td align="center" style="padding:0 24px 44px 24px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.16em;color:#4a4a4a;">
+      <tr><td align="center" class="c-c" style="padding:0 24px 44px 24px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.16em;color:#4a4a4a;">
         © ${new Date().getFullYear()} MORBEI${footerNote ? `<br><br>${footerNote}` : ''}
       </td></tr>
 
@@ -152,10 +209,10 @@ ${cta ? `
 
 /** A labelled block inside the shell's body — "ORDER SUMMARY", "DELIVERY". */
 function section(label, html, topPadding = 40) {
-    return `      <tr><td style="padding:${topPadding}px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#ffffff;">
+    return `      <tr><td class="c-w" style="padding:${topPadding}px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#ffffff;">
         ${esc(label)}
       </td></tr>
-      <tr><td style="padding:18px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:22px;letter-spacing:0.1em;color:#8a8a8a;">
+      <tr><td class="c-m" style="padding:18px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:22px;letter-spacing:0.1em;color:#8a8a8a;">
         ${html}
       </td></tr>`;
 }
@@ -163,18 +220,11 @@ function section(label, html, topPadding = 40) {
 /** The hairline the page uses between sections. */
 const RULE = `      <tr><td style="padding:40px 24px 0 24px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr><td style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;">&nbsp;</td></tr>
+          <tr><td class="br" style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;">&nbsp;</td></tr>
         </table>
       </td></tr>`;
 
 export async function sendOrderConfirmation({ order, user, cartLines, shippingAddress, shopifyOrderId }) {
-    // Variant options (size/colour) matter twice over: the customer checks
-    // them, and whoever packs the parcel reads the same line.
-    const lineOptions = (l) => (l.selectedOptions || [])
-        .map((o) => o.value)
-        .filter((v) => v && v.toLowerCase() !== 'default title')
-        .join(' / ');
-
     // Plain rows for the store's copy, which is a worksheet, not a showpiece.
     const itemsHtml = cartLines.map(l => {
         const options = lineOptions(l);
@@ -185,25 +235,7 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
         </tr>`;
     }).join('');
 
-    // The customer's copy, laid out like the confirmation page they just left:
-    // thumbnail, name, options, quantity, line total.
-    const customerItemsHtml = cartLines.map((l) => {
-        const options = lineOptions(l);
-        const img = thumb(l.image);
-        return `<tr>
-            <td width="72" valign="top" style="padding:0 16px 24px 0;">
-                ${img ? `<img src="${esc(img)}" width="72" alt="" style="display:block;width:72px;height:auto;border:0;">` : ''}
-            </td>
-            <td valign="top" style="padding:0 0 24px 0;font-family:Helvetica,Arial,sans-serif;">
-                <div style="font-size:13px;letter-spacing:0.12em;color:#ffffff;text-transform:uppercase;">${esc(l.title)}</div>
-                ${options ? `<div style="font-size:11px;letter-spacing:0.12em;color:#8a8a8a;text-transform:uppercase;padding-top:6px;">${esc(options)}</div>` : ''}
-                <div style="font-size:11px;letter-spacing:0.12em;color:#8a8a8a;padding-top:6px;">QTY ${Number(l.quantity)}</div>
-            </td>
-            <td valign="top" align="right" style="padding:0 0 24px 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.08em;color:#ffffff;white-space:nowrap;">
-                ${rupees(l.price * l.quantity)}
-            </td>
-        </tr>`;
-    }).join('');
+    const customerItemsHtml = itemRowsHtml(cartLines, { showPrice: true });
 
     const totalAmount = (Number(order.total_amount) / 100).toFixed(2);
     const orderNo = order.shopify_order_number || order.id;
@@ -233,11 +265,11 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
         eyebrow: 'ORDER PLACED',
         heading: 'THANK YOU',
         intro: `THANK YOU, ${esc(String(user.first_name || '').toUpperCase())}. YOUR ORDER HAS BEEN CONFIRMED.<br>
-                <span style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
+                <span class="c-w" style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
         isTest: Boolean(order.is_test),
         cta: { label: 'VIEW ORDER', href: `${SITE_URL}/order-details` },
         body: `${RULE}
-      <tr><td style="padding:32px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#ffffff;">
+      <tr><td class="c-w" style="padding:32px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#ffffff;">
         ORDER SUMMARY
       </td></tr>
       <tr><td style="padding:24px 24px 0 24px;">
@@ -246,27 +278,27 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
         </table>
 
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Helvetica,Arial,sans-serif;">
-          <tr><td colspan="2" style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;padding-bottom:16px;">&nbsp;</td></tr>
+          <tr><td colspan="2" class="br" style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;padding-bottom:16px;">&nbsp;</td></tr>
           <tr>
-            <td style="font-size:11px;letter-spacing:0.18em;color:#8a8a8a;padding-bottom:10px;">SUBTOTAL</td>
-            <td align="right" style="font-size:12px;letter-spacing:0.08em;color:#ffffff;padding-bottom:10px;">${rupees(Math.max(0, paid - shippingPaid))}</td>
+            <td class="c-m" style="font-size:11px;letter-spacing:0.18em;color:#8a8a8a;padding-bottom:10px;">SUBTOTAL</td>
+            <td align="right" class="c-w" style="font-size:12px;letter-spacing:0.08em;color:#ffffff;padding-bottom:10px;">${rupees(Math.max(0, paid - shippingPaid))}</td>
           </tr>
           <tr>
-            <td style="font-size:11px;letter-spacing:0.18em;color:#8a8a8a;padding-bottom:16px;">SHIPPING</td>
-            <td align="right" style="font-size:12px;letter-spacing:0.08em;color:#ffffff;padding-bottom:16px;">${shippingPaid > 0 ? rupees(shippingPaid) : 'FREE'}</td>
+            <td class="c-m" style="font-size:11px;letter-spacing:0.18em;color:#8a8a8a;padding-bottom:16px;">SHIPPING</td>
+            <td align="right" class="c-w" style="font-size:12px;letter-spacing:0.08em;color:#ffffff;padding-bottom:16px;">${shippingPaid > 0 ? rupees(shippingPaid) : 'FREE'}</td>
           </tr>
-          <tr><td colspan="2" style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;padding-bottom:16px;">&nbsp;</td></tr>
+          <tr><td colspan="2" class="br" style="border-top:1px solid #2a2a2a;font-size:0;line-height:0;padding-bottom:16px;">&nbsp;</td></tr>
           <tr>
-            <td style="font-size:12px;letter-spacing:0.22em;color:#ffffff;">TOTAL</td>
-            <td align="right" style="font-size:15px;letter-spacing:0.08em;color:#ffffff;">${rupees(paid)}</td>
+            <td class="c-w" style="font-size:12px;letter-spacing:0.22em;color:#ffffff;">TOTAL</td>
+            <td align="right" class="c-w" style="font-size:15px;letter-spacing:0.08em;color:#ffffff;">${rupees(paid)}</td>
           </tr>
         </table>
       </td></tr>
-${section('SHIPPING TO', `<span style="color:#ffffff;">${esc(String(`${addr.firstName || user.first_name} ${addr.lastName || user.last_name}`).toUpperCase())}</span><br>
+${section('SHIPPING TO', `<span class="c-w" style="color:#ffffff;">${esc(String(`${addr.firstName || user.first_name} ${addr.lastName || user.last_name}`).toUpperCase())}</span><br>
         ${addressLineUpper}
         ${addr.phone || user.phone ? `<br>${esc(addr.phone || user.phone)}` : ''}
         ${user.email ? `<br><span style="text-transform:lowercase;">${esc(user.email)}</span>` : ''}`)}
-${section('DELIVERY', `<span style="color:#ffffff;">${deliveryLabel}</span><br>ESTIMATED ${estimate}`, 32)}`,
+${section('DELIVERY', `<span class="c-w" style="color:#ffffff;">${deliveryLabel}</span><br>ESTIMATED ${estimate}`, 32)}`,
     });
 
     const storeHtml = `
@@ -328,19 +360,13 @@ export async function sendShipmentNotice({ order, user, cartLines, tracking }) {
     const number = tracking?.trackingNumber;
     const url = tracking?.trackingUrl;
 
-    const items = (cartLines || []).map((l) => {
-        const options = (l.selectedOptions || [])
-            .map((o) => o.value)
-            .filter((v) => v && v.toLowerCase() !== 'default title')
-            .join(' / ');
-        return `<span style="color:#ffffff;">${esc(l.title)}</span>${options ? ` — ${esc(options)}` : ''} × ${Number(l.quantity)}`;
-    }).join('<br>');
+    const itemRows = itemRowsHtml(cartLines);
 
     // Only claim a carrier or a number when there is one. A shipping notice
     // with "undefined" where the tracking should be reads worse than one that
     // simply says the parcel has left.
     const trackingRows = [
-        carrier ? `<span style="color:#ffffff;">${esc(carrier)}</span>` : null,
+        carrier ? `<span class="c-w" style="color:#ffffff;">${esc(carrier)}</span>` : null,
         number ? `${esc(String(number))}` : null,
     ].filter(Boolean).join('<br>');
 
@@ -354,13 +380,58 @@ export async function sendShipmentNotice({ order, user, cartLines, tracking }) {
             eyebrow: 'SHIPPING UPDATE',
             heading: 'ON ITS WAY',
             intro: `HI ${esc(String(user.first_name || '').toUpperCase())}, YOUR ORDER HAS LEFT US.<br>
-                    <span style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
+                    <span class="c-w" style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
             isTest: Boolean(order.is_test),
             cta: url
                 ? { label: 'TRACK PARCEL', href: url }
                 : { label: 'VIEW ORDER', href: `${SITE_URL}/order-details` },
-            body: `${items ? section('IN THIS PARCEL', items) : ''}
-${trackingRows ? section('TRACKING', trackingRows, items ? 32 : 40) : ''}`,
+            body: `${itemRows ? `      <tr><td class="c-w" style="padding:40px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#ffffff;">
+        IN THIS PARCEL
+      </td></tr>
+      <tr><td style="padding:24px 24px 0 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${itemRows}</table>
+      </td></tr>` : ''}
+${trackingRows ? section('TRACKING', trackingRows, itemRows ? 8 : 40) : ''}`,
+        }),
+    });
+}
+
+/**
+ * Tell the customer the parcel has arrived, and that the clock has started.
+ *
+ * Sent when the order is marked delivered from the dashboard, which is also
+ * the moment delivered_at is written — and delivered_at is what the seven-day
+ * return window is counted from. Saying so here is the only notice a customer
+ * gets that the window is open, and when it closes.
+ */
+export async function sendDeliveryNotice({ order, user, cartLines, returnWindowDays = 7 }) {
+    if (!user?.email) return;
+
+    const orderNo = order.shopify_order_number || order.id;
+    const itemRows = itemRowsHtml(cartLines);
+
+    await deliver({
+        from: STORE_FROM,
+        to: user.email,
+        replyTo: STORE_EMAIL || undefined,
+        subject: `Your MORBEI order #${orderNo} has been delivered`,
+        html: shell({
+            title: `Order ${orderNo} delivered`,
+            eyebrow: 'DELIVERED',
+            heading: 'IT HAS ARRIVED',
+            intro: `HI ${esc(String(user.first_name || '').toUpperCase())}, YOUR ORDER HAS BEEN DELIVERED.<br>
+                    <span class="c-w" style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
+            isTest: Boolean(order.is_test),
+            cta: { label: 'START A RETURN', href: `${SITE_URL}/returns` },
+            body: `${itemRows ? `      <tr><td class="c-w" style="padding:40px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#ffffff;">
+        WHAT ARRIVED
+      </td></tr>
+      <tr><td style="padding:24px 24px 0 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${itemRows}</table>
+      </td></tr>` : ''}
+${section('RETURNS & EXCHANGES', `You have <span class="c-w" style="color:#ffffff;">${returnWindowDays} days</span> from today to request a return or
+         an exchange. The piece should be unworn, with its tags and original
+         packaging intact.`, itemRows ? 8 : 40)}`,
         }),
     });
 }
@@ -379,9 +450,9 @@ export async function sendOrderCancellation({ order, user, refundAmountPaise, re
         eyebrow: 'ORDER UPDATE',
         heading: 'ORDER CANCELLED',
         intro: `HI ${esc(String(user.first_name || '').toUpperCase())}, YOUR ORDER HAS BEEN CANCELLED.<br>
-                <span style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
+                <span class="c-w" style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
         body: refunded
-            ? section('REFUND', `A refund of <span style="color:#ffffff;">${rupees(Number(refundAmountPaise) / 100)}</span> has been
+            ? section('REFUND', `A refund of <span class="c-w" style="color:#ffffff;">${rupees(Number(refundAmountPaise) / 100)}</span> has been
                  initiated to your original payment method. It typically appears
                  within 5–7 business days, depending on your bank.`)
             : section('REFUND', 'No payment had been captured for this order, so there is nothing to refund.'),
@@ -582,7 +653,7 @@ export async function sendReturnUpdate(kind, data) {
         eyebrow: 'RETURN UPDATE',
         heading: copy.heading,
         intro: `HI ${esc(String(data.name || 'THERE').toUpperCase())}<br>
-                <span style="color:#ffffff;">${esc(data.product)}</span><br>
+                <span class="c-w" style="color:#ffffff;">${esc(data.product)}</span><br>
                 <span style="letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
         body: section('WHAT HAPPENS NEXT', copy.body(data)),
     });
