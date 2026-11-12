@@ -34,7 +34,8 @@ router.get('/orders', async (req, res) => {
     try {
         const rows = await all(
             `SELECT id, shopify_order_id, shopify_order_number, status, total_amount,
-                    items, shipping_address, delivered_at, created_at
+                    items, shipping_address, shipping_method, delivered_at, created_at, is_test,
+                    shipped_email_at, shopify_order_missing_at
                FROM orders
               WHERE status <> 'pending'
               ORDER BY created_at DESC
@@ -67,7 +68,26 @@ router.get('/orders', async (req, res) => {
                     status: o.status,
                     totalPaise: Number(o.total_amount),
                     customer: [addr.firstName, addr.lastName].filter(Boolean).join(' ') || null,
-                    items: items.map((i) => i.title).filter(Boolean),
+                    email: addr.email || null,
+                    phone: addr.phone || null,
+                    // The whole line, not just a title. Marking an order
+                    // delivered is a claim about a specific parcel, and the
+                    // person making it should be looking at what was in it.
+                    items: items.map((i) => ({
+                        title: i.title,
+                        quantity: i.quantity,
+                        image: i.image || null,
+                        options: (i.selectedOptions || [])
+                            .map((o2) => o2.value)
+                            .filter((v) => v && v.toLowerCase() !== 'default title')
+                            .join(' / '),
+                    })),
+                    address: [addr.address, addr.city, addr.state, addr.zip, addr.country]
+                        .filter(Boolean).join(', ') || null,
+                    shippingMethod: o.shipping_method || null,
+                    isTest: Boolean(o.is_test),
+                    shippedEmailAt: o.shipped_email_at,
+                    shopifyOrderMissing: Boolean(o.shopify_order_missing_at),
                     deliveredAt: o.delivered_at,
                     createdAt: o.created_at,
                     hasShopifyOrder: Boolean(o.shopify_order_id),
@@ -80,6 +100,34 @@ router.get('/orders', async (req, res) => {
     } catch (err) {
         console.error('admin orders list failed:', err.message);
         res.status(500).json({ error: 'Could not load orders' });
+    }
+});
+
+/**
+ * POST /api/dashboard/orders/:id/test — exclude an order from the figures.
+ *
+ * Deliberately a separate judgement from shopify_order_missing_at, which the
+ * system discovers for itself. An order deleted in Shopify is not necessarily
+ * a test — someone can delete a real one by accident — and quietly dropping
+ * real money out of the books would be worse than leaving a stale row in
+ * them. So the fact is recorded automatically and the verdict is pressed by
+ * hand, here.
+ *
+ * Reversible on purpose: marking the wrong order should cost one more click,
+ * not a database session.
+ */
+router.post('/orders/:id/test', async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
+    const isTest = req.body?.isTest !== false;
+
+    try {
+        const updated = await run('UPDATE orders SET is_test = $1 WHERE id = $2', [isTest, id]);
+        if (!updated.rowCount) return res.status(404).json({ error: 'Not found' });
+        res.json({ id, isTest });
+    } catch (err) {
+        console.error('mark test failed:', err.message);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -123,6 +171,15 @@ router.post('/orders/:id/delivered', async (req, res) => {
             // deleted in Shopify is stale data, and paging someone about it
             // every time the button is pressed teaches them to ignore alerts.
             if (err.message === 'ORDER_GONE') {
+                // Shopify answered 404 for an id we hold: definitive, and it
+                // will not change. Write it down so the dashboard stops
+                // offering a button that can never work, instead of making
+                // someone rediscover it on every click.
+                await run(
+                    `UPDATE orders SET shopify_order_missing_at = now()
+                      WHERE id = $1 AND shopify_order_missing_at IS NULL`,
+                    [id]
+                ).catch((e) => console.error(`Could not flag order ${id} as missing:`, e.message));
                 return res.status(409).json({
                     error: 'This order no longer exists in Shopify — it was deleted there. Nothing to mark.',
                 });

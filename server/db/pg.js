@@ -190,6 +190,12 @@ export async function initDB() {
         -- fulfilled orders; this column is what stops it sending twice.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipped_email_at TIMESTAMPTZ;
 
+        -- Set when Shopify answers 404 for this order's id: it was deleted
+        -- there and will not come back. A definitive answer worth keeping, so
+        -- the dashboard can stop offering actions that can never succeed.
+        -- Says nothing about whether the sale was real — that is is_test.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS shopify_order_missing_at TIMESTAMPTZ;
+
         -- Return and exchange requests.
         --
         -- order_id is nullable on purpose. The form is filled in by order

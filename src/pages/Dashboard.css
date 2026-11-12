@@ -312,7 +312,55 @@
 
 .ret-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* The parcel's contents on the order card. Marking an order delivered is a
+   claim about specific garments, so they are shown rather than summarised. */
+.ord-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem 1.5rem;
+    margin: 0 0 1.25rem;
+}
+
+.ord-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.ord-item-img {
+    width: 48px;
+    height: 64px;
+    object-fit: cover;
+    display: block;
+    background: rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+
+.ord-item-img--none { border: 0.5px dashed rgba(255, 255, 255, 0.2); }
+
+.ord-item-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ord-item-text strong {
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    font-weight: 400;
+    text-transform: uppercase;
+}
+
+.ord-item-text em {
+    font-style: normal;
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+}
+
 @media (--phone) {
     .ret-card { padding: 1.1rem; }
     .ret-meta { grid-template-columns: 1fr; }
+    .ord-items { flex-direction: column; gap: 0.8rem; }
 }

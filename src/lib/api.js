@@ -186,6 +186,8 @@ export const adminAPI = {
         }),
     orders: (token) => adminFetch('/orders', token),
     markDelivered: (token, id) => adminFetch(`/orders/${id}/delivered`, token, { method: 'POST' }),
+    markTest: (token, id, isTest) =>
+        adminFetch(`/orders/${id}/test`, token, { method: 'POST', body: JSON.stringify({ isTest }) }),
 };
 
 // Returns — the lookup and submit are callable signed out; myOrders is not.
