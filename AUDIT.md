@@ -5,6 +5,11 @@ Every claim below was re-verified against the code before being written down.
 
 **Verification key:** ✅ confirmed by me · ⚠️ plausible, unverified · 🔵 needs your decision, not a fix
 
+> **Status:** Tiers 1–4 have been fixed and pushed. Two items remain open and
+> need you rather than code, both called out in Tier 4: the registered office
+> address disagrees between `src/data/business.js` and `src/data/terms.json`,
+> and the Grievance Officer section stays hidden until a real name is set.
+
 ---
 
 ## Tier 1 — live harm, fix first

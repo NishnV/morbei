@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { contactAPI } from '../lib/api';
 import './SupportPage.css';
+import { BUSINESS, addressOneLine } from '../data/business';
 
 /**
  * Contact.
@@ -49,10 +50,42 @@ const Contact = () => {
                         Email: <a href="mailto:info@morbei.com">info@morbei.com</a><br />
                         Customer support: <a href="tel:+919952228533">+91 9952228533</a><br />
                         Opening hours: 11:00 AM - 5:00 PM<br />
-                        Registered office address: No. 248, B Block, First Floor, F2,
-                        Vigneshwara Nagar, Gerugambakkam, Chennai - 600128.
+                        Registered office address: {addressOneLine()}.
                     </p>
                 </section>
+
+                {/* Consumer Protection (E-Commerce) Rules 2020 require an
+                    e-commerce entity to appoint a Grievance Officer and display
+                    their name, designation and contact details, with defined
+                    acknowledgement and redressal timelines. None of that was
+                    anywhere on this site. The DPDP Act expects a published
+                    contact point for data-rights requests too, which the same
+                    person can hold.
+
+                    Renders only once a real name is set in src/data/business.js
+                    — publishing a commitment with a placeholder behind it is
+                    worse than publishing nothing. */}
+                {BUSINESS.grievanceOfficer.name && (
+                    <section className="contact-details">
+                        <h2 className="contact-subhead">GRIEVANCE OFFICER</h2>
+                        <p className="contact-body">
+                            In accordance with the Consumer Protection (E-Commerce) Rules, 2020
+                            and the Digital Personal Data Protection Act, 2023, complaints and
+                            requests about your personal data may be addressed to:
+                        </p>
+                        <p className="contact-body">
+                            {BUSINESS.grievanceOfficer.name}<br />
+                            {BUSINESS.grievanceOfficer.designation}, {BUSINESS.legalName}<br />
+                            Email: <a href={`mailto:${BUSINESS.grievanceOfficer.email}`}>{BUSINESS.grievanceOfficer.email}</a><br />
+                            Phone: <a href={`tel:${BUSINESS.grievanceOfficer.phoneHref}`}>{BUSINESS.grievanceOfficer.phone}</a><br />
+                            {addressOneLine()}
+                        </p>
+                        <p className="contact-body">
+                            We acknowledge complaints within {BUSINESS.grievanceOfficer.acknowledgeWithin} and
+                            aim to resolve them within {BUSINESS.grievanceOfficer.resolveWithin} of receipt.
+                        </p>
+                    </section>
+                )}
 
                 <section className="contact-form-col">
                     <h2 className="contact-subhead">SEND US A MESSAGE</h2>

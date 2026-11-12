@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './Returns.css';
+import { BUSINESS, addressLines } from '../data/business';
 
 const Returns = () => {
     return (
@@ -52,10 +53,8 @@ const Returns = () => {
                     courier and tracking number so we know to expect it.
                 </p>
                 <p className="re-body">
-                    MORBEI Returns<br />
-                    Vigneshwara Nagar, Gerugambakkam<br />
-                    Chennai 600128, Tamil Nadu<br />
-                    <a className="re-link" href="tel:+919952228533">+91 99522 28533</a>
+                    {addressLines().map((line) => <React.Fragment key={line}>{line}<br /></React.Fragment>)}
+                    <a className="re-link" href={`tel:${BUSINESS.support.phoneHref}`}>{BUSINESS.support.phone}</a>
                 </p>
                 <p className="re-body">
                     Please do not send anything back before your request is approved — we

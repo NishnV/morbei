@@ -62,31 +62,18 @@
       vercel.json (script-src, img-src, connect-src). Nothing loads without
       that, so if the pixel ever goes quiet, check there first.
     -->
-    <!-- Meta Pixel Code -->
-    <script>
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '1626259335567493');
-      fbq('track', 'PageView');
-    </script>
-    <!-- End Meta Pixel Code -->
+    <!-- The Meta Pixel used to initialise and fire PageView from here, which
+         meant it had already transmitted before the visitor saw the page, and
+         so before anything could ask them. It now loads from
+         src/lib/metaPixel.js, after consent. The CSP entries below still
+         apply; nothing about the allowed origins changed. -->
   </head>
   <body>
-    <!-- The pixel's no-JavaScript fallback. Meta's snippet puts this in the
-         head, but <noscript> there may only hold <link>, <style> and <meta>;
-         an <img> makes the document invalid and Vite's HTML parser reports
-         "disallowed-content-in-noscript-in-head". It behaves identically at
-         the top of the body, and only matters for a visitor with JavaScript
-         off, who sees nothing either way. -->
-    <noscript><img height="1" width="1" style="display:none"
-      src="https://www.facebook.com/tr?id=1626259335567493&ev=PageView&noscript=1"
-      alt="" /></noscript>
+    <!-- The no-JavaScript pixel fallback was removed with the inline tag
+         above. It cannot be deferred behind a consent decision, because a
+         visitor with JavaScript off can neither be shown the notice nor make
+         one — so it would have been the single remaining path that tracked
+         someone who was never asked. -->
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

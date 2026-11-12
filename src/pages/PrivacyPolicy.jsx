@@ -89,6 +89,26 @@ const PrivacyPolicy = () => {
                     cookies may affect the availability or functionality of certain features and
                     services on our website.
                 </p>
+                {/* This section used to point the reader at their browser
+                    settings, which does nothing about either script — and
+                    both ran before the page rendered, so there was no point
+                    at which a choice could have been made. Now they are named,
+                    and neither loads until asked. */}
+                <p className="pp-body">
+                    Specifically, we use the <strong>Meta Pixel</strong> (Meta Platforms, Inc.) to
+                    measure the effectiveness of our advertising, and <strong>Microsoft Clarity</strong>{' '}
+                    (Microsoft Corporation) to understand how our pages are used, which includes
+                    recording how a visit moves through the site. Neither is loaded until you
+                    agree to it: you are asked on your first visit, and declining means neither
+                    script is requested at all. Both involve a transfer of information outside
+                    India under the terms those providers publish.
+                </p>
+                <p className="pp-body">
+                    Separately, we count visits on our own servers in order to know which pages
+                    are seen and where a purchase is abandoned. That record holds no name, email
+                    address, IP address or device identifier, and is not shared with anyone. It
+                    continues regardless of the choice above.
+                </p>
             </section>
 
             <section className="pp-section">

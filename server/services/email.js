@@ -44,10 +44,16 @@ async function deliverAll(promises, label) {
 
 // The storefront, for links out of an email. CLIENT_URL may hold several
 // origins (CORS takes a list); the first is the canonical one.
+// Must match BUSINESS.registeredOffice in src/data/business.js. The server
+// cannot import from the frontend bundle, so this is the one duplication that
+// remains — kept adjacent in meaning and called out in both files, because an
+// address a customer posts a return to is a bad thing to let drift.
 export const RETURN_ADDRESS = [
-    'MORBEI Returns',
+    'MORBEI LLP — Returns',
+    'No. 248, B Block, First Floor, F2',
     'Vigneshwara Nagar, Gerugambakkam',
-    'Chennai 600128, Tamil Nadu',
+    'Chennai 600128',
+    'Tamil Nadu, India',
 ];
 
 const PRODUCTION_SITE = 'https://www.morbei.com';

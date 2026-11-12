@@ -48,6 +48,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 import ErrorBoundary from './components/ErrorBoundary';
+import ConsentBanner from './components/ConsentBanner';
 import { useCustomer } from './hooks/useCustomer';
 import { useCart } from './hooks/useCart';
 import { useOrderRecovery } from './hooks/useOrderRecovery';
@@ -129,6 +130,10 @@ const AppContent = () => {
   // computed against too small a denominator.
   const firstRoute = useRef(true);
   useEffect(() => {
+    // The operator's own visits were counted. Opening the dashboard added a
+    // session and a visitor to the very figure being read — one with no
+    // ViewContent, so it dragged the first conversion step down too.
+    if (location.pathname.startsWith('/dashboard')) return;
     const skipMeta = firstRoute.current;
     firstRoute.current = false;
     track('PageView', {}, { skipMeta });
@@ -212,6 +217,10 @@ const AppContent = () => {
         </Suspense>
       </main>
       {location.pathname !== '/profile' && location.pathname !== '/' && location.pathname !== '/about' && location.pathname !== '/checkout' && location.pathname !== '/cart' && location.pathname !== '/wishlist' && <Footer />}
+      {/* Outside the route switch and the footer's exclusions: the question
+          has to be asked wherever a visitor lands, including the pages that
+          hide the footer. It renders nothing once answered. */}
+      <ConsentBanner />
       </div>
     </>
   );

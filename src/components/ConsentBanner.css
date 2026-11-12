@@ -1,0 +1,82 @@
+/* Pinned to the bottom so it never covers the header or a product image.
+   Breakpoints come from the @custom-media tokens in src/styles/breakpoints.css
+   — never a raw width query. */
+
+.consent-banner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9000;
+    background: #0a0a0a;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.2);
+    padding: 1.25rem 1.5rem calc(1.25rem + env(safe-area-inset-bottom));
+}
+
+.consent-banner-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.consent-banner-text {
+    margin: 0;
+    flex: 1;
+    font-size: 0.65rem;
+    line-height: 1.7;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.consent-banner-link {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.consent-banner-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.consent-btn {
+    padding: 0.7rem 1.75rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    background: #fff;
+    color: #0a0a0a;
+    border: 0.5px solid #fff;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.consent-btn--ghost {
+    background: transparent;
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+@media (hover: hover) {
+    .consent-btn:hover {
+        opacity: 0.8;
+    }
+}
+
+@media (--mobile) {
+    .consent-banner-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .consent-banner-actions {
+        justify-content: stretch;
+    }
+
+    .consent-btn {
+        flex: 1;
+        text-align: center;
+    }
+}
