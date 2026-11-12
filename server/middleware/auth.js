@@ -41,7 +41,9 @@ async function resolveUser(req) {
         if (tokenVersion !== user.token_version) {
             return { status: 401, error: 'Session ended, please sign in again' };
         }
-        return { user: { id: user.id, email: user.email } };
+        // gsid rides on the token rather than the users row: it identifies the
+        // session, not the person, and a person can have several.
+        return { user: { id: user.id, email: user.email, gsid: payload.gsid || null } };
     } catch (err) {
         // A database blip must not read as an auth failure — that would log
         // people out and, worse, hide the real problem behind a 401.
@@ -75,9 +77,20 @@ export async function optionalAuthenticate(req, _res, next) {
     next();
 }
 
-export function signToken(userId, email, tokenVersion = 0) {
+/**
+ * Issue a session.
+ *
+ * `gsid` marks a guest session and scopes it. A guest session is handed out on
+ * an email alone — nobody proves they own the address — so it must not be able
+ * to reach orders it did not place. Orders created while holding one are
+ * stamped with the same id, and the order routes filter on it.
+ *
+ * A Shopify login passes no gsid: that caller proved who they are, so they see
+ * everything on the account, including guest orders placed earlier.
+ */
+export function signToken(userId, email, tokenVersion = 0, guestSessionId = null) {
     return jwt.sign(
-        { id: userId, email, tv: tokenVersion },
+        { id: userId, email, tv: tokenVersion, ...(guestSessionId ? { gsid: guestSessionId } : {}) },
         process.env.JWT_SECRET,
         { expiresIn: TOKEN_TTL }
     );

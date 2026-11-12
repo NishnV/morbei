@@ -4,6 +4,7 @@ import { signToken, authenticate } from '../middleware/auth.js';
 import { getCustomerByToken } from '../services/shopify-storefront.js';
 import { notifySlackError } from '../services/slack.js';
 import { domainAcceptsMail } from '../services/email-domain.js';
+import crypto from 'node:crypto';
 
 const router = Router();
 
@@ -75,7 +76,14 @@ router.post('/guest', async (req, res) => {
             [email, GUEST_PASSWORD, firstName, lastName, phone]
         );
 
-        const token = signToken(user.id, user.email, user.token_version);
+        // Scoped to this session, not to the address. Nobody proved they own
+        // the email, so the token must only reach orders placed while holding
+        // it — see signToken and the order routes. Previously this returned a
+        // full session for whatever row the email resolved to, which handed
+        // anyone who knew a past guest customer's address their order history,
+        // their shipping details, and the ability to cancel and refund.
+        const guestSessionId = crypto.randomUUID();
+        const token = signToken(user.id, user.email, user.token_version, guestSessionId);
         res.json({ token, user: { id: user.id, email: user.email, firstName, lastName, guest: true } });
     } catch (err) {
         console.error('guest session error:', err);

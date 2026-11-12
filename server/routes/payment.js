@@ -221,9 +221,13 @@ router.post('/create-order', authenticate, async (req, res) => {
 
         // Save pending order in DB with server-verified prices
         const inserted = await get(
-            `INSERT INTO orders (user_id, total_amount, shipping_method, shipping_address, items, status, is_test)
-             VALUES ($1, $2, $3, $4, $5, 'pending', $6) RETURNING id`,
-            [req.user.id, totalPaise, method, JSON.stringify(shippingAddress), JSON.stringify(pricedLines), isTest]
+            `INSERT INTO orders (user_id, total_amount, shipping_method, shipping_address, items, status, is_test,
+                                 guest_session_id)
+             VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7) RETURNING id`,
+            // Null for a signed-in customer. For a guest this is what later
+            // limits their session to the orders it actually placed.
+            [req.user.id, totalPaise, method, JSON.stringify(shippingAddress), JSON.stringify(pricedLines), isTest,
+             req.user.gsid || null]
         );
 
         const receipt = `order_${inserted.id}`;

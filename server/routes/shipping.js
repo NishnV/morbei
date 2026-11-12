@@ -30,8 +30,13 @@ async function findCapturedPayment(order) {
 router.get('/track-order/:orderId', authenticate, async (req, res) => {
     try {
         const order = await get(
-            'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
-            [req.params.orderId, req.user.id]
+            // Guest sessions are scoped to the orders they placed; see
+            // signToken. A signed-in customer is scoped by user_id alone.
+            `SELECT * FROM orders WHERE id = $1 AND user_id = $2
+                ${req.user.gsid ? 'AND guest_session_id = $3' : ''}`,
+            req.user.gsid
+                ? [req.params.orderId, req.user.id, req.user.gsid]
+                : [req.params.orderId, req.user.id]
         );
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
@@ -54,8 +59,13 @@ router.get('/track-order/:orderId', authenticate, async (req, res) => {
 router.post('/cancel/:orderId', authenticate, async (req, res) => {
     try {
         const order = await get(
-            'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
-            [req.params.orderId, req.user.id]
+            // Guest sessions are scoped to the orders they placed; see
+            // signToken. A signed-in customer is scoped by user_id alone.
+            `SELECT * FROM orders WHERE id = $1 AND user_id = $2
+                ${req.user.gsid ? 'AND guest_session_id = $3' : ''}`,
+            req.user.gsid
+                ? [req.params.orderId, req.user.id, req.user.gsid]
+                : [req.params.orderId, req.user.id]
         );
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.status === 'cancelled') return res.status(400).json({ error: 'Order already cancelled' });

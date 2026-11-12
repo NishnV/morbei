@@ -112,8 +112,14 @@ router.get('/', authenticate, async (req, res) => {
         // Exclude 'pending' orders — those are checkouts that were started but
         // never paid (abandoned). Customers should only see real orders.
         const orders = await all(
-            `SELECT * FROM orders WHERE user_id = $1 AND status <> 'pending' ORDER BY created_at DESC`,
-            [req.user.id]
+            // A guest session sees only what it bought. It was issued on an
+            // unverified email, so the user row it resolves to may belong to
+            // someone else entirely.
+            `SELECT * FROM orders
+              WHERE user_id = $1 AND status <> 'pending'
+                ${req.user.gsid ? 'AND guest_session_id = $2' : ''}
+              ORDER BY created_at DESC`,
+            req.user.gsid ? [req.user.id, req.user.gsid] : [req.user.id]
         );
         const enriched = await Promise.all(orders.map(o => withTracking(serializeOrder(o))));
         res.json(enriched);
@@ -128,8 +134,11 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/:id', authenticate, async (req, res) => {
     try {
         const order = await get(
-            'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
-            [req.params.id, req.user.id]
+            // Guest sessions are scoped to the orders they placed; see
+            // signToken. A signed-in customer is scoped by user_id alone.
+            `SELECT * FROM orders WHERE id = $1 AND user_id = $2
+                ${req.user.gsid ? 'AND guest_session_id = $3' : ''}`,
+            req.user.gsid ? [req.params.id, req.user.id, req.user.gsid] : [req.params.id, req.user.id]
         );
         if (!order) return res.status(404).json({ error: 'Order not found' });
         res.json(await withTracking(serializeOrder(order)));

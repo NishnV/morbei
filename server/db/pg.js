@@ -111,15 +111,23 @@ export async function initDB() {
         -- valid server-side for its full lifetime.
         ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
-        -- The contact form gained a phone field; without this the number a
-        -- customer types is accepted by the browser and dropped on the floor.
-        ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS phone TEXT;
-
         CREATE TABLE IF NOT EXISTS contact_submissions (
             id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             name TEXT, email TEXT, subject TEXT, message TEXT,
             created_at TIMESTAMPTZ DEFAULT now()
         );
+
+        -- The contact form gained a phone field; without this the number a
+        -- customer types is accepted by the browser and dropped on the floor.
+        --
+        -- Must stay BELOW the CREATE above. IF NOT EXISTS guards the column,
+        -- not the table, so against an empty database this errored — and since
+        -- the whole of initDB is one multi-statement query, Postgres treats it
+        -- as a single transaction and rolled back every other statement with
+        -- it. No tables, boot fails, Railway restarts, repeat. Production only
+        -- survived because the table predated the ALTER; a restore into a new
+        -- database could not start at all.
+        ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS phone TEXT;
 
         CREATE TABLE IF NOT EXISTS newsletter (
             id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -195,6 +203,16 @@ export async function initDB() {
         -- the dashboard can stop offering actions that can never succeed.
         -- Says nothing about whether the sale was real — that is is_test.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS shopify_order_missing_at TIMESTAMPTZ;
+
+        -- Which guest session placed this order. A guest session is issued on
+        -- an email alone, so it must only ever see what it bought itself;
+        -- without this, anyone who knew an address that had checked out as a
+        -- guest could ask for a session and read that customer's whole
+        -- history. Null for orders placed by a signed-in customer, who is
+        -- scoped by user_id as before.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_session_id TEXT;
+        CREATE INDEX IF NOT EXISTS idx_orders_guest_session ON orders (guest_session_id)
+            WHERE guest_session_id IS NOT NULL;
 
         -- Return and exchange requests.
         --

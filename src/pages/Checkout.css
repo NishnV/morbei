@@ -37,6 +37,47 @@
     margin: 0;
 }
 
+/* The order summary above the pay button. Added because the payment step
+   quoted no figures at all, so priority shipping first appeared inside the
+   Razorpay dialog. */
+.pay-summary {
+    margin: 0 0 1.5rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+}
+
+.pay-summary div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+}
+
+.pay-summary dt {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.pay-summary dd {
+    margin: 0;
+    color: #fff;
+}
+
+.pay-summary-total {
+    border-top: 0.5px solid rgba(255, 255, 255, 0.2);
+    padding-top: 0.6rem;
+    margin-top: 0.3rem;
+}
+
+.pay-summary-total dt,
+.pay-summary-total dd {
+    color: #fff;
+    font-size: 0.75rem;
+}
+
 .checkout-total-info {
     font-size: 0.85rem;
     letter-spacing: 0.15em;

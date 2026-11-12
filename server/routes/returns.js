@@ -102,10 +102,13 @@ async function itemsFor(order) {
 router.get('/orders', authenticate, async (req, res) => {
     try {
         const orders = await all(
+            // Scoped like every other authenticated order read: a guest
+            // session may only raise returns against what it bought.
             `SELECT * FROM orders
               WHERE user_id = $1 AND razorpay_payment_id IS NOT NULL
+                ${req.user.gsid ? 'AND guest_session_id = $2' : ''}
               ORDER BY created_at DESC LIMIT 25`,
-            [req.user.id]
+            req.user.gsid ? [req.user.id, req.user.gsid] : [req.user.id]
         );
         res.json({
             email: req.user.email,

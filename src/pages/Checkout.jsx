@@ -130,7 +130,13 @@ const Checkout = () => {
 
     const lines = cart?.lines || [];
     const cost = cart?.cost;
-    const totalFormatted = cost?.totalAmount ? formatPrice(cost.totalAmount) : '—';
+    // The bag's own total, items only. Kept separate from the grand total
+    // because the two differ by the shipping the server adds, and this one is
+    // the subtotal line rather than the amount anybody pays.
+    const itemsTotalRupees = Number(
+        typeof cost?.totalAmount === 'object' ? cost?.totalAmount?.amount : cost?.totalAmount
+    ) || 0;
+    const subtotalFormatted = cost?.totalAmount ? formatPrice(cost.totalAmount) : '—';
     const cartCount = lines.reduce((sum, l) => sum + l.quantity, 0);
 
     const { step: stepParam } = useParams();
@@ -327,6 +333,22 @@ const Checkout = () => {
                 throw new Error('This account cannot place test orders.');
             }
 
+            // Never open the gateway for an amount the customer was not shown.
+            // The server recomputes the total from Shopify's own prices, so if
+            // it disagrees with the figure on the button then a price or the
+            // shipping cost moved while this tab was open — and the honest
+            // answer is to say so, not to charge the difference quietly. Test
+            // orders are exempt: their ₹1 is a deliberate mismatch.
+            if (!orderData.isTest) {
+                const chargedRupees = Math.round(orderData.amount / 100);
+                if (chargedRupees !== grandTotalRupees) {
+                    throw new Error(
+                        `The total changed while you were checking out — it is now RS. ${chargedRupees.toLocaleString('en-IN')}. `
+                        + 'Please review your bag and try again.'
+                    );
+                }
+            }
+
             // Record the attempt BEFORE the gateway opens. If the customer
             // closes the tab after paying, this note is the only trace the
             // browser keeps — it is what lets the next visit clear the bag and
@@ -350,7 +372,7 @@ const Checkout = () => {
                 handler: async (response) => {
                     // The money is captured by the time Razorpay calls this.
                     // Everything from here is about telling the customer so.
-                    const shippingCost = deliveryMethod === 'priority' ? 200 : 0;
+                    const shippingCost = getDeliveryOption(deliveryMethod).priceRupees || 0;
                     const confirmation = {
                         orderId: orderData.orderId,
                         items: cartLines,
@@ -467,6 +489,14 @@ const Checkout = () => {
     }
 
     const delivery = getDeliveryOption(deliveryMethod);
+    // What the customer will actually be charged. The pay button used to show
+    // the bag total, so anyone choosing PRIORITY was quoted a figure ₹200
+    // below what Razorpay then asked for. getDeliveryOption and the server's
+    // SHIPPING_COST_RUPEES are documented as having to agree, and the assert
+    // in handlePayment is what catches it if they ever stop.
+    const shippingRupees = delivery.priceRupees || 0;
+    const grandTotalRupees = itemsTotalRupees + shippingRupees;
+    const totalFormatted = cost?.totalAmount ? formatPrice(String(grandTotalRupees)) : '—';
     const estStart = new Date(); estStart.setDate(estStart.getDate() + delivery.minDays);
     const estEnd = new Date(); estEnd.setDate(estEnd.getDate() + delivery.maxDays);
     const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
@@ -651,6 +681,24 @@ const Checkout = () => {
                                                     <h2>PAY WITH</h2>
                                                 </div>
                                                 <div className="razorpay-payment-block">
+                                                    {/* The payment step showed no figures at all, so a
+                                                        shopper on PRIORITY met the ₹200 for the first
+                                                        time inside Razorpay. Spell it out before the
+                                                        gateway, not during it. */}
+                                                    <dl className="pay-summary">
+                                                        <div>
+                                                            <dt>SUBTOTAL</dt>
+                                                            <dd>{subtotalFormatted}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt>SHIPPING</dt>
+                                                            <dd>{shippingRupees > 0 ? formatPrice(String(shippingRupees)) : 'FREE'}</dd>
+                                                        </div>
+                                                        <div className="pay-summary-total">
+                                                            <dt>TOTAL</dt>
+                                                            <dd>{totalFormatted}</dd>
+                                                        </div>
+                                                    </dl>
                                                     <button
                                                         className="razorpay-pay-btn"
                                                         onClick={handlePayment}
