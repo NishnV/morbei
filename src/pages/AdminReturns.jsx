@@ -45,6 +45,10 @@ const AdminReturns = ({ token }) => {
     // Only needed for an exchange of a different product, where the customer
     // described what they want in words and a person has to resolve it.
     const [variantIds, setVariantIds] = useState({});
+    // Carrier and tracking for the journey back, whether we booked the pickup
+    // or the customer posted it and told us the number.
+    const [carriers, setCarriers] = useState({});
+    const [awbs, setAwbs] = useState({});
 
     const load = useCallback(async () => {
         setError('');
@@ -57,14 +61,14 @@ const AdminReturns = ({ token }) => {
 
     useEffect(() => { load(); }, [load]);
 
-    const act = async (id, action) => {
+    const act = async (id, action, extras = {}) => {
         // Money leaving the account should not be one unguarded click.
         if (action === 'refund' && !window.confirm('Issue this refund to the customer now?')) return;
         if (action === 'exchange' && !window.confirm('Raise a free replacement order in Shopify now?')) return;
         setBusyId(id);
         setError('');
         try {
-            await adminAPI.act(token, id, action, notes[id] || '', variantIds[id] || undefined);
+            await adminAPI.act(token, id, action, notes[id] || '', variantIds[id] || undefined, extras);
             await load();
         } catch (err) {
             setError(err.message);
@@ -108,6 +112,12 @@ const AdminReturns = ({ token }) => {
                         <div><dt>REFUNDABLE</dt><dd>{rs(r.refundablePaise)}</dd></div>
                         <div><dt>FROM</dt><dd>{r.fullName} · {r.email} · {r.phone}</dd></div>
                         <div><dt>RAISED</dt><dd>{new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</dd></div>
+                        {(r.returnCarrier || r.returnAwb) && (
+                            <div><dt>COMING BACK</dt><dd>{[r.returnCarrier, r.returnAwb].filter(Boolean).join(' · ')}</dd></div>
+                        )}
+                        {r.receivedAt && (
+                            <div><dt>RECEIVED</dt><dd>{new Date(r.receivedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</dd></div>
+                        )}
                     </dl>
 
                     {r.details && <p className="ret-text">“{r.details}”</p>}
@@ -123,7 +133,7 @@ const AdminReturns = ({ token }) => {
 
                     {r.adminNote && <p className="ret-text ret-text--dim">NOTE: {r.adminNote}</p>}
 
-                    {(r.status === 'requested' || r.status === 'approved') && (
+                    {['requested', 'approved', 'in_transit', 'received'].includes(r.status) && (
                         <div className="ret-actions">
                             <input
                                 className="ret-note"
@@ -133,11 +143,46 @@ const AdminReturns = ({ token }) => {
                             />
                             {r.status === 'requested' && (
                                 <>
-                                    <button className="ret-btn" disabled={busyId === r.id} onClick={() => act(r.id, 'approve')}>APPROVE</button>
+                                    {/* Two approvals, because the customer is told two
+                                        different things: wait for a pickup, or post it to
+                                        the Chennai address. Promising a pickup we are not
+                                        booking is how this went wrong before. */}
+                                    <button className="ret-btn" disabled={busyId === r.id} onClick={() => act(r.id, 'approve', { selfShip: false })}>APPROVE — WE COLLECT</button>
+                                    <button className="ret-btn ret-btn--ghost" disabled={busyId === r.id} onClick={() => act(r.id, 'approve', { selfShip: true })}>APPROVE — THEY POST</button>
                                     <button className="ret-btn ret-btn--ghost" disabled={busyId === r.id} onClick={() => act(r.id, 'reject')}>REJECT</button>
                                 </>
                             )}
-                            {r.status === 'approved' && r.resolution?.startsWith('exchange') && (
+
+                            {r.status === 'approved' && (
+                                <>
+                                    <input
+                                        className="ret-note"
+                                        placeholder="CARRIER"
+                                        value={carriers[r.id] || ''}
+                                        onChange={(e) => setCarriers((p) => ({ ...p, [r.id]: e.target.value }))}
+                                    />
+                                    <input
+                                        className="ret-note"
+                                        placeholder="TRACKING NUMBER"
+                                        value={awbs[r.id] || ''}
+                                        onChange={(e) => setAwbs((p) => ({ ...p, [r.id]: e.target.value }))}
+                                    />
+                                    <button
+                                        className="ret-btn ret-btn--ghost"
+                                        disabled={busyId === r.id || (!carriers[r.id] && !awbs[r.id])}
+                                        onClick={() => act(r.id, 'in_transit', { carrier: carriers[r.id] || '', awb: awbs[r.id] || '' })}
+                                    >
+                                        ON ITS WAY BACK
+                                    </button>
+                                </>
+                            )}
+
+                            {(r.status === 'approved' || r.status === 'in_transit') && (
+                                <button className="ret-btn" disabled={busyId === r.id} onClick={() => act(r.id, 'received')}>
+                                    MARK RECEIVED
+                                </button>
+                            )}
+                            {r.status === 'received' && r.resolution?.startsWith('exchange') && (
                                 <>
                                     {r.resolution === 'exchange_product' && (
                                         <input
@@ -152,7 +197,7 @@ const AdminReturns = ({ token }) => {
                                     </button>
                                 </>
                             )}
-                            {r.status === 'approved' && (
+                            {r.status === 'received' && (
                                 <button
                                     className={`ret-btn${r.resolution?.startsWith('exchange') ? ' ret-btn--ghost' : ''}`}
                                     disabled={busyId === r.id || !r.refundable || !r.refundablePaise}

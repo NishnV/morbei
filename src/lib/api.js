@@ -177,8 +177,13 @@ async function adminFetch(path, token, options = {}) {
 export const adminAPI = {
     funnel: (token, days) => adminFetch(`/funnel?days=${days}`, token),
     returns: (token, status) => adminFetch(`/returns${status ? `?status=${status}` : ''}`, token),
-    act: (token, id, action, note, variantId) =>
-        adminFetch(`/returns/${id}`, token, { method: 'POST', body: JSON.stringify({ action, note, variantId }) }),
+    // extras carries whatever the action needs: selfShip on an approval,
+    // carrier and awb when recording the journey back.
+    act: (token, id, action, note, variantId, extras = {}) =>
+        adminFetch(`/returns/${id}`, token, {
+            method: 'POST',
+            body: JSON.stringify({ action, note, variantId, ...extras }),
+        }),
     orders: (token) => adminFetch('/orders', token),
     markDelivered: (token, id) => adminFetch(`/orders/${id}/delivered`, token, { method: 'POST' }),
 };

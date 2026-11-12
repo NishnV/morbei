@@ -36,6 +36,36 @@ const Returns = () => {
             </section>
 
             <section className="re-section">
+                <h2 className="re-section-title">Getting the Item Back to Us</h2>
+                <p className="re-body">
+                    Once your request is approved we will do one of two things, and the
+                    approval email will say which.
+                </p>
+                <p className="re-body">
+                    <strong>We arrange a pickup.</strong> Where your pincode is serviceable,
+                    we book a reverse pickup and send you the tracking details. Keep the
+                    piece unworn, with its tags and original packaging, ready to hand over.
+                </p>
+                <p className="re-body">
+                    <strong>You post it to us.</strong> Where a pickup is not available,
+                    send it to the address below and reply to the approval email with the
+                    courier and tracking number so we know to expect it.
+                </p>
+                <p className="re-body">
+                    MORBEI Returns<br />
+                    Vigneshwara Nagar, Gerugambakkam<br />
+                    Chennai 600128, Tamil Nadu<br />
+                    <a className="re-link" href="tel:+919952228533">+91 99522 28533</a>
+                </p>
+                <p className="re-body">
+                    Please do not send anything back before your request is approved — we
+                    cannot match an unexpected parcel to an order. Refunds and replacements
+                    are issued once the piece reaches us and has been checked, usually
+                    within two working days of arrival.
+                </p>
+            </section>
+
+            <section className="re-section">
                 <h2 className="re-section-title">Exchanges</h2>
                 <p className="re-body">Exchanges are subject to product availability. If your requested size or item is unavailable, you may choose:</p>
                 <p className="re-body">– Store credit, or</p>

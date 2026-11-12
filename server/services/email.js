@@ -44,6 +44,12 @@ async function deliverAll(promises, label) {
 
 // The storefront, for links out of an email. CLIENT_URL may hold several
 // origins (CORS takes a list); the first is the canonical one.
+export const RETURN_ADDRESS = [
+    'MORBEI Returns',
+    'Vigneshwara Nagar, Gerugambakkam',
+    'Chennai 600128, Tamil Nadu',
+];
+
 const PRODUCTION_SITE = 'https://www.morbei.com';
 
 // Where a link or an image in an email points. CLIENT_URL exists for CORS and
@@ -622,7 +628,31 @@ const RETURN_COPY = {
     approved: {
         subject: (n) => `Your return has been approved — order #${n}`,
         heading: 'RETURN APPROVED',
-        body: () => 'We will be in touch shortly with pickup details. Please keep the item unused and unworn, with its tags and original packaging intact.',
+        // Which half of this a customer gets depends on whether their pincode
+        // is reverse-serviceable. Saying "we will be in touch with pickup
+        // details" to everyone was a promise nothing in the system kept.
+        body: (d) => d.selfShip
+            ? `Please post the item to us, keeping it unused and unworn with its tags and
+               original packaging intact:<br><br>
+               <span class="c-w" style="color:#ffffff;">${RETURN_ADDRESS.map(esc).join('<br>')}</span><br><br>
+               Reply to this email with the courier and tracking number once it is on its
+               way, and we will take it from there.`
+            : `We are booking a pickup from your address and will send the tracking
+               details shortly. Please keep the item unused and unworn, with its tags and
+               original packaging intact, and ready to hand over.`,
+    },
+    in_transit: {
+        subject: (n) => `Your return is on its way back — order #${n}`,
+        heading: 'ON ITS WAY BACK',
+        body: (d) => `We have it tracked${d.returnCarrier ? ` with <span class="c-w" style="color:#ffffff;">${esc(d.returnCarrier)}</span>` : ''}${d.returnAwb ? `, reference <span class="c-w" style="color:#ffffff;">${esc(d.returnAwb)}</span>` : ''}.
+             We will check the piece over as soon as it reaches us and write again — a refund
+             or a replacement usually follows within two working days of it arriving.`,
+    },
+    arrived: {
+        subject: (n) => `We have your return — order #${n}`,
+        heading: 'RETURN RECEIVED',
+        body: () => `It has arrived and we are checking it over. You will hear from us within
+             two working days with your refund or replacement.`,
     },
     rejected: {
         subject: (n) => `About your return request — order #${n}`,

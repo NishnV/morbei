@@ -166,7 +166,7 @@ router.post('/orders/:id/delivered', async (req, res) => {
     }
 });
 
-const STATUSES = ['requested', 'approved', 'rejected', 'refunded', 'exchanged'];
+const STATUSES = ['requested', 'approved', 'in_transit', 'received', 'rejected', 'refunded', 'exchanged'];
 
 /** What this one item is worth, in paise, from the order's stored lines. */
 function itemAmountPaise(order, variantId) {
@@ -211,6 +211,11 @@ router.get('/returns', async (req, res) => {
                 adminNote: r.admin_note,
                 createdAt: r.created_at,
                 deliveredAt: r.delivered_at,
+                // The journey back, so the queue shows what is being waited on
+                // rather than a row that looks the same from approval to refund.
+                returnCarrier: r.return_carrier,
+                returnAwb: r.return_awb,
+                receivedAt: r.received_at,
                 // Shown next to the button, so the amount is known before the
                 // refund is pressed rather than discovered afterwards.
                 refundablePaise: r.order_id ? itemAmountPaise(
@@ -239,7 +244,7 @@ router.get('/returns', async (req, res) => {
  * decision and a payment.
  */
 router.post('/returns/:id', async (req, res) => {
-    const { action, note } = req.body || {};
+    const { action, note, selfShip, carrier, awb } = req.body || {};
     const id = parseInt(req.params.id, 10);
     if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
 
@@ -263,13 +268,69 @@ router.post('/returns/:id', async (req, res) => {
                 orderNumber: row.shopify_order_number,
                 product: row.product_title,
                 note: typeof note === 'string' ? note : '',
+                // Decides which approval the customer reads: post it to us, or
+                // wait for the pickup we are booking.
+                selfShip: Boolean(selfShip),
             }).catch((err) => console.error(`return ${next} email failed:`, err.message));
             return res.json({ id, status: next });
         }
 
-        if (action === 'refund') {
+        // Record the journey back. Either we booked a pickup or the customer
+        // posted it and sent the tracking; from here the return is visibly in
+        // transit rather than sitting indistinguishable from every other
+        // approved row.
+        if (action === 'in_transit') {
             if (row.status !== 'approved') {
-                return res.status(409).json({ error: 'Approve the return before refunding.' });
+                return res.status(409).json({ error: 'Approve the return first.' });
+            }
+            const c = typeof carrier === 'string' ? carrier.trim().slice(0, 80) : '';
+            const a = typeof awb === 'string' ? awb.trim().slice(0, 80) : '';
+            if (!c && !a) {
+                return res.status(400).json({ error: 'Give a carrier or a tracking number.' });
+            }
+            const claimed = await run(
+                `UPDATE returns SET status = 'in_transit', return_carrier = $1, return_awb = $2, updated_at = now()
+                  WHERE id = $3 AND status = 'approved'`,
+                [c || null, a || null, id]
+            );
+            if (!claimed.rowCount) return res.status(409).json({ error: `Already ${row.status}` });
+
+            sendReturnUpdate('in_transit', {
+                to: row.email,
+                name: row.full_name,
+                orderNumber: row.shopify_order_number,
+                product: row.product_title,
+                returnCarrier: c,
+                returnAwb: a,
+            }).catch((err) => console.error('return in_transit email failed:', err.message));
+            return res.json({ id, status: 'in_transit', returnCarrier: c, returnAwb: a });
+        }
+
+        // The parcel is on the shelf. This is the gate the refund and exchange
+        // actions below check, so money cannot go back before the piece does.
+        if (action === 'received') {
+            if (row.status !== 'approved' && row.status !== 'in_transit') {
+                return res.status(409).json({ error: 'Approve the return first.' });
+            }
+            const claimed = await run(
+                `UPDATE returns SET status = 'received', received_at = now(), updated_at = now()
+                  WHERE id = $1 AND status IN ('approved', 'in_transit')`,
+                [id]
+            );
+            if (!claimed.rowCount) return res.status(409).json({ error: `Already ${row.status}` });
+
+            sendReturnUpdate('arrived', {
+                to: row.email,
+                name: row.full_name,
+                orderNumber: row.shopify_order_number,
+                product: row.product_title,
+            }).catch((err) => console.error('return arrived email failed:', err.message));
+            return res.json({ id, status: 'received' });
+        }
+
+        if (action === 'refund') {
+            if (row.status !== 'received') {
+                return res.status(409).json({ error: 'Mark the item received before refunding.' });
             }
             const order = await get('SELECT * FROM orders WHERE id = $1', [row.order_id]);
             if (!order?.razorpay_payment_id) {
@@ -284,7 +345,7 @@ router.post('/returns/:id', async (req, res) => {
             // twice. On failure the claim is released and the status restored.
             const claimed = await run(
                 `UPDATE returns SET status = 'refunding', updated_at = now()
-                  WHERE id = $1 AND status = 'approved'`,
+                  WHERE id = $1 AND status = 'received'`,
                 [id]
             );
             if (!claimed.rowCount) return res.status(409).json({ error: 'Already being refunded' });
@@ -305,7 +366,7 @@ router.post('/returns/:id', async (req, res) => {
                 }).catch((err) => console.error('refund email failed:', err.message));
                 return res.json({ id, status: 'refunded', refundId: refund.id, amountPaise: amount });
             } catch (err) {
-                await run(`UPDATE returns SET status = 'approved', updated_at = now() WHERE id = $1`, [id]);
+                await run(`UPDATE returns SET status = 'received', updated_at = now() WHERE id = $1`, [id]);
                 console.error(`Return refund failed for ${id}:`, err.message);
                 notifySlackError(`return refund failed (return ${id}, order #${row.shopify_order_number})`, err).catch(() => {});
                 return res.status(502).json({ error: 'Razorpay refused the refund. Nothing has been charged back.' });
@@ -313,8 +374,8 @@ router.post('/returns/:id', async (req, res) => {
         }
 
         if (action === 'exchange') {
-            if (row.status !== 'approved') {
-                return res.status(409).json({ error: 'Approve the return before sending a replacement.' });
+            if (row.status !== 'received') {
+                return res.status(409).json({ error: 'Mark the item received before sending a replacement.' });
             }
             if (!row.resolution?.startsWith('exchange')) {
                 return res.status(400).json({ error: 'This request asked for a refund, not an exchange.' });
@@ -355,7 +416,7 @@ router.post('/returns/:id', async (req, res) => {
             // refunding twice, and a slow Shopify call invites a second click.
             const claimed = await run(
                 `UPDATE returns SET status = 'exchanging', updated_at = now()
-                  WHERE id = $1 AND status = 'approved'`,
+                  WHERE id = $1 AND status = 'received'`,
                 [id]
             );
             if (!claimed.rowCount) return res.status(409).json({ error: 'Already in progress' });
@@ -411,7 +472,7 @@ router.post('/returns/:id', async (req, res) => {
                 }).catch((err) => console.error('exchange email failed:', err.message));
                 return res.json({ id, status: 'exchanged', replacementOrderNumber: newNumber, sent: label });
             } catch (err) {
-                await run(`UPDATE returns SET status = 'approved', updated_at = now() WHERE id = $1`, [id]);
+                await run(`UPDATE returns SET status = 'received', updated_at = now() WHERE id = $1`, [id]);
                 console.error(`Exchange order failed for return ${id}:`, err.message);
                 notifySlackError(`exchange replacement failed (return ${id}, order #${row.shopify_order_number})`, err).catch(() => {});
                 return res.status(502).json({ error: 'Shopify refused the replacement order. Nothing was sent.' });

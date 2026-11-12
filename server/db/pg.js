@@ -225,6 +225,14 @@ export async function initDB() {
         -- The replacement order raised in Shopify, once one exists.
         ALTER TABLE returns ADD COLUMN IF NOT EXISTS replacement_order_number BIGINT;
 
+        -- Getting the item back is the step the system could not see. A return
+        -- sat at 'approved' from the moment it was waved through until it was
+        -- refunded, whether the parcel was in transit, on a shelf, or still in
+        -- the customer's flat — and the refund button was live the whole time.
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS return_carrier TEXT;
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS return_awb TEXT;
+        ALTER TABLE returns ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ;
+
         CREATE INDEX IF NOT EXISTS idx_returns_status_created
             ON returns (status, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_returns_order ON returns (order_id);
