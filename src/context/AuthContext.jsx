@@ -8,7 +8,7 @@
  */
 
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
-import { shopifyFetch, handleUserErrors } from '../lib/shopify';
+import { shopifyFetch } from '../lib/shopify';
 import { authAPI, setToken as setBackendToken, clearToken as clearBackendToken } from '../lib/api';
 import {
   CUSTOMER_CREATE_MUTATION,

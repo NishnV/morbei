@@ -26,12 +26,17 @@ const Modal = ({
     const [value, setValue] = useState('');
     const [error, setError] = useState('');
 
-    useEffect(() => {
+    // Resetting in an effect ran a second render pass every time the modal
+    // opened. Adjusting state during render on a changed prop is React's own
+    // recommendation for exactly this, and settles before anything paints.
+    const [wasOpen, setWasOpen] = useState(open);
+    if (open !== wasOpen) {
+        setWasOpen(open);
         if (open) {
             setValue('');
             setError('');
         }
-    }, [open]);
+    }
 
     useEffect(() => {
         if (!open) return;

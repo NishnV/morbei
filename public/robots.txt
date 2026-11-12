@@ -10,5 +10,9 @@ Disallow: /order-details
 Disallow: /profile
 Disallow: /unsubscribe
 
+# The operator dashboard. Gated on a token, but there is no reason for it
+# to be in an index — and a listed URL is an invitation to try the gate.
+Disallow: /dashboard
+
 # Must match SITE_URL in src/components/Seo.jsx.
 Sitemap: https://morbei.com/sitemap.xml

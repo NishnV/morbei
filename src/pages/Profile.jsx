@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../hooks/useCustomer';
-import { useCart } from '../hooks/useCart';
 import { ordersAPI } from '../lib/api';
 import { getStatusLabel } from '../utils/orderStatus';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -10,11 +9,10 @@ import PasswordField from '../components/PasswordField';
 
 const Profile = () => {
     const {
-        customer, loading, error,
+        customer, loading,
         login, signUp, logout, recoverPassword,
-        updateProfile, addAddress, updateAddress, deleteAddress, setDefaultAddress
+        addAddress, updateAddress, deleteAddress, setDefaultAddress
     } = useCustomer();
-    const { cart } = useCart();
     const navigate = useNavigate();
     const location = useLocation();
 

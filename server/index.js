@@ -39,6 +39,15 @@ if (missing.length > 0) {
 if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
   console.warn('RAZORPAY_WEBHOOK_SECRET not set — the payment webhook will reject all events until configured');
 }
+// Nothing checked this, and REQUIRED_ENV does not list it, so a short token
+// was silently accepted on the most powerful surface in the system.
+const ADMIN_TOKEN_MIN_LENGTH = 32;
+if (process.env.ADMIN_DASHBOARD_TOKEN && process.env.ADMIN_DASHBOARD_TOKEN.length < ADMIN_TOKEN_MIN_LENGTH) {
+    console.warn(
+        `ADMIN_DASHBOARD_TOKEN is ${process.env.ADMIN_DASHBOARD_TOKEN.length} characters — `
+        + `use at least ${ADMIN_TOKEN_MIN_LENGTH}. It reads every customer's address and can issue refunds.`
+    );
+}
 if (!process.env.SLACK_WEBHOOK_URL) {
   console.warn('SLACK_WEBHOOK_URL not set — server error alerts will not be sent to Slack');
 }
@@ -147,6 +156,18 @@ app.use('/api/returns', returnsRoutes);
 
 // Admin surface: the funnel and the returns queue, behind
 // ADMIN_DASHBOARD_TOKEN (see middleware/adminToken.js).
+// The one endpoint guarded by a single shared secret had no limiter of its
+// own, so it inherited the global 1000 per 15 minutes — roughly 96,000 guesses
+// a day per address — while returns and the order lookup, which are far less
+// powerful, were each capped at 30. This token reads every customer's address
+// and issues refunds.
+app.use('/api/dashboard', rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: limitMsg,
+}));
 app.use('/api/dashboard', adminRoutes);
 
 app.use('/api/wishlist', wishlistRoutes);

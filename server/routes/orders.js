@@ -99,7 +99,7 @@ router.post('/lookup', async (req, res) => {
         // number and an email is enough to see where the parcel is; it is not
         // a reason to hand over the Razorpay and Shopify identifiers behind
         // it, which this page never renders anyway.
-        const { razorpayOrderId, shopifyOrderId, shiprocketOrderId, refundId, ...safe } = full;
+        const { razorpayOrderId: _ro, shopifyOrderId: _so, shiprocketOrderId: _sro, refundId: _rf, ...safe } = full;
         res.json(safe);
     } catch (err) {
         console.error('order lookup failed:', err.message);

@@ -16,14 +16,16 @@ function getEstDelivery(createdAt) {
 
 const OrderDetails = () => {
     const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // Seeded from the token rather than switched off inside the effect:
+    // with no session there is nothing to load and no render to wait for.
+    const [loading, setLoading] = useState(Boolean(localStorage.getItem('morbei_token')));
     const [error, setError] = useState(null);
     // { type: 'cancel', orderId } | { type: 'notice', title, message } | null
     const [modal, setModal] = useState(null);
     const token = localStorage.getItem('morbei_token');
 
     useEffect(() => {
-        if (!token) { setLoading(false); return; }
+        if (!token) return;
         ordersAPI.list()
             .then(setOrders)
             .catch(e => setError(e.message))
@@ -57,6 +59,32 @@ const OrderDetails = () => {
                 <div className="order-details-container">
                     <h1 className="order-details-header reveal reveal-up">ORDER DETAILS</h1>
                     <p style={{ textAlign: 'center', padding: '4rem 0', letterSpacing: '0.1em', fontSize: '0.85rem' }}>LOADING YOUR ORDERS...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // The fetch failed. This was captured into state and never rendered, so
+    // a dropped request showed an empty order history — the same conflation
+    // the shop grid had.
+    if (error) {
+        return (
+            <div className="order-details-page order-history-page">
+                <div className="order-details-container">
+                    <h1 className="order-details-header reveal reveal-up">ORDER DETAILS</h1>
+                    <div style={{ textAlign: 'center', padding: '4rem 0' }}>
+                        <p style={{ letterSpacing: '0.1em', fontSize: '0.85rem' }}>WE COULDN&apos;T LOAD YOUR ORDERS</p>
+                        <p style={{ letterSpacing: '0.1em', fontSize: '0.7rem', opacity: 0.6, marginTop: '0.75rem' }}>
+                            YOUR ORDERS ARE SAFE — THIS IS A PROBLEM AT OUR END.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            style={{ marginTop: '2rem', background: 'none', border: 0, color: 'inherit', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.75rem', letterSpacing: '0.15em' }}
+                        >
+                            TRY AGAIN
+                        </button>
+                    </div>
                 </div>
             </div>
         );

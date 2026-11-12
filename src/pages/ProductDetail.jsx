@@ -6,7 +6,6 @@ import { useProduct } from '../hooks/useProduct';
 import { useProductRecommendations } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { useGlobalLoading } from '../context/LoadingContext';
-import { useCustomer } from '../hooks/useCustomer';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Seo, { SITE_URL, breadcrumbJsonLd } from '../components/Seo';
 import SizeGuide from '../components/SizeGuide';
@@ -63,9 +62,7 @@ const ProductDetail = () => {
     const [searchParams] = useSearchParams();
     const { toggleWishlist, isInWishlist, setIsCartOpen } = useShop();
     const { addToCart: shopifyAddToCart } = useCart();
-    const { customer } = useCustomer();
-
-    const { data: product, loading } = useProduct(id);
+    const { data: product, loading, error: loadError } = useProduct(id);
 
     // ViewContent: a shopper looking at a product is the first real signal of
     // intent, and the audience Meta can retarget. Keyed on the handle so a
@@ -113,7 +110,6 @@ const ProductDetail = () => {
     // heading over a failure message is exactly the false-reassurance the
     // newsletter form used to give.
     const [notifyResult, setNotifyResult] = useState(null);
-    const [hoveredSize, setHoveredSize] = useState(null);
     const [showMobileSizeOverlay, setShowMobileSizeOverlay] = useState(false);
     const [selectedColor, setSelectedColor] = useState('');
     const [isAnimating, setIsAnimating] = useState(false);
@@ -132,7 +128,7 @@ const ProductDetail = () => {
             // Sample top-left corner pixel (product bg color)
             const px = ctx.getImageData(4, 4, 1, 1).data;
             setBgColor(`rgb(${px[0]},${px[1]},${px[2]})`);
-        } catch (e) {
+        } catch {
             setBgColor('#fff');
         }
     }, []);
@@ -309,6 +305,29 @@ const ProductDetail = () => {
         return <div style={{ minHeight: '100vh', background: '#000' }} />;
     }
 
+    // A failed fetch is not a deleted product. This told anyone whose request
+    // dropped — a shared Instagram link opened on bad mobile data, say — that
+    // the piece no longer existed.
+    if (!product && loadError) {
+        return (
+            <div style={{ padding: '10rem 2rem', textAlign: 'center' }}>
+                <h2 style={{ fontSize: '0.8rem', letterSpacing: '0.2em' }}>WE COULDN&apos;T LOAD THIS PIECE</h2>
+                <p style={{ marginTop: '1rem', fontSize: '0.7rem', letterSpacing: '0.12em', opacity: 0.6 }}>
+                    {loadError.offline
+                        ? 'YOU APPEAR TO BE OFFLINE. CHECK YOUR CONNECTION.'
+                        : 'SOMETHING WENT WRONG AT OUR END. IT IS STILL THERE.'}
+                </p>
+                <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    style={{ marginTop: '2rem', background: 'none', border: 0, color: 'inherit', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.75rem', letterSpacing: '0.15em' }}
+                >
+                    TRY AGAIN
+                </button>
+            </div>
+        );
+    }
+
     if (!product) {
         return (
             <div style={{ padding: '10rem 2rem', textAlign: 'center' }}>
@@ -327,7 +346,7 @@ const ProductDetail = () => {
         setActiveAccordion(activeAccordion === section ? null : section);
     };
 
-    const handleAddToCart = async (e) => {
+    const handleAddToCart = async () => {
         // On the mobile design (portrait phones + iPads), the size overlay lives on the
         // product image — scroll back up to it so it's actually visible, then show it.
         if (isMobileViewport()) {

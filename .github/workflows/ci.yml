@@ -1,0 +1,122 @@
+name: CI
+
+# Nothing gated a push before this. Lint was configured but only ran when
+# someone remembered, both builds could break in Vercel's dashboard rather
+# than here, and the riskiest unreviewed code in the repo — the DDL string
+# initDB runs on every boot — was only ever executed against a database where
+# it had already succeeded. That is how an ALTER ended up above the CREATE it
+# depended on: production survived because the table predated it, while a
+# restore into a new database could not start at all.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  frontend:
+    name: Lint and build the storefront
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx eslint .
+      - run: npm run build
+        env:
+          # Build-time only. Absent values make the build fall back to its
+          # defaults, which is enough to prove the bundle compiles.
+          VITE_SITE_URL: https://www.morbei.com
+
+  server:
+    name: Check the backend parses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - name: Syntax-check every server module
+        run: find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+        working-directory: server
+
+  schema:
+    name: Build the schema from nothing
+    runs-on: ubuntu-latest
+    # The job that matters most. initDB runs its DDL as one multi-statement
+    # query, which Postgres treats as a single transaction: one bad statement
+    # rolls back every other one and the server exits. Running it against an
+    # empty database on every push is the only thing that catches an ordering
+    # mistake before a disaster-recovery restore does.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: morbei_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - name: initDB against an empty database
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://postgres:ci@localhost:5432/morbei_ci
+        run: |
+          node --input-type=module -e "
+            const { initDB, all } = await import('./db/pg.js');
+            await initDB();
+            const tables = await all(
+              \"SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY 1\"
+            );
+            const names = tables.map((t) => t.tablename);
+            console.log('tables created:', names.join(', '));
+            // A rolled-back run leaves nothing behind, so an empty list is the
+            // failure this job exists to catch.
+            const expected = ['contact_submissions', 'newsletter', 'orders', 'returns',
+                              'site_events', 'users', 'wishlist'];
+            const missing = expected.filter((t) => !names.includes(t));
+            if (missing.length) {
+              console.error('MISSING TABLES:', missing.join(', '));
+              process.exit(1);
+            }
+            // Idempotent on a database that already has the schema — this is
+            // what runs on every production boot.
+            await initDB();
+            console.log('second run clean');
+            process.exit(0);
+          "
+
+  audit:
+    name: Dependency advisories
+    runs-on: ubuntu-latest
+    # Reports rather than blocks: a new advisory on a transitive dependency
+    # should not stop a fix from shipping, but it should be visible.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm audit --audit-level=high
+      - run: npm audit --audit-level=high
+        working-directory: server

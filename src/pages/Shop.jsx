@@ -70,7 +70,6 @@ const Shop = ({ category = "ALL" }) => {
     const searchQuery = searchParams.get('search');
     const [showScrollTop, setShowScrollTop] = React.useState(false);
     const lastScrollY = React.useRef(0);
-    const shopRef = React.useRef(null);
 
     // Filter and Sort states
     const [isFilterOpen, setIsFilterOpen] = React.useState(false);
@@ -174,8 +173,13 @@ const Shop = ({ category = "ALL" }) => {
         { skip: isSearching || Boolean(collectionHandle), sortBy }
     );
 
+    // A dropped request and an empty shelf are not the same thing, and the
+    // page used to render both as "NO PRODUCTS FOUND" — so a shopper on bad
+    // mobile data was told the store was empty.
+    const loadError = collectionError || allError;
+
     // Fetch from Shopify search when search query is present
-    const { data: searchResults, loading: searchLoading, totalCount: searchTotal } = useSearch(
+    const { data: searchResults, loading: searchLoading } = useSearch(
         searchQuery || '',
         { sortBy: SORT_KEY_MAP[sortBy] || 'relevance', pageSize: 40 }
     );
@@ -770,10 +774,26 @@ const Shop = ({ category = "ALL" }) => {
                         ))}
                     </div>
                     </>
+                ) : loadError ? (
+                    <div className="no-products-found">
+                        <h2>WE COULDN&apos;T LOAD THE COLLECTION</h2>
+                        <p>
+                            {loadError.offline
+                                ? 'YOU APPEAR TO BE OFFLINE. CHECK YOUR CONNECTION AND TRY AGAIN.'
+                                : 'SOMETHING WENT WRONG AT OUR END. THE PRODUCTS ARE STILL THERE.'}
+                        </p>
+                        <button
+                            type="button"
+                            className="back-to-shop"
+                            onClick={() => window.location.reload()}
+                        >
+                            TRY AGAIN
+                        </button>
+                    </div>
                 ) : (
                     <div className="no-products-found">
                         <h2>NO PRODUCTS FOUND</h2>
-                        <p>SORRY, WE COULDN'T FIND ANY PRODUCTS MATCHING YOUR SEARCH.</p>
+                        <p>SORRY, WE COULDN&apos;T FIND ANY PRODUCTS MATCHING YOUR SEARCH.</p>
                         <Link to="/shop/all" className="back-to-shop">VIEW ALL PRODUCTS</Link>
                     </div>
                 )}

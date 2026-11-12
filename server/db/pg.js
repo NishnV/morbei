@@ -214,6 +214,22 @@ export async function initDB() {
         CREATE INDEX IF NOT EXISTS idx_orders_guest_session ON orders (guest_session_id)
             WHERE guest_session_id IS NOT NULL;
 
+        -- The guest order lookup and the returns lookup both match on an order
+        -- number and a lower-cased email. Neither column was indexed for that:
+        -- shopify_order_number had no index at all, and lower(email) cannot use
+        -- the UNIQUE btree on users.email because the expression differs. Both
+        -- endpoints seq-scanned two tables on every call — and both are
+        -- callable without authentication. With statement_timeout at 10s that
+        -- becomes a customer-visible timeout rather than a slow page.
+        CREATE INDEX IF NOT EXISTS idx_orders_shopify_number ON orders (shopify_order_number);
+        CREATE INDEX IF NOT EXISTS idx_users_lower_email ON users (lower(email));
+
+        -- The hourly shipped-notice sweep. The partial index above covers
+        -- unsettled orders and deliberately excludes 'paid', which is exactly
+        -- what this one scans.
+        CREATE INDEX IF NOT EXISTS idx_orders_awaiting_ship_email ON orders (created_at)
+            WHERE status = 'paid' AND shipped_email_at IS NULL;
+
         -- Cancellation claim, kept apart from the status column for the same
         -- reason claimed_at is: overloading status as a mutex means a process
         -- that dies mid-cancel leaves the row in a state no transition

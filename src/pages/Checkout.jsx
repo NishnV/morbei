@@ -557,29 +557,45 @@ const Checkout = () => {
                                             </span>
                                         )}
                                     </div>
+                                    {/* Every field here was placeholder-only, with no label and no
+                                        autoComplete — so a phone could not autofill an Indian shipping
+                                        address, a password manager had nothing to match on, and the
+                                        placeholder disappeared the moment anyone typed, leaving a
+                                        shopper correcting one field with no idea which it was. The
+                                        labels are visually hidden to keep the design unchanged. */}
                                     <div className="form-row-v3">
-                                        <input className="checkout-input-v3" name="firstName" placeholder="FIRST NAME" value={form.firstName} onChange={handleForm} />
-                                        <input className="checkout-input-v3" name="lastName" placeholder="LAST NAME" value={form.lastName} onChange={handleForm} />
+                                        <label className="visually-hidden" htmlFor="co-firstName">First name</label>
+                                        <input id="co-firstName" className="checkout-input-v3" name="firstName" autoComplete="given-name" placeholder="FIRST NAME" value={form.firstName} onChange={handleForm} />
+                                        <label className="visually-hidden" htmlFor="co-lastName">Last name</label>
+                                        <input id="co-lastName" className="checkout-input-v3" name="lastName" autoComplete="family-name" placeholder="LAST NAME" value={form.lastName} onChange={handleForm} />
                                     </div>
-                                    <input className="checkout-input-v3" name="phone" placeholder="MOBILE NUMBER" value={form.phone} onChange={handleForm} />
-                                    <input className="checkout-input-v3" name="email" placeholder="EMAIL" type="email" value={form.email} onChange={handleForm} />
+                                    <label className="visually-hidden" htmlFor="co-phone">Mobile number</label>
+                                    <input id="co-phone" className="checkout-input-v3" name="phone" type="tel" autoComplete="tel" inputMode="tel" placeholder="MOBILE NUMBER" value={form.phone} onChange={handleForm} />
+                                    <label className="visually-hidden" htmlFor="co-email">Email</label>
+                                    <input id="co-email" className="checkout-input-v3" name="email" placeholder="EMAIL" type="email" autoComplete="email" inputMode="email" value={form.email} onChange={handleForm} />
 
                                     <div className="form-section-label form-section-label--spaced">
                                         <span>SHIPPING INFORMATION</span>
                                     </div>
                                     <div className="form-row-v3">
+                                        <label className="visually-hidden" htmlFor="co-country">Country or region</label>
                                         <select
+                                            id="co-country"
                                             className="checkout-input-v3"
                                             name="country"
+                                            autoComplete="country-name"
                                             value={form.country}
                                             onChange={(e) => setForm({ ...form, country: e.target.value, state: '' })}
                                         >
                                             <option value="" disabled>COUNTRY / REGION</option>
                                             {SHIPPABLE_COUNTRIES.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
                                         </select>
+                                        <label className="visually-hidden" htmlFor="co-state">State or province</label>
                                         <select
+                                            id="co-state"
                                             className="checkout-input-v3"
                                             name="state"
+                                            autoComplete="address-level1"
                                             value={form.state}
                                             onChange={handleForm}
                                         >
@@ -587,10 +603,13 @@ const Checkout = () => {
                                             {getStatesForCountry(form.country).map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
                                         </select>
                                     </div>
-                                    <input className="checkout-input-v3" name="address" placeholder="ADDRESS" value={form.address} onChange={handleForm} />
+                                    <label className="visually-hidden" htmlFor="co-address">Address</label>
+                                    <input id="co-address" className="checkout-input-v3" name="address" autoComplete="street-address" placeholder="ADDRESS" value={form.address} onChange={handleForm} />
                                     <div className="form-row-v3">
-                                        <input className="checkout-input-v3" name="city" placeholder="CITY" value={form.city} onChange={handleForm} />
-                                        <input className="checkout-input-v3" name="zip" placeholder="PIN CODE" inputMode="numeric" maxLength={6} value={form.zip} onChange={handleForm} />
+                                        <label className="visually-hidden" htmlFor="co-city">City</label>
+                                        <input id="co-city" className="checkout-input-v3" name="city" autoComplete="address-level2" placeholder="CITY" value={form.city} onChange={handleForm} />
+                                        <label className="visually-hidden" htmlFor="co-zip">PIN code</label>
+                                        <input id="co-zip" className="checkout-input-v3" name="zip" autoComplete="postal-code" placeholder="PIN CODE" inputMode="numeric" maxLength={6} value={form.zip} onChange={handleForm} />
                                     </div>
                                 </div>
 

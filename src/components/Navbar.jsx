@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, Loader2 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { useCart } from '../hooks/useCart';
-import { useCustomer } from '../hooks/useCustomer';
 import { usePredictiveSearch } from '../hooks/useSearch';
 import { formatPrice } from '../utils/formatPrice';
 import { parseShopifyId } from '../utils/parseShopifyId';
@@ -12,10 +11,8 @@ import { shopifyImage } from '../utils/shopifyImage';
 
 const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
-    const [lastScrollY, setLastScrollY] = useState(0);
     const { wishlist, toggleWishlist, isInWishlist, isCartOpen, setIsCartOpen } = useShop();
-    const { cart, updateQuantity, removeFromCart, loading: cartLoading, checkoutUrl } = useCart();
-    const { isAuthenticated } = useCustomer();
+    const { cart, updateQuantity, loading: cartLoading } = useCart();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -44,15 +41,12 @@ const Navbar = () => {
         const handleScroll = () => {
             const currentScrollY = window.scrollY;
             setIsScrolled(currentScrollY > 50);
-            setLastScrollY(currentScrollY);
         };
 
         window.addEventListener('scroll', handleScroll);
         handleScroll();
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
-
-    const hideNavLeft = isHomePage && !isScrolled;
 
     return (
         <>

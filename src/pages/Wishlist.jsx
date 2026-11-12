@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import { track } from '../lib/analytics';
@@ -9,7 +9,7 @@ import './ProductDetail.css';
 import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 
 const Wishlist = () => {
-    const { wishlist, toggleWishlist, isInWishlist } = useShop();
+    const { wishlist, toggleWishlist } = useShop();
     const { addToCart: shopifyAddToCart } = useCart();
     const { data: allProducts, loading: productsLoading } = useProducts(100);
     const [movingToBagId, setMovingToBagId] = useState(null);
@@ -124,14 +124,6 @@ const Wishlist = () => {
         addItemToCart(item, variantId);
     };
 
-    // Get recommendations from Shopify products
-    const recommendations = useMemo(() => {
-        if (!allProducts?.length) return [];
-        const wishlistIds = wishlist.map(item => item.id);
-        const available = allProducts.filter(p => !wishlistIds.includes(p.id));
-        const shuffled = [...available].sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, 4);
-    }, [wishlist, allProducts]);
 
     return (
         <div className="wishlist-page">

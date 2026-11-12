@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useCart } from '../hooks/useCart';
 import { formatPrice } from '../utils/formatPrice';

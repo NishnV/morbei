@@ -244,3 +244,18 @@ button {
     padding: 0 1rem;
   }
 }
+/* Present to a screen reader and to autofill, absent to the eye. Used by the
+   checkout form, whose fields were placeholder-only — a placeholder is not a
+   label: it vanishes as soon as anyone types. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}

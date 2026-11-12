@@ -5,7 +5,11 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // .claude holds git worktrees — full copies of this repo. Linting them
+  // doubled every error, and because their paths do not match the server/**
+  // override below, every `process.env` in the copied backend was reported as
+  // an undefined browser global. Forty phantom errors burying the real ones.
+  globalIgnores(['dist', '.claude', 'coverage']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -25,6 +29,16 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
+  },
+  {
+    // A context file exporting its provider and its hook together is the
+    // pattern everything here uses; the rule wants them in separate files so
+    // Vite's fast refresh can keep state across edits. That is a dev-server
+    // convenience, and not worth splitting five files and every import of
+    // them. Scoped off rather than disabled line by line so the rule still
+    // applies to real components.
+    files: ['src/context/**/*.jsx', 'src/components/Seo.jsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
     // The backend is Node, not a browser. Linting it with browser globals
