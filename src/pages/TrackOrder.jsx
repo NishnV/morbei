@@ -18,8 +18,14 @@ const fmtDate = (iso) =>
  */
 const TrackOrder = () => {
     const [searchId, setSearchId] = useState('');
+    const [email, setEmail] = useState('');
     const [searched, setSearched] = useState(false);
     const [orders, setOrders] = useState([]);
+    // A guest's order is fetched one at a time by number and email, because
+    // there is no session listing orders to match against.
+    const [guestOrder, setGuestOrder] = useState(null);
+    const [lookupError, setLookupError] = useState('');
+    const [busy, setBusy] = useState(false);
     const token = localStorage.getItem('morbei_token');
     // Seeded from the token rather than switched off inside the effect: with
     // no session there is nothing to load and no render to wait for.
@@ -33,15 +39,31 @@ const TrackOrder = () => {
             .finally(() => setLoading(false));
     }, [token]);
 
-    const matchedOrder = useMemo(() => {
+    const localMatch = useMemo(() => {
         if (!searched || !searchId.trim()) return null;
         const q = searchId.trim().replace(/^#/, '').toUpperCase();
         return orders.find(o => String(o.orderNumber) === q || String(o.id) === q) || null;
     }, [searched, searchId, orders]);
 
-    const handleTrack = (e) => {
+    const matchedOrder = token ? localMatch : guestOrder;
+
+    const handleTrack = async (e) => {
         e.preventDefault();
         setSearched(true);
+        if (token) return;
+
+        // The signed-in page filters a list it already has; a guest has no
+        // list, so the pair is sent to the server and answered or refused.
+        setBusy(true);
+        setLookupError('');
+        setGuestOrder(null);
+        try {
+            setGuestOrder(await ordersAPI.lookup(searchId.trim(), email.trim()));
+        } catch (err) {
+            setLookupError(err.message || 'We could not find an order with those details.');
+        } finally {
+            setBusy(false);
+        }
     };
 
     const statusIdx = getStatusIndex(matchedOrder);
@@ -53,12 +75,16 @@ const TrackOrder = () => {
             <div className={`track-search${matchedOrder ? ' is-compact' : ''}`}>
                 <div className="track-search-head">
                     <h1 className="serif">TRACK YOUR ORDER</h1>
-                    <p>ENTER YOUR ORDER NUMBER TO SEE ITS STATUS.</p>
+                    <p>
+                        {token
+                            ? 'ENTER YOUR ORDER NUMBER TO SEE ITS STATUS.'
+                            : 'ENTER YOUR ORDER NUMBER AND EMAIL TO SEE ITS STATUS.'}
+                    </p>
                 </div>
 
                 {!token && !loading && (
                     <p className="track-signin">
-                        <Link to="/profile">LOG IN</Link> TO TRACK YOUR ORDERS
+                        OR <Link to="/profile">LOG IN</Link> TO SEE ALL YOUR ORDERS
                     </p>
                 )}
 
@@ -75,15 +101,31 @@ const TrackOrder = () => {
                             required
                         />
                     </div>
-                    <button type="submit" className="track-submit" disabled={loading}>
-                        {loading ? 'LOADING...' : 'TRACK STATUS'}
+                    {!token && (
+                        <div className="track-field">
+                            <label htmlFor="track-email">EMAIL</label>
+                            <input
+                                id="track-email"
+                                type="email"
+                                autoComplete="email"
+                                placeholder="THE EMAIL ON THE ORDER"
+                                value={email}
+                                onChange={(e) => { setEmail(e.target.value); setSearched(false); }}
+                                required
+                            />
+                        </div>
+                    )}
+                    <button type="submit" className="track-submit" disabled={loading || busy}>
+                        {loading || busy ? 'LOADING...' : 'TRACK STATUS'}
                     </button>
                 </form>
             </div>
 
-            {searched && !matchedOrder && (
+            {searched && !busy && !matchedOrder && (
                 <p className="track-empty">
-                    {token ? 'NO ORDER FOUND WITH THAT NUMBER' : 'PLEASE LOG IN TO TRACK YOUR ORDERS'}
+                    {token
+                        ? 'NO ORDER FOUND WITH THAT NUMBER'
+                        : (lookupError || 'NO ORDER FOUND WITH THOSE DETAILS').toUpperCase()}
                 </p>
             )}
 

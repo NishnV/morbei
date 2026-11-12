@@ -194,6 +194,11 @@ export const returnsAPI = {
 export const ordersAPI = {
     list: () => apiFetch('/orders'),
     get: (id) => apiFetch(`/orders/${id}`),
+    // For a guest, or anyone whose session is on another device. POST, not a
+    // query string: an order number and an email do not belong in browser
+    // history or a referrer header.
+    lookup: (orderNumber, email) =>
+        apiFetch('/orders/lookup', { method: 'POST', body: JSON.stringify({ orderNumber, email }) }),
 };
 
 // Shipping

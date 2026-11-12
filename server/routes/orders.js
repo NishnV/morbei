@@ -57,6 +57,56 @@ async function withTracking(order) {
 }
 
 // List all orders for authenticated user
+/**
+ * POST /api/orders/lookup — an order number and an email, for a guest.
+ *
+ * A guest checkout issues a session token, but it lives in the browser that
+ * placed the order: a different device, or a cleared cache, and there is no
+ * way back to the order at all. This is the same pair the returns flow
+ * already asks for, answered with the same tracking the signed-in page shows.
+ *
+ * Deliberately a POST: an order number and an email in a query string end up
+ * in browser history, server logs and any referrer sent to a third party.
+ */
+router.post('/lookup', async (req, res) => {
+    try {
+        const raw = String(req.body?.orderNumber ?? '').replace(/[^0-9]/g, '');
+        const number = parseInt(raw, 10);
+        const email = String(req.body?.email ?? '').trim();
+        if (!Number.isFinite(number) || !email) {
+            return res.status(400).json({ error: 'An order number and an email are required.' });
+        }
+
+        const order = await get(
+            `SELECT o.*
+               FROM orders o
+               JOIN users u ON u.id = o.user_id
+              WHERE o.shopify_order_number = $1
+                AND lower(u.email) = lower($2)
+                AND o.razorpay_payment_id IS NOT NULL`,
+            [number, email]
+        );
+
+        // One answer for "no such order" and "wrong email", so the endpoint
+        // cannot be walked to discover which order numbers exist.
+        if (!order) {
+            return res.status(404).json({ error: 'We could not find an order with those details.' });
+        }
+
+        const full = await withTracking(serializeOrder(order));
+
+        // Least privilege for an unauthenticated caller. Knowing an order
+        // number and an email is enough to see where the parcel is; it is not
+        // a reason to hand over the Razorpay and Shopify identifiers behind
+        // it, which this page never renders anyway.
+        const { razorpayOrderId, shopifyOrderId, shiprocketOrderId, refundId, ...safe } = full;
+        res.json(safe);
+    } catch (err) {
+        console.error('order lookup failed:', err.message);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
 router.get('/', authenticate, async (req, res) => {
     try {
         // Exclude 'pending' orders — those are checkouts that were started but

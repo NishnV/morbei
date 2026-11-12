@@ -131,6 +131,10 @@ app.use('/api/events', rateLimit({ windowMs: 15 * 60 * 1000, max: 600, standardH
 // that walking the order-number range is not worth the effort, loose enough
 // that a shopper mistyping their own number a few times is fine.
 app.use('/api/returns', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: limitMsg }));
+// Same shape of question as the return lookup — an order number and an email,
+// answered yes or no — so it needs the same tight budget. Walking the order
+// number range must not be cheap.
+app.use('/api/orders/lookup', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: limitMsg }));
 
 // Routes
 app.use('/api/auth', authRoutes);

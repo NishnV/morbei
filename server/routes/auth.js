@@ -3,6 +3,7 @@ import { get, run } from '../db/pg.js';
 import { signToken, authenticate } from '../middleware/auth.js';
 import { getCustomerByToken } from '../services/shopify-storefront.js';
 import { notifySlackError } from '../services/slack.js';
+import { domainAcceptsMail } from '../services/email-domain.js';
 
 const router = Router();
 
@@ -38,6 +39,16 @@ router.post('/guest', async (req, res) => {
         const email = String(req.body?.email || '').trim().toLowerCase();
         if (!EMAIL_RE.test(email) || email.length > 254) {
             return res.status(400).json({ error: 'A valid email is required' });
+        }
+        // Shape is not deliverability. An order once arrived addressed to a
+        // mistyped "@ail.com", which publishes no MX record, so every message
+        // for it — confirmation, shipping, tracking — went nowhere and nobody
+        // knew until the customer wrote in on Instagram. A guest has no other
+        // way to hear from us, so this is the last chance to catch it.
+        if (!(await domainAcceptsMail(email))) {
+            return res.status(400).json({
+                error: 'We could not find a mail server for that address — please check the spelling.',
+            });
         }
         const firstName = String(req.body?.firstName || '').trim().slice(0, 80);
         const lastName = String(req.body?.lastName || '').trim().slice(0, 80);
