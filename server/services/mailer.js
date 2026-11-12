@@ -150,9 +150,28 @@ export async function verifyMail() {
             return new Error(`Resend returned ${res.status} when listing domains`);
         }
 
-        const verified = (data?.data || []).filter((d) => d.status === 'verified');
+        const domains = data?.data || [];
+        const verified = domains.filter((d) => d.status === 'verified');
         if (verified.length === 0) {
-            return new Error('No verified sending domain on the Resend account — every send will be refused');
+            // Say what the key can actually see. "No verified domain" is
+            // equally true when the domain is sitting unverified and when the
+            // key belongs to a different Resend team from the one the domain
+            // was added to, and those have opposite fixes — one is a click in
+            // the dashboard, the other is the wrong key in Railway.
+            const seen = domains.length === 0
+                ? 'this API key can see no domains at all, so it probably belongs to a different Resend team than the one the domain was added under'
+                : `the key can see ${domains.map((d) => `${d.name} (${d.status})`).join(', ')}`;
+            return new Error(`No verified sending domain — ${seen}. Every send will be refused.`);
+        }
+
+        // A verified domain is not enough on its own: Resend refuses any From
+        // address outside it, and MAIL_FROM is set separately in Railway.
+        const fromDomain = String(process.env.MAIL_FROM || process.env.SMTP_USER || '').split('@')[1];
+        if (fromDomain && !verified.some((d) => d.name.toLowerCase() === fromDomain.toLowerCase())) {
+            return new Error(
+                `MAIL_FROM is @${fromDomain} but the verified domain(s) are `
+                + `${verified.map((d) => d.name).join(', ')} — Resend will refuse every send.`
+            );
         }
         return null;
     } catch (err) {

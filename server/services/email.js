@@ -22,6 +22,26 @@ function esc(value) {
 /**
  * Send order confirmation to customer + notification to store.
  */
+/**
+ * Send a batch and report whether any of it failed.
+ *
+ * allSettled rather than all, deliberately: a customer confirmation must still
+ * be attempted when the store copy fails, and the other way round. But the
+ * result of allSettled is a resolved promise either way, so this used to
+ * return success while every message in it had been refused — which is how a
+ * dead mail provider produced an order nobody was told about. Try everything,
+ * then raise what broke.
+ */
+async function deliverAll(promises, label) {
+    const results = await Promise.allSettled(promises);
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length === 0) return;
+    throw new Error(
+        `${failures.length} of ${results.length} ${label} message(s) failed: `
+        + failures.map((f) => f.reason?.message || String(f.reason)).join('; ')
+    );
+}
+
 export async function sendOrderConfirmation({ order, user, cartLines, shippingAddress, shopifyOrderId }) {
     // Include variant options (size/color) — essential for packing the right item
     const itemsHtml = cartLines.map(l => {
@@ -125,7 +145,7 @@ export async function sendOrderConfirmation({ order, user, cartLines, shippingAd
         );
     }
 
-    await Promise.allSettled(mailPromises);
+    await deliverAll(mailPromises, 'order confirmation');
 }
 
 /**
@@ -180,7 +200,7 @@ export async function sendOrderCancellation({ order, user, refundAmountPaise, re
             html: storeHtml,
         }));
     }
-    await Promise.allSettled(mailPromises);
+    await deliverAll(mailPromises, 'order cancellation');
 }
 
 /**

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { get, all, run } from '../db/pg.js';
 import { requireDashboardToken } from '../middleware/adminToken.js';
 import { refundPayment } from '../services/razorpay.js';
-import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant,
+import { createDraftOrder, completeDraftOrder, setOrderEmail, getOrder, gidToNumeric, findSiblingVariant,
     listOrdersTracking, markFulfillmentDelivered } from '../services/shopify-admin.js';
 import { primeTracking, invalidateTracking } from '../services/order-tracking.js';
 import { notifySlackError } from '../services/slack.js';
@@ -117,6 +117,14 @@ router.post('/orders/:id/delivered', async (req, res) => {
             if (err.message === 'NO_FULFILLMENT') {
                 return res.status(409).json({
                     error: 'Fulfil this order in Shopify first — there is no shipment to mark delivered.',
+                });
+            }
+            // Deliberately no Slack alert: a row pointing at an order that was
+            // deleted in Shopify is stale data, and paging someone about it
+            // every time the button is pressed teaches them to ignore alerts.
+            if (err.message === 'ORDER_GONE') {
+                return res.status(409).json({
+                    error: 'This order no longer exists in Shopify — it was deleted there. Nothing to mark.',
                 });
             }
             console.error(`mark delivered failed for order ${id}:`, err.message);
@@ -334,7 +342,6 @@ router.post('/returns/:id', async (req, res) => {
                 const draft = await createDraftOrder({
                     lineItems: [{ variant_id: Number(variantId), quantity: 1 }],
                     shippingAddress,
-                    email: row.email,
                     note: `Exchange for order #${row.shopify_order_number} — return ${row.id}`,
                     // Already paid for on the original order.
                     appliedDiscount: {
@@ -346,6 +353,16 @@ router.post('/returns/:id', async (req, res) => {
                 });
                 const completed = await completeDraftOrder(draft.draft_order.id);
                 const newOrderId = completed.draft_order.order_id;
+
+                // Same reason as a normal order: the draft is completed without
+                // an email so Shopify stays quiet, and the customer is attached
+                // afterwards. Not fatal — the replacement has been created, and
+                // failing the request here would strand the return in-progress.
+                try {
+                    await setOrderEmail(newOrderId, row.email);
+                } catch (emailErr) {
+                    notifySlackError(`Replacement order ${newOrderId} has no customer email (${row.email})`, emailErr).catch(() => {});
+                }
 
                 let newNumber = null;
                 try {

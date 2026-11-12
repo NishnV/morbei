@@ -17,12 +17,32 @@ async function adminFetch(endpoint, options = {}) {
     warnOnVersionMismatch(res, endpoint);
     if (!res.ok) {
         const text = await res.text();
-        throw new Error(`Shopify Admin API error ${res.status}: ${text}`);
+        // Carry the status on the error. Callers that need to tell "this is
+        // gone" from "Shopify is broken" were reduced to matching on the
+        // message text, which is how a deleted order became a 502 page.
+        const err = new Error(`Shopify Admin API error ${res.status}: ${text}`);
+        err.status = res.status;
+        err.endpoint = endpoint;
+        throw err;
     }
     return res.json();
 }
 
-export async function createDraftOrder({ lineItems, shippingAddress, email, note, shippingLine, appliedDiscount }) {
+/**
+ * Build a draft order — deliberately without the customer's email address.
+ *
+ * Completing a draft order makes Shopify send its own order confirmation, and
+ * there is no API flag and no admin setting that turns that off. A draft with
+ * no email has nobody to notify, so the order is created in silence and the
+ * address goes on afterwards with setOrderEmail. That leaves this store's own
+ * confirmation as the only one the customer receives, which is the point: the
+ * Shopify copy carried myshopify links and, sending as morbei.com against an
+ * SPF record that does not authorise Shopify, was being rejected unread.
+ *
+ * Callers must follow this with setOrderEmail, or the order of record will
+ * have no customer on it.
+ */
+export async function createDraftOrder({ lineItems, shippingAddress, note, shippingLine, appliedDiscount }) {
     // lineItems: [{ variant_id (numeric), quantity }]
     // shippingLine: { title, price } in rupees — omitted for free shipping.
     // Without it the customer pays for priority delivery via Razorpay but the
@@ -35,7 +55,6 @@ export async function createDraftOrder({ lineItems, shippingAddress, email, note
             })),
             shipping_address: shippingAddress,
             ...(shippingLine ? { shipping_line: shippingLine } : {}),
-            email,
             // A replacement for an exchange is sent at no charge: the customer
             // already paid on the original order. A 100% discount rather than
             // zero-priced lines, so the order still records what the garment
@@ -45,6 +64,21 @@ export async function createDraftOrder({ lineItems, shippingAddress, email, note
         },
     };
     return adminFetch('draft_orders.json', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/**
+ * Attach the customer's email to an order that was created without one.
+ *
+ * Run this immediately after completeDraftOrder. Updating an order's email
+ * does not trigger a confirmation, so the order gains its customer without
+ * Shopify mailing them. The address matters beyond the record: listOrders
+ * searches on it, which is how the returns lookup finds an order.
+ */
+export async function setOrderEmail(orderId, email) {
+    return adminFetch(`orders/${orderId}.json`, {
+        method: 'PUT',
+        body: JSON.stringify({ order: { id: Number(orderId), email } }),
+    });
 }
 
 export async function completeDraftOrder(draftOrderId) {
@@ -288,7 +322,16 @@ export async function listOrdersTracking(limit = 50) {
  * an event has to attach to a shipment that exists.
  */
 export async function markFulfillmentDelivered(orderId) {
-    const data = await adminFetch(`orders/${orderId}.json?fields=id,fulfillments`);
+    let data;
+    try {
+        data = await adminFetch(`orders/${orderId}.json?fields=id,fulfillments`);
+    } catch (err) {
+        // An order deleted in Shopify leaves its row behind in our table, so
+        // the dashboard still offers a button for it. That is a stale record,
+        // not an outage, and it should read as one.
+        if (err.status === 404) throw new Error('ORDER_GONE');
+        throw err;
+    }
     const latest = latestFulfillment(data.order || {});
     if (!latest) throw new Error('NO_FULFILLMENT');
 

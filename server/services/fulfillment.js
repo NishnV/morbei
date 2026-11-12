@@ -1,6 +1,6 @@
-import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric } from './shopify-admin.js';
+import { createDraftOrder, completeDraftOrder, setOrderEmail, getOrder, gidToNumeric } from './shopify-admin.js';
 import { sendOrderConfirmation, sendFulfillmentFailureAlert } from './email.js';
-import { notifySlackError } from './slack.js';
+import { notifySlackError, notifySlackOrder } from './slack.js';
 import { get, run } from '../db/pg.js';
 
 // The single source of truth for what a customer is charged for delivery.
@@ -67,7 +67,6 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
         const draft = await createDraftOrder({
             lineItems: shopifyLineItems,
             shippingAddress: shopifyAddr,
-            email: user.email,
             note: `Razorpay Payment: ${razorpayPaymentId}`,
             shippingLine: {
                 title: shippingMethodKey === 'priority' ? 'Priority' : 'Standard',
@@ -76,6 +75,24 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
         });
         const completed = await completeDraftOrder(draft.draft_order.id);
         const shopifyOrderId = completed.draft_order.order_id;
+
+        // The draft carried no email so that completing it would not trigger
+        // Shopify's own confirmation; put the customer on the order now.
+        // Swallowed on purpose: the order exists and the money is captured, so
+        // throwing here would roll the row back to 'pending' and invite the
+        // reconciler to create a second Shopify order for the same payment. An
+        // order missing its email is a nuisance to repair by hand; a duplicate
+        // order is a refund.
+        try {
+            await setOrderEmail(shopifyOrderId, user.email);
+        } catch (emailErr) {
+            console.error('Could not set email on Shopify order:', emailErr.message);
+            notifySlackError(
+                `Shopify order ${shopifyOrderId} (local ${order.id}) has no customer email — `
+                + `add ${user.email} by hand, or the returns lookup will not find it`,
+                emailErr
+            ).catch(() => {});
+        }
 
         // Shopify's sequential order number is the customer-facing one; if the
         // lookup fails, emails/pages fall back to the local id rather than block
@@ -105,6 +122,26 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
             [String(shopifyOrderId), shopifyOrderNumber, order.id]);
 
         const updatedOrder = await get('SELECT * FROM orders WHERE id = $1', [order.id]);
+
+        // Independent of the emails below, and first: this is the message that
+        // has to arrive. An order the store never hears about cannot be packed,
+        // and email has already failed that job once.
+        notifySlackOrder({
+            orderNumber: shopifyOrderNumber || order.id,
+            totalPaise: order.total_amount,
+            customerName: `${shippingAddress.firstName || user.first_name} ${shippingAddress.lastName || user.last_name}`,
+            email: user.email,
+            phone: shippingAddress.phone || user.phone,
+            items: cartLines.map((l) => {
+                const options = (l.selectedOptions || [])
+                    .map((o) => o.value)
+                    .filter((v) => v && v.toLowerCase() !== 'default title')
+                    .join(' / ');
+                return `${l.title}${options ? ` (${options})` : ''} \u00d7 ${l.quantity}`;
+            }),
+            address: [shippingAddress.address, shippingAddress.city, shippingAddress.state, shippingAddress.zip]
+                .filter(Boolean).join(', '),
+        }).catch((err) => console.error('Slack order notification failed:', err.message));
         sendOrderConfirmation({
             order: updatedOrder,
             user,
@@ -132,6 +169,15 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
             amountPaise: order.total_amount,
             errorMessage: err.message,
         }).catch(alertErr => console.error('Fulfillment alert email failed:', alertErr.message));
+
+        // Unconditionally, not only when the email fails: this is money taken
+        // for an order that does not exist in Shopify, and it must not be
+        // reportable solely through the channel most likely to be broken.
+        notifySlackError(
+            `FULFILMENT FAILED after payment \u2014 order ${order.id}, Razorpay ${razorpayPaymentId}, `
+            + `\u20b9${Number(order.total_amount) / 100}. Shopify order was NOT created.`,
+            err
+        ).catch(() => {});
         throw err;
     }
 }
