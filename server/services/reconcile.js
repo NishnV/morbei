@@ -1,7 +1,9 @@
-import { all, run } from '../db/pg.js';
+import { all, get, run } from '../db/pg.js';
 import { fetchOrderPayments } from './razorpay.js';
 import { fulfillPaidOrder } from './fulfillment.js';
 import { notifySlackError } from './slack.js';
+import { listOrdersTracking } from './shopify-admin.js';
+import { sendShipmentNotice } from './email.js';
 
 /**
  * Sweep for orders where money was captured but fulfilment never completed.
@@ -100,6 +102,76 @@ export async function reconcileStuckOrders() {
     return { scanned: candidates.length, recovered, failed };
 }
 
+// How far back to look for orders that have been fulfilled but not yet
+// announced. Generous, because this only runs hourly and a parcel fulfilled
+// on a Friday evening should still be announced over the weekend.
+const SHIPPED_LOOK_BACK_DAYS = 30;
+
+/**
+ * Tell customers whose orders have been fulfilled since the last sweep.
+ *
+ * Shopify does not tell us when someone fulfils an order — there is no
+ * callback and no field that records when it happened — so this compares the
+ * orders we have not announced against Shopify's current fulfilment state.
+ * One bulk call covers every order rather than one call each: the REST Admin
+ * API allows two requests a second, and a per-order loop would spend that
+ * budget on a screen nobody is looking at.
+ *
+ * shipped_email_at is claimed BEFORE the send, not after. A send that fails
+ * is a customer who hears nothing once; a crash between send and update
+ * would make every later sweep announce the same parcel again.
+ */
+export async function notifyShippedOrders() {
+    const pending = await all(
+        `SELECT id, user_id, shopify_order_id, shopify_order_number, items, is_test
+           FROM orders
+          WHERE status = 'paid'
+            AND shopify_order_id IS NOT NULL
+            AND shipped_email_at IS NULL
+            AND created_at > now() - make_interval(days => $1::int)`,
+        [SHIPPED_LOOK_BACK_DAYS]
+    );
+    if (pending.length === 0) return { checked: 0, sent: 0 };
+
+    const tracking = await listOrdersTracking(250);
+    let sent = 0;
+
+    for (const order of pending) {
+        const t = tracking.get(String(order.shopify_order_id));
+        // Not in the window Shopify returned, or not fulfilled yet. Either way
+        // there is nothing to announce; look again next hour.
+        if (!t || t.fulfillmentStatus !== 'fulfilled') continue;
+
+        const claimed = await run(
+            `UPDATE orders SET shipped_email_at = now()
+              WHERE id = $1 AND shipped_email_at IS NULL`,
+            [order.id]
+        );
+        if (claimed.rowCount === 0) continue; // another sweep got there first
+
+        try {
+            const user = await get('SELECT * FROM users WHERE id = $1', [order.user_id]);
+            let cartLines = [];
+            try { cartLines = JSON.parse(order.items); } catch { /* the notice still stands without a list */ }
+
+            await sendShipmentNotice({ order, user, cartLines, tracking: t });
+            sent++;
+            console.log(`Shipment notice sent for order ${order.id} (#${order.shopify_order_number})`);
+        } catch (err) {
+            // The column stays set. Announcing a parcel twice is worse than
+            // once not at all, and the failure is reported rather than retried
+            // blindly every hour until it is noticed.
+            console.error(`Shipment notice failed for order ${order.id}:`, err.message);
+            notifySlackError(
+                `Shipping email failed for order #${order.shopify_order_number || order.id} — tell them by hand`,
+                err
+            ).catch(() => {});
+        }
+    }
+
+    return { checked: pending.length, sent };
+}
+
 /**
  * Start the periodic sweep. Never throws — a broken reconciler must not be able
  * to take down the server it is meant to protect.
@@ -112,6 +184,18 @@ export function startReconciler() {
                 console.log(
                     `Reconciler: scanned ${result.scanned}, recovered ${result.recovered}, failed ${result.failed}`
                 );
+            }
+
+            // Separately caught: a Shopify outage must not stop the sweep that
+            // recovers captured payments, which is the one that involves money.
+            try {
+                const shipped = await notifyShippedOrders();
+                if (shipped.sent > 0) {
+                    console.log(`Reconciler: announced ${shipped.sent} shipment(s) of ${shipped.checked} awaiting`);
+                }
+            } catch (err) {
+                console.error('Shipment sweep failed:', err.message);
+                notifySlackError('Shipment notice sweep failed', err).catch(() => {});
             }
         } catch (err) {
             console.error('Reconciler sweep failed:', err.message);

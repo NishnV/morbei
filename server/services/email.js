@@ -313,6 +313,59 @@ ${section('DELIVERY', `<span style="color:#ffffff;">${deliveryLabel}</span><br>E
 }
 
 /**
+ * Tell the customer their parcel is on its way.
+ *
+ * Nothing in Shopify triggers this: fulfilling by hand sends only Shopify's
+ * own notice, which goes out as morbei.com against an SPF record that does
+ * not authorise Shopify and is refused at the far end. The sweep in
+ * reconcile.js decides when to call this; all it does is write the message.
+ */
+export async function sendShipmentNotice({ order, user, cartLines, tracking }) {
+    if (!user?.email) return;
+
+    const orderNo = order.shopify_order_number || order.id;
+    const carrier = tracking?.trackingCompany;
+    const number = tracking?.trackingNumber;
+    const url = tracking?.trackingUrl;
+
+    const items = (cartLines || []).map((l) => {
+        const options = (l.selectedOptions || [])
+            .map((o) => o.value)
+            .filter((v) => v && v.toLowerCase() !== 'default title')
+            .join(' / ');
+        return `<span style="color:#ffffff;">${esc(l.title)}</span>${options ? ` — ${esc(options)}` : ''} × ${Number(l.quantity)}`;
+    }).join('<br>');
+
+    // Only claim a carrier or a number when there is one. A shipping notice
+    // with "undefined" where the tracking should be reads worse than one that
+    // simply says the parcel has left.
+    const trackingRows = [
+        carrier ? `<span style="color:#ffffff;">${esc(carrier)}</span>` : null,
+        number ? `${esc(String(number))}` : null,
+    ].filter(Boolean).join('<br>');
+
+    await deliver({
+        from: STORE_FROM,
+        to: user.email,
+        replyTo: STORE_EMAIL || undefined,
+        subject: `Your MORBEI order #${orderNo} is on its way`,
+        html: shell({
+            title: `Order ${orderNo} shipped`,
+            eyebrow: 'SHIPPING UPDATE',
+            heading: 'ON ITS WAY',
+            intro: `HI ${esc(String(user.first_name || '').toUpperCase())}, YOUR ORDER HAS LEFT US.<br>
+                    <span style="color:#ffffff;letter-spacing:0.22em;">ORDER NO. ${esc(String(orderNo))}</span>`,
+            isTest: Boolean(order.is_test),
+            cta: url
+                ? { label: 'TRACK PARCEL', href: url }
+                : { label: 'VIEW ORDER', href: `${SITE_URL}/order-details` },
+            body: `${items ? section('IN THIS PARCEL', items) : ''}
+${trackingRows ? section('TRACKING', trackingRows, items ? 32 : 40) : ''}`,
+        }),
+    });
+}
+
+/**
  * Notify customer + store that an order was cancelled and a refund issued.
  * refundAmountPaise = amount actually refunded (0 if nothing was captured).
  */

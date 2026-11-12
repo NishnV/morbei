@@ -185,6 +185,11 @@ export async function initDB() {
         -- excluded from revenue and conversion figures rather than deleted.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT false;
 
+        -- When the "your order has shipped" email went out. Shopify does not
+        -- tell us when an order is fulfilled, so a sweep looks for newly
+        -- fulfilled orders; this column is what stops it sending twice.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipped_email_at TIMESTAMPTZ;
+
         -- Return and exchange requests.
         --
         -- order_id is nullable on purpose. The form is filled in by order

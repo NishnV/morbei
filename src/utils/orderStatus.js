@@ -49,12 +49,16 @@ export function getStatusLabel(order) {
 /**
  * Whether a return or exchange can be started from this order.
  *
- * Deliberately not gated on delivery. Delivery is only known when someone has
- * marked it, so gating on it would hide the entry point to the returns flow
- * on every order that was fulfilled by hand and never marked — which is most
- * of them. Shipped is the honest earliest point: the customer has something
- * in their hands, or soon will.
+ * Gated on delivery, because the seven-day window is counted from delivery
+ * and a parcel still in transit is not something anyone can send back. This
+ * once allowed it from SHIPPED, on the grounds that a hand-fulfilled order
+ * might never be marked delivered and the customer would be stranded — but
+ * the admin dashboard now has a MARK DELIVERED action, so that is an
+ * operational step rather than a gap in what the system can know.
+ *
+ * The consequence is worth stating plainly: an order that is never marked
+ * delivered can never be returned from the site.
  */
 export function canReturn(order) {
-    return order?.status !== 'cancelled' && getStatusIndex(order) >= 2;
+    return order?.status !== 'cancelled' && getStatusIndex(order) === 4;
 }
