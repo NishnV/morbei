@@ -186,6 +186,11 @@ export const adminAPI = {
         }),
     orders: (token) => adminFetch('/orders', token),
     markDelivered: (token, id) => adminFetch(`/orders/${id}/delivered`, token, { method: 'POST' }),
+    fulfil: (token, id, carrier, trackingNumber) =>
+        adminFetch(`/orders/${id}/fulfil`, token, {
+            method: 'POST',
+            body: JSON.stringify({ carrier, trackingNumber }),
+        }),
     markTest: (token, id, isTest) =>
         adminFetch(`/orders/${id}/test`, token, { method: 'POST', body: JSON.stringify({ isTest }) }),
 };

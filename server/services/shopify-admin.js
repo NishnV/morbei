@@ -68,6 +68,57 @@ export async function createDraftOrder({ lineItems, shippingAddress, note, shipp
 }
 
 /**
+ * Mark an order shipped in Shopify, with tracking.
+ *
+ * Fulfilment used to mean leaving the dashboard, doing it in Shopify, and
+ * waiting up to an hour for the sweep to notice and email the customer. This
+ * does it from one screen, and the tracking number typed here is the one the
+ * customer receives.
+ *
+ * notify_customer is false on purpose. The store sends its own shipping
+ * notice; letting Shopify send one too is how #1018 ended up with two
+ * confirmations.
+ *
+ * Fulfilment is created against fulfillment orders, not the order — the older
+ * endpoint on /orders/{id}/fulfillments is long gone. Line items are left
+ * blank, which Shopify reads as "everything in this fulfillment order",
+ * because this store ships complete orders.
+ */
+export async function fulfillOrder(orderId, { carrier, trackingNumber, trackingUrl } = {}) {
+    const { fulfillment_orders: fulfillmentOrders } =
+        await adminFetch(`orders/${orderId}/fulfillment_orders.json`);
+
+    // 'open' and 'in_progress' can still be fulfilled; 'closed' and
+    // 'cancelled' cannot, and an order already shipped has none left.
+    const open = (fulfillmentOrders || []).filter(
+        (fo) => fo.status === 'open' || fo.status === 'in_progress'
+    );
+    if (open.length === 0) throw new Error('NOTHING_TO_FULFILL');
+
+    const body = {
+        fulfillment: {
+            line_items_by_fulfillment_order: open.map((fo) => ({ fulfillment_order_id: fo.id })),
+            notify_customer: false,
+            ...(carrier || trackingNumber || trackingUrl
+                ? {
+                    tracking_info: {
+                        ...(carrier ? { company: carrier } : {}),
+                        ...(trackingNumber ? { number: trackingNumber } : {}),
+                        ...(trackingUrl ? { url: trackingUrl } : {}),
+                    },
+                }
+                : {}),
+        },
+    };
+
+    const result = await adminFetch('fulfillments.json', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    return result.fulfillment;
+}
+
+/**
  * Attach the customer's email to an order that was created without one.
  *
  * Run this immediately after completeDraftOrder. Updating an order's email

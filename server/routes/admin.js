@@ -2,12 +2,12 @@ import { Router } from 'express';
 import { get, all, run } from '../db/pg.js';
 import { requireDashboardToken } from '../middleware/adminToken.js';
 import { refundPayment } from '../services/razorpay.js';
-import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant,
+import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant, fulfillOrder,
     refundOrderLine,
     listOrdersTracking, markFulfillmentDelivered } from '../services/shopify-admin.js';
 import { primeTracking, invalidateTracking } from '../services/order-tracking.js';
 import { notifySlackError } from '../services/slack.js';
-import { sendReturnUpdate, sendDeliveryNotice } from '../services/email.js';
+import { sendReturnUpdate, sendDeliveryNotice, sendShipmentNotice } from '../services/email.js';
 import { funnelSummary } from './events.js';
 
 const router = Router();
@@ -139,6 +139,95 @@ router.post('/orders/:id/test', async (req, res) => {
         res.json({ id, isTest });
     } catch (err) {
         console.error('mark test failed:', err.message);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
+/**
+ * POST /api/dashboard/orders/:id/fulfil — ship it, from here.
+ *
+ * Fulfilling meant leaving this screen for Shopify and then waiting up to an
+ * hour for the sweep to notice and tell the customer. This does both in one
+ * action, and the tracking number typed here is the one that reaches them.
+ *
+ * Shopify's own notification is suppressed; the shipping notice below is the
+ * only one the customer gets. shipped_email_at is stamped either way so the
+ * hourly sweep does not send a second.
+ */
+router.post('/orders/:id/fulfil', async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
+
+    const carrier = typeof req.body?.carrier === 'string' ? req.body.carrier.trim().slice(0, 80) : '';
+    const trackingNumber = typeof req.body?.trackingNumber === 'string'
+        ? req.body.trackingNumber.trim().slice(0, 80) : '';
+
+    try {
+        const order = await get('SELECT * FROM orders WHERE id = $1', [id]);
+        if (!order) return res.status(404).json({ error: 'Not found' });
+        if (order.status === 'cancelled') return res.status(409).json({ error: 'This order was cancelled.' });
+        if (!order.shopify_order_id) {
+            return res.status(400).json({ error: 'No Shopify order on this one — fulfilment never completed.' });
+        }
+
+        let fulfillment;
+        try {
+            fulfillment = await fulfillOrder(order.shopify_order_id, { carrier, trackingNumber });
+        } catch (err) {
+            if (err.message === 'NOTHING_TO_FULFILL') {
+                return res.status(409).json({ error: 'Nothing left to fulfil — it may already be shipped.' });
+            }
+            if (err.status === 404) {
+                await run(`UPDATE orders SET shopify_order_missing_at = now()
+                            WHERE id = $1 AND shopify_order_missing_at IS NULL`, [id]).catch(() => {});
+                return res.status(409).json({ error: 'This order no longer exists in Shopify.' });
+            }
+            console.error(`Fulfil failed for order ${id}:`, err.message);
+            notifySlackError(`fulfil failed (order #${order.shopify_order_number || id})`, err).catch(() => {});
+            return res.status(502).json({ error: 'Shopify refused the fulfilment. Nothing was changed.' });
+        }
+
+        invalidateTracking(order.shopify_order_id);
+
+        // Claim the email before sending, exactly as the sweep does, so a
+        // failure here cannot result in the customer being told twice.
+        const claimed = await run(
+            `UPDATE orders SET shipped_email_at = now() WHERE id = $1 AND shipped_email_at IS NULL`,
+            [id]
+        );
+        if (claimed.rowCount > 0) {
+            get('SELECT * FROM users WHERE id = $1', [order.user_id])
+                .then((user) => {
+                    let cartLines = [];
+                    try { cartLines = JSON.parse(order.items); } catch { /* the notice stands without a list */ }
+                    return sendShipmentNotice({
+                        order,
+                        user,
+                        cartLines,
+                        tracking: {
+                            trackingCompany: carrier || fulfillment?.tracking_company || null,
+                            trackingNumber: trackingNumber || fulfillment?.tracking_number || null,
+                            trackingUrl: fulfillment?.tracking_url || null,
+                        },
+                    });
+                })
+                .catch((err) => {
+                    console.error(`Shipping email failed for order ${id}:`, err.message);
+                    notifySlackError(
+                        `Shipping email failed for order #${order.shopify_order_number || id} — tell them by hand`,
+                        err
+                    ).catch(() => {});
+                });
+        }
+
+        res.json({
+            id,
+            fulfilled: true,
+            trackingNumber: trackingNumber || fulfillment?.tracking_number || null,
+            emailSent: claimed.rowCount > 0,
+        });
+    } catch (err) {
+        console.error('fulfil failed:', err.message);
         res.status(500).json({ error: 'Something went wrong' });
     }
 });

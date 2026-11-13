@@ -23,6 +23,9 @@ const AdminOrders = ({ token }) => {
     const [orders, setOrders] = useState(null);
     const [error, setError] = useState('');
     const [busyId, setBusyId] = useState(null);
+    // Carrier and tracking for fulfilling without leaving this screen.
+    const [carriers, setCarriers] = useState({});
+    const [awbs, setAwbs] = useState({});
 
     const load = useCallback(async () => {
         setError('');
@@ -48,6 +51,27 @@ const AdminOrders = ({ token }) => {
         setError('');
         try {
             await adminAPI.markDelivered(token, order.id);
+            await load();
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const fulfil = async (order) => {
+        const carrier = (carriers[order.id] || '').trim();
+        const awb = (awbs[order.id] || '').trim();
+        if (!window.confirm(
+            `Fulfil order #${order.orderNumber}?\n\n`
+            + `${carrier || '(no carrier)'} ${awb || '(no tracking number)'}\n\n`
+            + 'This marks it shipped in Shopify and emails the customer the tracking. '
+            + 'Shopify will not send its own notification.'
+        )) return;
+        setBusyId(order.id);
+        setError('');
+        try {
+            await adminAPI.fulfil(token, order.id, carrier, awb);
             await load();
         } catch (err) {
             setError(err.message);
@@ -125,6 +149,29 @@ const AdminOrders = ({ token }) => {
                     </dl>
 
                     <div className="ret-actions">
+                        {/* Fulfilling used to mean leaving for Shopify and then
+                            waiting up to an hour for the sweep to tell the
+                            customer. The number typed here is the one they get. */}
+                        {o.status !== 'cancelled' && !o.deliveredAt && o.hasShopifyOrder
+                            && !o.shopifyOrderMissing && o.fulfillmentStatus !== 'fulfilled' && (
+                            <>
+                                <input
+                                    className="ret-note"
+                                    placeholder="CARRIER"
+                                    value={carriers[o.id] || ''}
+                                    onChange={(e) => setCarriers((p) => ({ ...p, [o.id]: e.target.value }))}
+                                />
+                                <input
+                                    className="ret-note"
+                                    placeholder="TRACKING NUMBER"
+                                    value={awbs[o.id] || ''}
+                                    onChange={(e) => setAwbs((p) => ({ ...p, [o.id]: e.target.value }))}
+                                />
+                                <button className="ret-btn" disabled={busyId === o.id} onClick={() => fulfil(o)}>
+                                    FULFIL &amp; NOTIFY
+                                </button>
+                            </>
+                        )}
                         {o.status !== 'cancelled' && !o.deliveredAt && (
                             <button
                                 className="ret-btn"
@@ -156,7 +203,7 @@ const AdminOrders = ({ token }) => {
                         )}
                         {!o.shopifyOrderMissing && o.fulfillmentStatus !== 'fulfilled'
                             && o.hasShopifyOrder && !o.deliveredAt && o.status !== 'cancelled' && (
-                            <span className="dash-note">FULFIL IN SHOPIFY FIRST</span>
+                            <span className="dash-note">FULFIL BEFORE MARKING DELIVERED</span>
                         )}
                     </div>
                 </article>
