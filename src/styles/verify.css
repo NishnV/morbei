@@ -1,0 +1,78 @@
+/**
+ * The email-verification panel.
+ *
+ * Shared, not page-local, because the same panel appears at checkout and at
+ * sign-up and the two must look like one thing. Page CSS is code-split here,
+ * so keeping it in Checkout.css left the sign-up copy unstyled.
+ */
+/* Confirming the email before the money moves.
+   Sits where the Razorpay button would be, because the two must never be on
+   screen together — a customer who can still press PAY will press PAY. */
+.co-verify {
+    margin-top: 1.25rem;
+    padding: 1.1rem;
+    border: 0.5px solid rgba(255, 255, 255, 0.25);
+    text-align: center;
+}
+
+.co-verify-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    margin: 0 0 0.5rem;
+}
+
+.co-verify-note,
+.co-verify-err {
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    line-height: 1.6;
+    margin: 0 0 0.75rem;
+    /* An email address read back to someone must match what they typed, so
+       no uppercasing here. */
+    text-transform: none;
+}
+
+.co-verify-err { color: #ff4444; }
+
+.co-verify-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0.6rem;
+}
+
+.co-verify-input {
+    flex: 1 1 160px;
+    min-width: 0;
+    text-align: center;
+    letter-spacing: 0.35em;
+}
+
+.co-verify-btn {
+    background: #fff;
+    color: #000;
+    border: none;
+    font-family: inherit;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    padding: 0.85rem 1.4rem;
+    cursor: pointer;
+}
+
+.co-verify-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.co-verify-link {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: inherit;
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.3rem;
+}
+
+.co-verify-link:hover { color: #fff; }

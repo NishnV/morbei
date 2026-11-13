@@ -571,6 +571,34 @@ export async function sendRestockRequest({ email, product }) {
  * a subscriber who hears nothing assumes the form was broken. Carries an
  * unsubscribe link because consent has to be withdrawable to be valid.
  */
+/**
+ * The six digits that prove an address can actually be read.
+ *
+ * This is the one email whose arrival is the whole point, so it carries no
+ * links, no images beyond the shell's own, and nothing that needs loading —
+ * a code that renders as a blocked image is a code nobody can type.
+ *
+ * It deliberately names what is being authorised. An unexpected code with no
+ * context is how people get talked into reading one out to a stranger on the
+ * phone, and the last line is there to be quoted back at them.
+ */
+export async function sendVerificationCode(email, code, minutes) {
+    await deliver({
+        from: STORE_FROM,
+        to: email,
+        subject: `${code} is your MORBEI verification code`,
+        html: shell({
+            title: 'Your verification code',
+            eyebrow: 'VERIFY YOUR EMAIL',
+            heading: code,
+            intro: `Enter this code to confirm this is your email address. It expires in
+                    ${minutes} minutes.`,
+            footerNote: 'If you did not ask for this, ignore it. Nobody from MORBEI '
+                + 'will ever ask you for this code.',
+        }),
+    });
+}
+
 export async function sendNewsletterWelcome(email, unsubscribeUrl) {
     await deliver({
         from: STORE_FROM,

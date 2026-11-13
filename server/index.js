@@ -129,6 +129,15 @@ const checkoutLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
+// Tighter than the rest of /api/auth, because this one posts mail to an
+// address a stranger chose. The per-address limits in routes/auth.js are the
+// real control — they survive a restart and cannot be dodged by changing IP —
+// but this bounds how much one source can send in total. Not lower: Indian
+// carrier NAT puts a great many shoppers behind one address, and a limit that
+// stops a real customer verifying is a limit that stops a sale.
+app.use('/api/auth/email/code', rateLimit({
+    windowMs: 60 * 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false, message: limitMsg,
+}));
 app.use('/api/contact', contactLimiter);
 app.use('/api/payment/create-order', checkoutLimiter);
 // Generous: a real session fires a handful of these, and Indian carrier NAT

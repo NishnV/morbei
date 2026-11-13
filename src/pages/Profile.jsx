@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../hooks/useCustomer';
-import { ordersAPI } from '../lib/api';
+import { ordersAPI, authAPI } from '../lib/api';
 import { getStatusLabel } from '../utils/orderStatus';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './Profile.css';
+import '../styles/verify.css';
 import SiteImage from '../components/SiteImage';
 import PasswordField from '../components/PasswordField';
 
@@ -61,6 +62,71 @@ const Profile = () => {
         }
     };
 
+    /**
+     * Confirming the address before an account is made of it.
+     *
+     * An account whose email is a typo is worse than no account: the welcome
+     * never arrives, password recovery is impossible, and every order placed
+     * from it notifies nobody — which is how one customer's order went
+     * entirely unacknowledged. Shopify will happily create the account
+     * either way, so the check has to happen before it is asked to.
+     *
+     * The address is remembered once proved, so this is a one-time step and
+     * checkout will not ask for it again.
+     */
+    const [verifyFor, setVerifyFor] = useState(null);
+    const [verifyCode, setVerifyCode] = useState('');
+    const [verifyBusy, setVerifyBusy] = useState(false);
+    const [suggestion, setSuggestion] = useState(null);
+    // Held so the code step can finish the job the form started.
+    const pendingSignUp = React.useRef(null);
+
+    const startVerification = async (email) => {
+        setVerifyBusy(true);
+        setSuggestion(null);
+        try {
+            const r = await authAPI.sendCode(email);
+            if (r.verified) return true;      // already proved; nothing sent
+            setVerifyFor(email);
+            setMessage(`We sent a six-digit code to ${email}.`);
+            return false;
+        } catch (err) {
+            if (err.data?.suggestion) setSuggestion(err.data.suggestion);
+            setMessage(err.message || 'Could not send the code.');
+            return false;
+        } finally {
+            setVerifyBusy(false);
+        }
+    };
+
+    const submitCode = async () => {
+        const code = verifyCode.trim();
+        if (!/^[0-9]{6}$/.test(code)) { setMessage('Enter the six digits from the email.'); return; }
+        setVerifyBusy(true);
+        try {
+            await authAPI.verifyEmail(verifyFor, code);
+            setVerifyFor(null);
+            setVerifyCode('');
+            setMessage('');
+            // Finish what they asked for rather than making them fill the
+            // form in again.
+            if (pendingSignUp.current) await signUp(pendingSignUp.current);
+        } catch (err) {
+            setMessage(err.message || 'That code is not right.');
+        } finally {
+            setVerifyBusy(false);
+        }
+    };
+
+    const useSuggestion = async () => {
+        const fixed = suggestion;
+        setForm((p) => ({ ...p, email: fixed }));
+        if (pendingSignUp.current) pendingSignUp.current.email = fixed;
+        setSuggestion(null);
+        setMessage('');
+        await startVerification(fixed);
+    };
+
     const handleSignUp = async (e) => {
         e.preventDefault();
         setMessage('');
@@ -71,6 +137,17 @@ const Profile = () => {
             setMessage('Please enter your full name (first and last).');
             return;
         }
+        // Before Shopify is asked to make anything. An account created
+        // against an unreachable address cannot be undone by the customer.
+        pendingSignUp.current = {
+            email: form.email,
+            password: form.password,
+            firstName,
+            lastName,
+            phone: form.phone ? `+91${form.phone}` : undefined,
+            acceptsMarketing: form.notify,
+        };
+        if (!(await startVerification(form.email))) return;
         try {
             await signUp({
                 email: form.email,
@@ -306,6 +383,51 @@ const Profile = () => {
                     <div className="profile-auth-form-container">
                         <h1 className="profile-auth-title">CREATE YOUR ACCOUNT</h1>
                         {message && <p className="profile-auth-error">{message}</p>}
+                        {/* The address looks like a near-miss of a common one.
+                            Offered, not enforced — somebody really does own
+                            the odd-looking domain. */}
+                        {suggestion && (
+                            <div className="co-verify-row">
+                                <button type="button" className="co-verify-btn" disabled={verifyBusy} onClick={useSuggestion}>
+                                    USE {suggestion.toUpperCase()}
+                                </button>
+                                <button type="button" className="co-verify-link" onClick={() => { setSuggestion(null); setMessage(''); }}>
+                                    KEEP WHAT I TYPED
+                                </button>
+                            </div>
+                        )}
+                        {/* The form is replaced, not supplemented: the account
+                            is not created until the code comes back. */}
+                        {verifyFor ? (
+                            <div className="co-verify">
+                                <p className="co-verify-title">CONFIRM YOUR EMAIL</p>
+                                <div className="co-verify-row">
+                                    <label className="visually-hidden" htmlFor="pr-code">Six-digit code</label>
+                                    <input
+                                        id="pr-code"
+                                        className="profile-auth-input co-verify-input"
+                                        value={verifyCode}
+                                        onChange={(e) => setVerifyCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') submitCode(); }}
+                                        placeholder="6-DIGIT CODE"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        autoFocus
+                                    />
+                                    <button type="button" className="co-verify-btn" disabled={verifyBusy} onClick={submitCode}>
+                                        {verifyBusy ? 'CHECKING…' : 'CONFIRM'}
+                                    </button>
+                                </div>
+                                <div className="co-verify-row">
+                                    <button type="button" className="co-verify-link" disabled={verifyBusy} onClick={() => startVerification(verifyFor)}>
+                                        SEND IT AGAIN
+                                    </button>
+                                    <button type="button" className="co-verify-link" onClick={() => { setVerifyFor(null); setMessage(''); }}>
+                                        CHANGE EMAIL
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
                         <form onSubmit={handleSignUp} className="profile-auth-form">
                             <div className="profile-auth-input-group">
                                 <input
@@ -369,6 +491,7 @@ const Profile = () => {
                                 {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
                             </button>
                         </form>
+                        )}
 
                         <div className="profile-auth-switch">
                             <span className="profile-auth-switch-text">Already have an account? </span>

@@ -254,6 +254,43 @@ export async function initDB() {
         -- order's mail goes is a fact about the order, not about the account.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS email TEXT;
 
+        -- One live verification code per address.
+        --
+        -- The code is stored hashed. A six-digit code is guessable in a
+        -- million tries, so what protects it is the attempt counter and the
+        -- expiry, not its length — but a database that spills must not hand
+        -- out working codes on top of everything else.
+        --
+        -- The counters live here rather than in memory because the server
+        -- restarts on every deploy, and a rate limit that forgets itself on
+        -- deploy is not a rate limit.
+        CREATE TABLE IF NOT EXISTS email_codes (
+            email TEXT PRIMARY KEY,
+            code_hash TEXT NOT NULL,
+            expires_at TIMESTAMPTZ NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            sent_count INTEGER NOT NULL DEFAULT 1,
+            last_sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            window_started_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+
+        -- Addresses that have proved they can receive mail.
+        --
+        -- Kept so a returning customer verifies once and never again, which
+        -- is the whole reason this is tolerable at checkout. It is a
+        -- deliverability record, not an authentication one: it says mail sent
+        -- here arrives, and nothing about who is typing it. Guest sessions
+        -- stay scoped to the session that created them for exactly that
+        -- reason — see signToken.
+        --
+        -- Not seeded from past orders on purpose. The address that caused all
+        -- this sits on a paid order, so seeding from paid orders would
+        -- whitelist precisely the one that never worked.
+        CREATE TABLE IF NOT EXISTS verified_emails (
+            email TEXT PRIMARY KEY,
+            verified_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+
         -- Return and exchange requests.
         --
         -- order_id is nullable on purpose. The form is filled in by order

@@ -9,6 +9,7 @@ import { rememberPendingOrder } from '../lib/pendingOrder';
 import { SHIPPABLE_COUNTRIES, getStatesForCountry } from '../data/countries';
 import { DELIVERY_OPTIONS, getDeliveryOption, deliveryWindow } from '../data/delivery';
 import './Checkout.css';
+import '../styles/verify.css';
 
 const STEPS = ['INFORMATION', 'DELIVERY', 'PAYMENT'];
 
@@ -266,6 +267,82 @@ const Checkout = () => {
         }
     };
 
+    /**
+     * Email verification, for a guest whose address has not proved itself.
+     *
+     * Raised at the moment of paying rather than while the form is being
+     * filled in: sending a code to every address anyone types would post mail
+     * for abandoned carts, and the step only matters if money is about to
+     * move. A verified address is remembered server-side, so a returning
+     * customer and anyone signed in never see this at all.
+     */
+    const [verifyFor, setVerifyFor] = useState(null);   // the address awaiting a code
+    const [verifyCode, setVerifyCode] = useState('');
+    const [verifyBusy, setVerifyBusy] = useState(false);
+    const [verifyError, setVerifyError] = useState('');
+    const [verifyNotice, setVerifyNotice] = useState('');
+    const [emailSuggestion, setEmailSuggestion] = useState(null);
+
+    /** Ask for a code, turning a typo into an offer to fix it. */
+    const requestCode = async (email) => {
+        setVerifyBusy(true);
+        setVerifyError('');
+        setEmailSuggestion(null);
+        try {
+            const r = await authAPI.sendCode(email);
+            if (r.verified) return true;   // already proved; nothing was sent
+            setVerifyFor(email);
+            setVerifyNotice(`We sent a six-digit code to ${email}.`);
+            return false;
+        } catch (err) {
+            if (err.data?.suggestion) {
+                // Not an error to argue with — an offer. The customer either
+                // takes the correction or insists on what they typed.
+                setEmailSuggestion(err.data.suggestion);
+                setVerifyFor(email);
+                setVerifyError(err.message);
+                return false;
+            }
+            setVerifyFor(email);
+            setVerifyError(err.message || 'Could not send the code.');
+            return false;
+        } finally {
+            setVerifyBusy(false);
+        }
+    };
+
+    /** Take the correction we offered, and ask again for the right address. */
+    const acceptSuggestion = async () => {
+        const fixed = emailSuggestion;
+        setForm((p) => ({ ...p, email: fixed }));
+        setEmailSuggestion(null);
+        setVerifyError('');
+        await requestCode(fixed);
+    };
+
+    const submitCode = async () => {
+        const code = verifyCode.trim();
+        if (!/^[0-9]{6}$/.test(code)) {
+            setVerifyError('Enter the six digits from the email.');
+            return;
+        }
+        setVerifyBusy(true);
+        setVerifyError('');
+        try {
+            await authAPI.verifyEmail(verifyFor, code);
+            setVerifyFor(null);
+            setVerifyCode('');
+            setVerifyNotice('');
+            // Straight on to paying. Making them press PAY a second time
+            // after they already did is a step for nothing.
+            await handlePayment();
+        } catch (err) {
+            setVerifyError(err.message || 'That code is not right.');
+        } finally {
+            setVerifyBusy(false);
+        }
+    };
+
     const handlePayment = async () => {
         // Last line of defense — the payment step can be deep-linked, so never
         // take money against a form that was never actually filled in.
@@ -293,6 +370,13 @@ const Checkout = () => {
                     setToken(token);
                 } catch (err) {
                     setPaying(false);
+                    if (err.status === 428) {
+                        // Not an error: a step is missing. The address has
+                        // never proved it can receive mail, and an order
+                        // nobody can be told about is how #1016 happened.
+                        await requestCode(form.email);
+                        return;
+                    }
                     if (err.status === 409) {
                         // The address belongs to a real account. Saying so is
                         // better than letting them pay into a stranger's
@@ -718,6 +802,11 @@ const Checkout = () => {
                                                             <dd>{totalFormatted}</dd>
                                                         </div>
                                                     </dl>
+                                                    {/* Hidden, not merely disabled, while a code is
+                                                        outstanding: a payment button on screen is the
+                                                        thing a customer will press, and pressing it
+                                                        again only re-sends a code they already have. */}
+                                                    {!verifyFor && (
                                                     <button
                                                         className="razorpay-pay-btn"
                                                         onClick={handlePayment}
@@ -738,11 +827,71 @@ const Checkout = () => {
                                                             </>
                                                         )}
                                                     </button>
+                                                    )}
                                                     {confirming && (
                                                         <div role="status" style={{ marginTop: '1rem', textAlign: 'center' }}>
                                                             <p style={{ fontSize: '0.7rem', letterSpacing: '0.1em', margin: 0, textTransform: 'uppercase', lineHeight: 1.6 }}>
                                                                 PAYMENT RECEIVED. CONFIRMING YOUR ORDER — PLEASE DON&apos;T CLOSE THIS PAGE OR PAY AGAIN.
                                                             </p>
+                                                        </div>
+                                                    )}
+                                                    {/* The address has never proved it can receive
+                                                        mail. Shown in place of the Razorpay modal, not
+                                                        beside it, so there is one thing to do. */}
+                                                    {verifyFor && (
+                                                        <div className="co-verify" role="group" aria-label="Verify your email">
+                                                            <p className="co-verify-title">CONFIRM YOUR EMAIL</p>
+                                                            {verifyNotice && <p className="co-verify-note">{verifyNotice}</p>}
+                                                            {emailSuggestion ? (
+                                                                <>
+                                                                    <p className="co-verify-err">{verifyError}</p>
+                                                                    <div className="co-verify-row">
+                                                                        <button type="button" className="co-verify-btn" disabled={verifyBusy} onClick={acceptSuggestion}>
+                                                                            USE {emailSuggestion.toUpperCase()}
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="co-verify-link"
+                                                                            onClick={() => { setVerifyFor(null); setEmailSuggestion(null); setVerifyError(''); setCurrentStep(0); }}
+                                                                        >
+                                                                            EDIT IT MYSELF
+                                                                        </button>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="co-verify-row">
+                                                                        <label className="visually-hidden" htmlFor="co-code">Six-digit code</label>
+                                                                        <input
+                                                                            id="co-code"
+                                                                            className="checkout-input-v3 co-verify-input"
+                                                                            value={verifyCode}
+                                                                            onChange={(e) => setVerifyCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                                                                            onKeyDown={(e) => { if (e.key === 'Enter') submitCode(); }}
+                                                                            placeholder="6-DIGIT CODE"
+                                                                            inputMode="numeric"
+                                                                            autoComplete="one-time-code"
+                                                                            autoFocus
+                                                                        />
+                                                                        <button type="button" className="co-verify-btn" disabled={verifyBusy} onClick={submitCode}>
+                                                                            {verifyBusy ? 'CHECKING…' : 'CONFIRM'}
+                                                                        </button>
+                                                                    </div>
+                                                                    {verifyError && <p className="co-verify-err">{verifyError}</p>}
+                                                                    <div className="co-verify-row">
+                                                                        <button type="button" className="co-verify-link" disabled={verifyBusy} onClick={() => requestCode(verifyFor)}>
+                                                                            SEND IT AGAIN
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="co-verify-link"
+                                                                            onClick={() => { setVerifyFor(null); setVerifyError(''); setVerifyNotice(''); setCurrentStep(0); }}
+                                                                        >
+                                                                            CHANGE EMAIL
+                                                                        </button>
+                                                                    </div>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     )}
                                                     {paymentError && (

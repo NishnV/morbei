@@ -148,6 +148,14 @@ export const authAPI = {
     // already belongs to someone, which the caller turns into a prompt to
     // sign in rather than an error.
     guest: (body) => apiFetch('/auth/guest', { method: 'POST', body: JSON.stringify(body) }),
+    // Email verification. A code is sent only to an address that has not
+    // already proved itself, so a returning customer never sees this.
+    // Throws with status 400 and a `suggestion` when the domain looks like a
+    // typo of a common one, and 429 when a code was asked for too recently.
+    sendCode: (email) =>
+        apiFetch('/auth/email/code', { method: 'POST', body: JSON.stringify({ email }) }),
+    verifyEmail: (email, code) =>
+        apiFetch('/auth/email/verify', { method: 'POST', body: JSON.stringify({ email, code }) }),
 };
 
 // Payment

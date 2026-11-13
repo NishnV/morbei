@@ -3,7 +3,8 @@ import { get, run } from '../db/pg.js';
 import { signToken, authenticate } from '../middleware/auth.js';
 import { getCustomerByToken } from '../services/shopify-storefront.js';
 import { notifySlackError } from '../services/slack.js';
-import { domainAcceptsMail } from '../services/email-domain.js';
+import { domainAcceptsMail, suggestDomain } from '../services/email-domain.js';
+import { sendVerificationCode } from '../services/email.js';
 import crypto from 'node:crypto';
 
 const router = Router();
@@ -35,6 +36,190 @@ const router = Router();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GUEST_PASSWORD = '!guest';
 
+/**
+ * Email verification by code.
+ *
+ * A customer mistyped her address at checkout. The order was paid, every
+ * message about it went nowhere, and nobody knew until she wrote in on
+ * Instagram. The MX check catches a domain that cannot receive mail; the
+ * typo check catches a near-miss of a common one. Neither catches a valid
+ * address belonging to somebody else, and only a code sent to the address
+ * and typed back can.
+ *
+ * Verified addresses are remembered, so a returning customer does this once
+ * and never again. That is what makes it bearable in front of a payment.
+ *
+ * The obvious danger of an unauthenticated "send mail to this address"
+ * endpoint is that it is a free way to post mail to strangers, and a free
+ * way to burn our sending quota. Hence the limits below, which live in
+ * Postgres rather than in memory — a limit that forgets itself on every
+ * deploy is not a limit — on top of the per-IP limiter in index.js.
+ */
+const CODE_TTL_MINUTES = 10;
+const CODE_MAX_ATTEMPTS = 5;      // per code, then it is destroyed
+const CODE_RESEND_SECONDS = 60;   // between sends to one address
+const CODE_MAX_PER_WINDOW = 5;    // sends to one address per hour
+const CODE_WINDOW_MINUTES = 60;
+
+/**
+ * Hashed, not stored plainly, and keyed to the server secret so a leaked
+ * table alone is not a book of working codes.
+ */
+function hashCode(email, code) {
+    return crypto.createHmac('sha256', process.env.JWT_SECRET)
+        .update(`${email}:${code}`)
+        .digest('hex');
+}
+
+/** Has this address already proved it can receive mail? */
+async function isVerified(email) {
+    return Boolean(await get('SELECT 1 FROM verified_emails WHERE email = $1', [email]));
+}
+
+/**
+ * POST /api/auth/email/code — send a code, or explain why not.
+ *
+ * Answers identically whether or not the address is already known to us. It
+ * would otherwise be a way to ask "does this person shop here", which is not
+ * a question a stranger gets to ask about a customer.
+ */
+router.post('/email/code', async (req, res) => {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        if (!EMAIL_RE.test(email) || email.length > 254) {
+            return res.status(400).json({ error: 'Please enter a valid email address.' });
+        }
+
+        // Already proved — the caller can go straight on. No mail is sent,
+        // which is both the point of remembering and one fewer thing to abuse.
+        if (await isVerified(email)) return res.json({ verified: true });
+
+        if (!(await domainAcceptsMail(email))) {
+            return res.status(400).json({
+                error: 'We could not find a mail server for that address — please check the spelling.',
+            });
+        }
+        // Only after the MX check: a domain that cannot receive mail is
+        // already definitively wrong, and guessing at it invents an intent
+        // nobody expressed.
+        const suggestion = suggestDomain(email);
+        if (suggestion) {
+            const local = email.slice(0, email.lastIndexOf('@'));
+            return res.status(400).json({
+                error: `Did you mean ${local}@${suggestion}?`,
+                suggestion: `${local}@${suggestion}`,
+            });
+        }
+
+        const existing = await get('SELECT * FROM email_codes WHERE email = $1', [email]);
+        if (existing) {
+            const sinceSent = (Date.now() - new Date(existing.last_sent_at)) / 1000;
+            if (sinceSent < CODE_RESEND_SECONDS) {
+                return res.status(429).json({
+                    error: `Please wait ${Math.ceil(CODE_RESEND_SECONDS - sinceSent)} seconds before asking for another code.`,
+                    retryAfter: Math.ceil(CODE_RESEND_SECONDS - sinceSent),
+                });
+            }
+            const windowAge = (Date.now() - new Date(existing.window_started_at)) / 60000;
+            if (windowAge < CODE_WINDOW_MINUTES && existing.sent_count >= CODE_MAX_PER_WINDOW) {
+                return res.status(429).json({
+                    error: 'Too many codes requested for this address. Please try again later.',
+                });
+            }
+        }
+
+        // randomInt, not Math.random: this is a credential, however short.
+        const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+        const windowExpired = !existing
+            || (Date.now() - new Date(existing.window_started_at)) / 60000 >= CODE_WINDOW_MINUTES;
+
+        await run(
+            `INSERT INTO email_codes (email, code_hash, expires_at)
+             VALUES ($1, $2, now() + make_interval(mins => $3::int))
+             ON CONFLICT (email) DO UPDATE SET
+                code_hash = EXCLUDED.code_hash,
+                expires_at = EXCLUDED.expires_at,
+                -- A new code starts its own attempt budget; the send budget
+                -- carries on, or restarts if the hour has rolled over.
+                attempts = 0,
+                sent_count = CASE WHEN $4 THEN 1 ELSE email_codes.sent_count + 1 END,
+                window_started_at = CASE WHEN $4 THEN now() ELSE email_codes.window_started_at END,
+                last_sent_at = now()`,
+            [email, hashCode(email, code), CODE_TTL_MINUTES, windowExpired]
+        );
+
+        try {
+            await sendVerificationCode(email, code, CODE_TTL_MINUTES);
+        } catch (err) {
+            // The row is left in place: it records the attempt against the
+            // limits, and the customer can ask again in a minute. Telling
+            // them it worked when it did not would leave them staring at an
+            // empty inbox.
+            console.error(`Verification code to ${email} failed:`, err.message);
+            return res.status(502).json({ error: 'We could not send the code. Please try again in a moment.' });
+        }
+
+        return res.json({ sent: true, expiresInMinutes: CODE_TTL_MINUTES });
+    } catch (err) {
+        console.error('verification code error:', err);
+        notifySlackError('sending a verification code failed', err).catch(() => {});
+        return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    }
+});
+
+/** POST /api/auth/email/verify — hand the code back. */
+router.post('/email/verify', async (req, res) => {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        const code = String(req.body?.code || '').trim();
+        if (!EMAIL_RE.test(email) || !/^[0-9]{6}$/.test(code)) {
+            return res.status(400).json({ error: 'Enter the six-digit code from your email.' });
+        }
+
+        if (await isVerified(email)) return res.json({ verified: true });
+
+        const row = await get('SELECT * FROM email_codes WHERE email = $1', [email]);
+        if (!row || new Date(row.expires_at) < new Date()) {
+            return res.status(400).json({ error: 'That code has expired. Ask for a new one.' });
+        }
+
+        // Counted before it is checked. Counting afterwards, or only on
+        // failure, lets a client that hangs up mid-request guess for free.
+        const used = await get(
+            `UPDATE email_codes SET attempts = attempts + 1
+              WHERE email = $1 RETURNING attempts`,
+            [email]
+        );
+        if (used.attempts > CODE_MAX_ATTEMPTS) {
+            await run('DELETE FROM email_codes WHERE email = $1', [email]);
+            return res.status(429).json({ error: 'Too many wrong codes. Ask for a new one.' });
+        }
+
+        const expected = Buffer.from(row.code_hash, 'hex');
+        const given = Buffer.from(hashCode(email, code), 'hex');
+        // Length is fixed by the hash, so the compare cannot throw; it is
+        // timing-safe because a six-digit space is small enough that leaking
+        // the position of the first wrong digit would genuinely matter.
+        if (!crypto.timingSafeEqual(expected, given)) {
+            return res.status(400).json({
+                error: 'That code is not right.',
+                attemptsLeft: Math.max(0, CODE_MAX_ATTEMPTS - used.attempts),
+            });
+        }
+
+        await run(
+            `INSERT INTO verified_emails (email) VALUES ($1)
+             ON CONFLICT (email) DO NOTHING`,
+            [email]
+        );
+        await run('DELETE FROM email_codes WHERE email = $1', [email]);
+        return res.json({ verified: true });
+    } catch (err) {
+        console.error('verification error:', err);
+        return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    }
+});
+
 router.post('/guest', async (req, res) => {
     try {
         const email = String(req.body?.email || '').trim().toLowerCase();
@@ -50,6 +235,16 @@ router.post('/guest', async (req, res) => {
             return res.status(400).json({
                 error: 'We could not find a mail server for that address — please check the spelling.',
             });
+        }
+        // And the address has to have proved itself. A domain that can
+        // receive mail says nothing about whether this particular mailbox
+        // exists or belongs to the person typing it, which is how an order
+        // was once paid for and then addressed into the void. 428, not 400:
+        // nothing is wrong with the request, a step is simply missing, and
+        // the client uses that to put the code box on screen rather than
+        // showing an error.
+        if (!(await isVerified(email))) {
+            return res.status(428).json({ error: 'emailNotVerified' });
         }
         const firstName = String(req.body?.firstName || '').trim().slice(0, 80);
         const lastName = String(req.body?.lastName || '').trim().slice(0, 80);
