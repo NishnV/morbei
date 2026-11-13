@@ -2,7 +2,7 @@ import { all, get, run } from '../db/pg.js';
 import { fetchOrderPayments } from './razorpay.js';
 import { fulfillPaidOrder } from './fulfillment.js';
 import { notifySlackError } from './slack.js';
-import { listOrdersTracking } from './shopify-admin.js';
+import { listOrdersTracking, setOrderEmail } from './shopify-admin.js';
 import { sendShipmentNotice } from './email.js';
 
 /**
@@ -191,6 +191,63 @@ const STRANDED_CANCEL_MINUTES = 30;
  * cancellation is a judgement call about a real customer's order, so it is
  * reported rather than guessed at.
  */
+// Shopify makes its send-or-not decision within a second or two of the order
+// being created. Well past that, and generous, because being late here costs
+// nothing at all.
+const EMAIL_BACKFILL_AFTER_MINUTES = 15;
+
+/**
+ * Put the customer on Shopify orders that were deliberately created without
+ * one.
+ *
+ * Draft orders are completed with no email so that Shopify has nobody to send
+ * its own confirmation to — the store sends its own, and two confirmations for
+ * one order is worse than none. Attaching the customer immediately afterwards
+ * looked like it worked, and was in fact a race: on one order the update
+ * landed a second late and Shopify stayed quiet, on the next it landed in the
+ * same second and Shopify sent a duplicate.
+ *
+ * So it happens here instead, an hour or so later, where the race cannot be
+ * lost. Nothing reads the email off the Shopify order — every lookup joins our
+ * own users table — so the delay costs nothing but a gap in the Shopify admin
+ * that closes by itself.
+ */
+export async function backfillOrderEmails() {
+    const candidates = await all(
+        `SELECT o.id, o.shopify_order_id, o.shopify_order_number, u.email
+           FROM orders o
+           JOIN users u ON u.id = o.user_id
+          WHERE o.shopify_order_id IS NOT NULL
+            AND o.shopify_order_missing_at IS NULL
+            AND u.email IS NOT NULL
+            AND o.created_at < now() - make_interval(mins => $1::int)
+            AND o.created_at > now() - make_interval(days => 30)`,
+        [EMAIL_BACKFILL_AFTER_MINUTES]
+    );
+    if (candidates.length === 0) return { checked: 0, set: 0 };
+
+    const tracking = await listOrdersTracking(250);
+    let set = 0;
+
+    for (const order of candidates) {
+        const t = tracking.get(String(order.shopify_order_id));
+        // Not in the window Shopify returned, or already has a customer.
+        if (!t || t.email) continue;
+        try {
+            await setOrderEmail(order.shopify_order_id, order.email);
+            set++;
+            console.log(`Attached ${order.email} to Shopify order #${order.shopify_order_number}`);
+        } catch (err) {
+            console.error(`Could not attach email to Shopify order ${order.shopify_order_id}:`, err.message);
+            notifySlackError(
+                `Could not put the customer on Shopify order #${order.shopify_order_number || order.shopify_order_id}`,
+                err
+            ).catch(() => {});
+        }
+    }
+    return { checked: candidates.length, set };
+}
+
 /**
  * Say so before giving up.
  *
@@ -261,6 +318,14 @@ export function startReconciler() {
                 console.log(
                     `Reconciler: scanned ${result.scanned}, recovered ${result.recovered}, failed ${result.failed}`
                 );
+            }
+
+            try {
+                const filled = await backfillOrderEmails();
+                if (filled.set > 0) console.log(`Reconciler: attached customers to ${filled.set} Shopify order(s)`);
+            } catch (err) {
+                console.error('Email backfill failed:', err.message);
+                notifySlackError('Shopify email backfill failed', err).catch(() => {});
             }
 
             try {

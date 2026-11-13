@@ -324,6 +324,9 @@ function latestFulfillment(order) {
 function trackingFromOrder(order) {
     const latest = latestFulfillment(order);
     return {
+        // Null when the order was completed without one, which is how the
+        // confirmation is suppressed — see fulfillment.js.
+        email: order.email || null,
         fulfillmentStatus: order.fulfillment_status || null, // null | 'partial' | 'fulfilled'
         shipmentStatus: latest?.shipment_status || null,     // null | 'in_transit' | 'out_for_delivery' | 'delivered' | ...
         trackingNumber: latest?.tracking_number || latest?.tracking_numbers?.[0] || null,
@@ -332,7 +335,7 @@ function trackingFromOrder(order) {
     };
 }
 
-const TRACKING_FIELDS = 'id,order_number,fulfillment_status,cancelled_at,fulfillments';
+const TRACKING_FIELDS = 'id,order_number,email,fulfillment_status,cancelled_at,fulfillments';
 
 /**
  * Fetch an order's fulfillment + shipment tracking from Shopify.

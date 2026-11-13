@@ -1,4 +1,4 @@
-import { createDraftOrder, completeDraftOrder, setOrderEmail, getOrder, gidToNumeric } from './shopify-admin.js';
+import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric } from './shopify-admin.js';
 import { sendOrderConfirmation, sendFulfillmentFailureAlert } from './email.js';
 import { notifySlackError, notifySlackOrder } from './slack.js';
 import { get, run } from '../db/pg.js';
@@ -79,23 +79,17 @@ export async function fulfillPaidOrder(order, razorpayPaymentId) {
         const completed = await completeDraftOrder(draft.draft_order.id);
         const shopifyOrderId = completed.draft_order.order_id;
 
-        // The draft carried no email so that completing it would not trigger
-        // Shopify's own confirmation; put the customer on the order now.
-        // Swallowed on purpose: the order exists and the money is captured, so
-        // throwing here would roll the row back to 'pending' and invite the
-        // reconciler to create a second Shopify order for the same payment. An
-        // order missing its email is a nuisance to repair by hand; a duplicate
-        // order is a refund.
-        try {
-            await setOrderEmail(shopifyOrderId, user.email);
-        } catch (emailErr) {
-            console.error('Could not set email on Shopify order:', emailErr.message);
-            notifySlackError(
-                `Shopify order ${shopifyOrderId} (local ${order.id}) has no customer email — `
-                + `add ${user.email} by hand, or the returns lookup will not find it`,
-                emailErr
-            ).catch(() => {});
-        }
+        // The draft carries no email so that completing it gives Shopify
+        // nobody to send its own confirmation to. The customer is attached
+        // later, by the hourly sweep, and deliberately NOT here.
+        //
+        // Setting it here was a race, not a suppression. Shopify decides
+        // whether to send shortly after the order is created, and the event
+        // timelines show both outcomes: on #1017 the update landed a second
+        // late and no mail went out, on #1018 it landed in the same second and
+        // Shopify sent a duplicate confirmation. Nothing in our code reads the
+        // email off the Shopify order — every lookup joins our own users table
+        // — so there is no reason to be quick about it.
 
         // Shopify's sequential order number is the customer-facing one; if the
         // lookup fails, emails/pages fall back to the local id rather than block

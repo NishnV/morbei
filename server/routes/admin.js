@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { get, all, run } from '../db/pg.js';
 import { requireDashboardToken } from '../middleware/adminToken.js';
 import { refundPayment } from '../services/razorpay.js';
-import { createDraftOrder, completeDraftOrder, setOrderEmail, getOrder, gidToNumeric, findSiblingVariant,
+import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant,
     refundOrderLine,
     listOrdersTracking, markFulfillmentDelivered } from '../services/shopify-admin.js';
 import { primeTracking, invalidateTracking } from '../services/order-tracking.js';
@@ -669,15 +669,11 @@ router.post('/returns/:id', async (req, res) => {
                 const completed = await completeDraftOrder(draft.draft_order.id);
                 const newOrderId = completed.draft_order.order_id;
 
-                // Same reason as a normal order: the draft is completed without
-                // an email so Shopify stays quiet, and the customer is attached
-                // afterwards. Not fatal — the replacement has been created, and
-                // failing the request here would strand the return in-progress.
-                try {
-                    await setOrderEmail(newOrderId, row.email);
-                } catch (emailErr) {
-                    notifySlackError(`Replacement order ${newOrderId} has no customer email (${row.email})`, emailErr).catch(() => {});
-                }
+                // Same reason as a normal order, and the same correction: the
+                // draft is completed without an email so Shopify has nobody to
+                // notify, and the customer is attached by the hourly sweep
+                // rather than here. Doing it immediately raced Shopify's own
+                // decision to send, and sometimes lost.
 
                 let newNumber = null;
                 try {
