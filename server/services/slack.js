@@ -85,6 +85,27 @@ function describe(error) {
     }
 }
 
+/**
+ * A deliberate act worth a record, as opposed to something going wrong.
+ *
+ * notifySlackError frames everything as a warning wrapped round an error,
+ * which is right for a failure and wrong for an audit trail: changing where
+ * a customer's mail goes is not a fault, but if it is ever done wrongly this
+ * is the only place it will show.
+ */
+export async function notifySlackNotice(text) {
+    if (!SLACK_WEBHOOK_URL) return;
+    try {
+        await fetch(SLACK_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: `:pencil2: ${text}` }),
+        });
+    } catch (slackErr) {
+        console.error('Slack notification failed:', slackErr.message);
+    }
+}
+
 export async function notifySlackError(context, error) {
     if (!SLACK_WEBHOOK_URL) return;
     try {

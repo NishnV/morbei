@@ -26,6 +26,9 @@ const AdminOrders = ({ token }) => {
     // Carrier and tracking for fulfilling without leaving this screen.
     const [carriers, setCarriers] = useState({});
     const [awbs, setAwbs] = useState({});
+    // The order whose email is being corrected, and the box's contents.
+    const [editingEmail, setEditingEmail] = useState(null);
+    const [emailDraft, setEmailDraft] = useState('');
 
     const load = useCallback(async () => {
         setError('');
@@ -39,6 +42,22 @@ const AdminOrders = ({ token }) => {
 
     useEffect(() => { load(); }, [load]);
 
+    /**
+     * Both buttons below exist to tell a customer something. Pressing one for
+     * an address with no mail server behind it does the opposite: the order
+     * is recorded as notified, the notice goes nowhere, and nobody finds out
+     * until the customer writes in. Correcting it first is almost always the
+     * right move, so this interrupts rather than warns in passing.
+     */
+    const confirmDeliverable = (order, what) => {
+        if (!order.email || order.emailDeliverable) return true;
+        return window.confirm(
+            `${order.email} has no mail server — nothing sent to it can arrive.\n\n`
+            + `Use EDIT on this order to correct the address first.\n\n`
+            + `Continue and ${what} anyway? The customer will not be told.`
+        );
+    };
+
     const markDelivered = async (order) => {
         // This starts the customer's seven-day return window and emails them
         // to say so, so it is a claim about the real world, not a stray click.
@@ -47,6 +66,7 @@ const AdminOrders = ({ token }) => {
             `Mark order #${order.orderNumber} as delivered?\n\n${what}\n\nTo: ${order.customer || '—'}\n${order.address || ''}\n\n`
             + 'This emails the customer and starts their 7-day return window.'
         )) return;
+        if (!confirmDeliverable(order, 'mark it delivered')) return;
         setBusyId(order.id);
         setError('');
         try {
@@ -68,10 +88,43 @@ const AdminOrders = ({ token }) => {
             + 'This marks it shipped in Shopify and emails the customer the tracking. '
             + 'Shopify will not send its own notification.'
         )) return;
+        if (!confirmDeliverable(order, 'fulfil it')) return;
         setBusyId(order.id);
         setError('');
         try {
             await adminAPI.fulfil(token, order.id, carrier, awb);
+            await load();
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    /**
+     * Correct where this order's mail goes.
+     *
+     * A customer mistyped her address at checkout and every message for her
+     * order went nowhere. The server checks the new domain can receive mail
+     * before accepting it, writes it against the order rather than the
+     * account — the account's address is her login — and tells Shopify.
+     */
+    const saveEmail = async (order) => {
+        const next = emailDraft.trim().toLowerCase();
+        if (!next || next === order.email) { setEditingEmail(null); return; }
+        if (!window.confirm(
+            `Send this order's mail to ${next} instead of ${order.email || '(none)'}?\n\n`
+            + 'Only the address this order notifies changes. The customer account and '
+            + 'every other order they have placed are left alone.'
+        )) return;
+        setBusyId(order.id);
+        setError('');
+        try {
+            const r = await adminAPI.setOrderEmail(token, order.id, next);
+            if (r.shopifyUpdated === false) {
+                setError(`Saved, but Shopify would not take it — its own mail for #${order.orderNumber} still goes to the old address.`);
+            }
+            setEditingEmail(null);
             await load();
         } catch (err) {
             setError(err.message);
@@ -137,7 +190,52 @@ const AdminOrders = ({ token }) => {
                     <dl className="ret-meta">
                         <div><dt>TOTAL</dt><dd>{rs(o.totalPaise)}</dd></div>
                         <div><dt>CUSTOMER</dt><dd>{o.customer || '—'}</dd></div>
-                        {o.email && <div><dt>EMAIL</dt><dd>{o.email}</dd></div>}
+                        <div className="ord-email">
+                            <dt>EMAIL</dt>
+                            <dd>
+                                {editingEmail === o.id ? (
+                                    <span className="ord-email-edit">
+                                        <input
+                                            className="ret-note"
+                                            type="email"
+                                            value={emailDraft}
+                                            autoFocus
+                                            onChange={(e) => setEmailDraft(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') saveEmail(o);
+                                                if (e.key === 'Escape') setEditingEmail(null);
+                                            }}
+                                        />
+                                        <button className="ret-btn" disabled={busyId === o.id} onClick={() => saveEmail(o)}>SAVE</button>
+                                        <button className="ret-btn ret-btn--ghost" onClick={() => setEditingEmail(null)}>CANCEL</button>
+                                    </span>
+                                ) : (
+                                    <>
+                                        {o.email || '—'}
+                                        <button
+                                            className="ord-email-btn"
+                                            onClick={() => { setEditingEmail(o.id); setEmailDraft(o.email || ''); }}
+                                            title="Correct the address this order notifies"
+                                        >
+                                            EDIT
+                                        </button>
+                                    </>
+                                )}
+                                {/* The domain publishes no MX record, so nothing
+                                    sent here can ever arrive. Worth shouting
+                                    about before anyone presses a button that
+                                    sends. */}
+                                {o.email && !o.emailDeliverable && (
+                                    <em className="ord-email-bad">
+                                        NO MAIL SERVER FOR THIS DOMAIN — NOTHING SENT HERE WILL ARRIVE
+                                    </em>
+                                )}
+                                {o.emailCorrected && <em className="ord-email-note">CORRECTED</em>}
+                                {o.addressEmail && (
+                                    <em className="ord-email-note">TYPED AT CHECKOUT: {o.addressEmail}</em>
+                                )}
+                            </dd>
+                        </div>
                         {o.phone && <div><dt>PHONE</dt><dd>{o.phone}</dd></div>}
                         {o.address && <div><dt>SHIP TO</dt><dd>{o.address}</dd></div>}
                         <div><dt>PLACED</dt><dd>{date(o.createdAt)}</dd></div>

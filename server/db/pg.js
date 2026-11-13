@@ -241,6 +241,19 @@ export async function initDB() {
         -- second sale.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS replacement_for_order_id INTEGER;
 
+        -- Where THIS order's mail goes, when that is not the account's
+        -- address. Null for almost every order, and null means "use the
+        -- account", so nothing changes for a row that never needed it.
+        --
+        -- It exists because a customer mistyped her address at checkout and
+        -- every message for her order went nowhere. The address could not be
+        -- corrected without editing the users row, which is her login
+        -- identity: it could collide with a real account holding the correct
+        -- address, it would rewrite every other order she had placed, and a
+        -- later Shopify sign-in would upsert it straight back. Where an
+        -- order's mail goes is a fact about the order, not about the account.
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS email TEXT;
+
         -- Return and exchange requests.
         --
         -- order_id is nullable on purpose. The form is filled in by order

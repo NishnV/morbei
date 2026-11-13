@@ -193,6 +193,10 @@ export const adminAPI = {
         }),
     markTest: (token, id, isTest) =>
         adminFetch(`/orders/${id}/test`, token, { method: 'POST', body: JSON.stringify({ isTest }) }),
+    // Correct where one order's mail goes, without touching the account it
+    // was placed under. The server refuses a domain that cannot receive mail.
+    setOrderEmail: (token, id, email) =>
+        adminFetch(`/orders/${id}/email`, token, { method: 'POST', body: JSON.stringify({ email }) }),
 };
 
 // Returns — the lookup and submit are callable signed out; myOrders is not.

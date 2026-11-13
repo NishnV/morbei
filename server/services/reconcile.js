@@ -4,6 +4,7 @@ import { fulfillPaidOrder } from './fulfillment.js';
 import { notifySlackError } from './slack.js';
 import { listOrdersTracking, setOrderEmail } from './shopify-admin.js';
 import { sendShipmentNotice } from './email.js';
+import { recipientFor } from './recipient.js';
 
 /**
  * Sweep for orders where money was captured but fulfilment never completed.
@@ -158,7 +159,10 @@ export async function notifyShippedOrders() {
         if (claimed.rowCount === 0) continue; // another sweep got there first
 
         try {
-            const user = await get('SELECT * FROM users WHERE id = $1', [order.user_id]);
+            const user = recipientFor(
+                await get('SELECT * FROM users WHERE id = $1', [order.user_id]),
+                order
+            );
             let cartLines = [];
             try { cartLines = JSON.parse(order.items); } catch { /* the notice still stands without a list */ }
 
@@ -214,12 +218,16 @@ const EMAIL_BACKFILL_AFTER_MINUTES = 15;
  */
 export async function backfillOrderEmails() {
     const candidates = await all(
-        `SELECT o.id, o.shopify_order_id, o.shopify_order_number, u.email
+        // COALESCE, not u.email: an address corrected on the order is the
+        // one Shopify should be told about. Taking the account's would hand
+        // Shopify back the typo this column exists to fix.
+        `SELECT o.id, o.shopify_order_id, o.shopify_order_number,
+                COALESCE(o.email, u.email) AS email
            FROM orders o
            JOIN users u ON u.id = o.user_id
           WHERE o.shopify_order_id IS NOT NULL
             AND o.shopify_order_missing_at IS NULL
-            AND u.email IS NOT NULL
+            AND COALESCE(o.email, u.email) IS NOT NULL
             AND o.created_at < now() - make_interval(mins => $1::int)
             AND o.created_at > now() - make_interval(days => 30)`,
         [EMAIL_BACKFILL_AFTER_MINUTES]

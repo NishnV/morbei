@@ -4,11 +4,17 @@ import { requireDashboardToken } from '../middleware/adminToken.js';
 import { refundPayment } from '../services/razorpay.js';
 import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant, fulfillOrder,
     refundOrderLine,
-    listOrdersTracking, markFulfillmentDelivered, lineDetailsForVariant } from '../services/shopify-admin.js';
+    listOrdersTracking, markFulfillmentDelivered, lineDetailsForVariant,
+    setOrderEmail } from '../services/shopify-admin.js';
 import { primeTracking, invalidateTracking } from '../services/order-tracking.js';
-import { notifySlackError } from '../services/slack.js';
+import { recipientFor } from '../services/recipient.js';
+import { domainAcceptsMail } from '../services/email-domain.js';
+import { notifySlackError, notifySlackNotice } from '../services/slack.js';
 import { sendReturnUpdate, sendDeliveryNotice, sendShipmentNotice } from '../services/email.js';
 import { funnelSummary } from './events.js';
+
+// Shape only. domainAcceptsMail does the part that matters.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const router = Router();
 router.use(requireDashboardToken);
@@ -34,20 +40,30 @@ router.get('/funnel', async (req, res) => {
 router.get('/orders', async (req, res) => {
     try {
         const rows = await all(
-            `SELECT id, shopify_order_id, shopify_order_number, status, total_amount,
-                    items, shipping_address, shipping_method, delivered_at, created_at, is_test,
-                    shipped_email_at, shopify_order_missing_at, razorpay_payment_id,
-                    replacement_for_order_id
-               FROM orders
+            // The recipient is COALESCE'd and joined rather than read off the
+            // shipping address, which is what this list used to show. Those
+            // are two different fields: mail goes to the account (or to the
+            // order's own corrected address), while the card was displaying
+            // whatever was typed into the address form. Showing one and
+            // sending to the other is how an operator confirms an address
+            // that was never going to receive anything.
+            `SELECT o.id, o.shopify_order_id, o.shopify_order_number, o.status, o.total_amount,
+                    o.items, o.shipping_address, o.shipping_method, o.delivered_at, o.created_at,
+                    o.is_test, o.shipped_email_at, o.shopify_order_missing_at,
+                    o.razorpay_payment_id, o.replacement_for_order_id,
+                    COALESCE(o.email, u.email) AS recipient,
+                    (o.email IS NOT NULL) AS email_corrected
+               FROM orders o
+               LEFT JOIN users u ON u.id = o.user_id
               -- 'pending' normally means an abandoned checkout, which is noise.
               -- But a pending order WITH a captured payment is the worst state
               -- in the system: the customer paid, fulfilment failed, and it was
               -- hidden from their order history and from this screen alike
               -- while the reconciler retried for three days and then gave up in
               -- silence. Those belong at the top of this list, not nowhere.
-              WHERE status <> 'pending' OR razorpay_payment_id IS NOT NULL
-              ORDER BY (status = 'pending' AND razorpay_payment_id IS NOT NULL) DESC,
-                       created_at DESC
+              WHERE o.status <> 'pending' OR o.razorpay_payment_id IS NOT NULL
+              ORDER BY (o.status = 'pending' AND o.razorpay_payment_id IS NOT NULL) DESC,
+                       o.created_at DESC
               LIMIT 25`
         );
 
@@ -60,6 +76,17 @@ router.get('/orders', async (req, res) => {
         } catch (err) {
             console.error('admin orders tracking failed:', err.message);
         }
+
+        // One lookup per distinct domain, and the helper caches by domain for
+        // an hour on top of that, so a page of orders from gmail.com costs a
+        // single DNS query. An inconclusive answer counts as deliverable:
+        // this is a warning on a card, and crying wolf over a resolver blip
+        // would train the operator to ignore it.
+        const deliverable = new Map();
+        await Promise.all(
+            [...new Set(rows.map((o) => o.recipient).filter(Boolean))]
+                .map(async (addr) => deliverable.set(addr, await domainAcceptsMail(addr)))
+        );
 
         res.json({
             orders: rows.map((o) => {
@@ -77,7 +104,15 @@ router.get('/orders', async (req, res) => {
                     status: o.status,
                     totalPaise: Number(o.total_amount),
                     customer: [addr.firstName, addr.lastName].filter(Boolean).join(' ') || null,
-                    email: addr.email || null,
+                    // Where mail for this order actually goes.
+                    email: o.recipient || null,
+                    emailCorrected: Boolean(o.email_corrected),
+                    // False only when the domain definitively cannot receive
+                    // mail. It says nothing about the mailbox.
+                    emailDeliverable: o.recipient ? deliverable.get(o.recipient) !== false : false,
+                    // What was typed into the address form, shown only when it
+                    // disagrees — a second address worth noticing.
+                    addressEmail: addr.email && addr.email !== o.recipient ? addr.email : null,
                     phone: addr.phone || null,
                     // The whole line, not just a title. Marking an order
                     // delivered is a claim about a specific parcel, and the
@@ -128,6 +163,87 @@ router.get('/orders', async (req, res) => {
  * Reversible on purpose: marking the wrong order should cost one more click,
  * not a database session.
  */
+/**
+ * POST /api/dashboard/orders/:id/email — correct where this order's mail goes.
+ *
+ * A customer mistyped her address at checkout. The order was paid, every
+ * message for it went nowhere, and nobody found out until she wrote in on
+ * Instagram. The domain check added since would have caught that one, but it
+ * only catches a domain that cannot receive mail at all — a valid domain with
+ * a wrong mailbox, which is the commoner mistake, still sails through. So
+ * there has to be a way to fix an address after the fact.
+ *
+ * It writes the order's own address rather than the account's. The account's
+ * address is her login identity: changing it could collide with a real
+ * account holding the correct address, would rewrite every other order she
+ * has placed, and would be undone the next time she signed in through
+ * Shopify, which upserts by email.
+ *
+ * Shopify is told too, in the same breath, so its own mail and the invoice
+ * follow. That call is allowed to fail without failing the correction: our
+ * notices are the ones that matter and a stored address can be retried,
+ * whereas refusing the whole edit would leave the operator with no way
+ * forward at all.
+ */
+router.post('/orders/:id/email', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad request' });
+
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        if (!EMAIL_RE.test(email) || email.length > 254) {
+            return res.status(400).json({ error: 'That does not look like an email address.' });
+        }
+        // The check that would have caught the original typo. Deliberately
+        // blocking here rather than warning: an operator typing a corrected
+        // address has the customer in front of them and can ask again, which
+        // is the one moment this is cheap to get right.
+        if (!(await domainAcceptsMail(email))) {
+            return res.status(400).json({
+                error: `No mail server exists for ${email.split('@')[1]} — check the spelling with the customer.`,
+            });
+        }
+
+        const order = await get('SELECT * FROM orders WHERE id = $1', [id]);
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        const previous = order.email
+            || (await get('SELECT email FROM users WHERE id = $1', [order.user_id]))?.email
+            || null;
+        if (previous === email) {
+            return res.json({ id, email, changed: false, shopifyUpdated: null });
+        }
+
+        await run('UPDATE orders SET email = $1 WHERE id = $2', [email, id]);
+
+        let shopifyUpdated = null;
+        if (order.shopify_order_id) {
+            try {
+                await setOrderEmail(order.shopify_order_id, email);
+                shopifyUpdated = true;
+            } catch (err) {
+                shopifyUpdated = false;
+                console.error(`Could not set Shopify email for order ${id}:`, err.message);
+            }
+        }
+
+        // Changing where a customer's mail goes is worth a trail. If it was
+        // ever done wrongly, or maliciously, this is the only record of it.
+        notifySlackNotice(
+            `Order #${order.shopify_order_number || id}: notification email changed from `
+            + `${previous || '(none)'} to ${email}`
+            + (shopifyUpdated === false
+                ? ' — :warning: Shopify was NOT updated, its own mail still goes to the old address'
+                : '')
+        ).catch(() => {});
+
+        return res.json({ id, email, previous, changed: true, shopifyUpdated });
+    } catch (err) {
+        console.error('order email update failed:', err.message);
+        return res.status(500).json({ error: 'Could not update the email' });
+    }
+});
+
 router.post('/orders/:id/test', async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
@@ -197,7 +313,10 @@ router.post('/orders/:id/fulfil', async (req, res) => {
         );
         if (claimed.rowCount > 0) {
             get('SELECT * FROM users WHERE id = $1', [order.user_id])
-                .then((user) => {
+                .then((account) => {
+                    // The order's own address if it has one — a mistyped
+                    // address corrected here must not be undone by the send.
+                    const user = recipientFor(account, order);
                     let cartLines = [];
                     try { cartLines = JSON.parse(order.items); } catch { /* the notice stands without a list */ }
                     return sendShipmentNotice({
@@ -303,7 +422,10 @@ router.post('/orders/:id/delivered', async (req, res) => {
         // must not make a recorded delivery look like it failed.
         if (marked.rowCount > 0) {
             get('SELECT * FROM users WHERE id = $1', [order.user_id])
-                .then((user) => {
+                .then((account) => {
+                    // The order's own address if it has one — a mistyped
+                    // address corrected here must not be undone by the send.
+                    const user = recipientFor(account, order);
                     let cartLines = [];
                     try { cartLines = JSON.parse(order.items); } catch { /* the notice stands without a list */ }
                     return sendDeliveryNotice({ order, user, cartLines });

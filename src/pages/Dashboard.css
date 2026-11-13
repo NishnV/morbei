@@ -364,3 +364,59 @@
     .ret-meta { grid-template-columns: 1fr; }
     .ord-items { flex-direction: column; gap: 0.8rem; }
 }
+
+/* The order's notification address, which is editable because a customer
+   once mistyped hers and every message for her order went nowhere.
+   Spans the grid: an address plus a warning does not fit a 190px column. */
+.ord-email { grid-column: 1 / -1; }
+
+.ord-email dd {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    text-transform: none;
+}
+
+.ord-email-btn {
+    background: none;
+    border: 0.5px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.65);
+    font-family: inherit;
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    padding: 3px 8px;
+    cursor: pointer;
+}
+
+.ord-email-btn:hover { color: #fff; border-color: rgba(255, 255, 255, 0.6); }
+
+.ord-email-edit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.ord-email-edit .ret-note { min-width: 240px; text-transform: none; }
+
+/* No text-transform: these carry an email address, and an address shouted in
+   capitals reads as a different string from the one the customer typed. */
+.ord-email-note {
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    font-style: normal;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Not a subtle hint. Pressing FULFIL & NOTIFY against a dead domain records
+   the customer as told while telling them nothing. */
+.ord-email-bad {
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    font-style: normal;
+    color: #ff6b6b;
+    border: 0.5px solid rgba(255, 107, 107, 0.5);
+    padding: 3px 8px;
+}
