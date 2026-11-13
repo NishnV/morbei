@@ -4,7 +4,7 @@ import { requireDashboardToken } from '../middleware/adminToken.js';
 import { refundPayment } from '../services/razorpay.js';
 import { createDraftOrder, completeDraftOrder, getOrder, gidToNumeric, findSiblingVariant, fulfillOrder,
     refundOrderLine,
-    listOrdersTracking, markFulfillmentDelivered } from '../services/shopify-admin.js';
+    listOrdersTracking, markFulfillmentDelivered, lineDetailsForVariant } from '../services/shopify-admin.js';
 import { primeTracking, invalidateTracking } from '../services/order-tracking.js';
 import { notifySlackError } from '../services/slack.js';
 import { sendReturnUpdate, sendDeliveryNotice, sendShipmentNotice } from '../services/email.js';
@@ -704,6 +704,7 @@ router.post('/returns/:id', async (req, res) => {
             const override = req.body?.variantId ? String(req.body.variantId) : null;
             let variantId = override ? gidToNumeric(override) || override : null;
             let label = override ? `variant ${variantId}` : null;
+            let resolved = {};
 
             if (!variantId) {
                 if (!row.exchange_size) {
@@ -724,6 +725,9 @@ router.post('/returns/:id', async (req, res) => {
                 if (found.error) return res.status(409).json({ error: found.error });
                 variantId = found.variant.id;
                 label = `${found.product.title} — ${row.exchange_size}`;
+                // Already fetched; handed on so building the line item below
+                // costs no further Shopify calls.
+                resolved = { variant: found.variant, product: found.product };
             }
 
             // Claim first: raising two replacement orders is as bad as
@@ -781,6 +785,15 @@ router.post('/returns/:id', async (req, res) => {
                 // the same payment — and total_amount 0 because nothing more
                 // was charged. replacement_for_order_id keeps it out of being
                 // mistaken for a second sale.
+
+                // The picture and the full option set, from the variant that
+                // is actually being sent. Without them the replacement row
+                // drew an empty box wherever an order is shown and listed
+                // only its size, which read as a different, lesser thing than
+                // the order it replaces. Best-effort: null here just means
+                // the line falls back to what it said before.
+                const details = await lineDetailsForVariant(variantId, resolved);
+
                 try {
                     await run(
                         `INSERT INTO orders (user_id, total_amount, status, shipping_method, shipping_address,
@@ -791,11 +804,14 @@ router.post('/returns/:id', async (req, res) => {
                            FROM orders WHERE id = $4`,
                         [
                             JSON.stringify([{
-                                title: row.product_title,
+                                title: details?.title || row.product_title,
                                 quantity: 1,
                                 price: 0,
                                 variantId: String(variantId),
-                                selectedOptions: row.exchange_size ? [{ name: 'Size', value: row.exchange_size }] : [],
+                                image: details?.image || null,
+                                selectedOptions: details?.selectedOptions?.length
+                                    ? details.selectedOptions
+                                    : (row.exchange_size ? [{ name: 'Size', value: row.exchange_size }] : []),
                             }]),
                             String(newOrderId),
                             newNumber,

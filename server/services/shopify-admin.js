@@ -533,6 +533,49 @@ export async function sizeOptionsForVariant(variantId) {
     return result;
 }
 
+/**
+ * What a line item needs to look like a line item: a title, a picture, and
+ * the options as the shop names them.
+ *
+ * A replacement order was written with the title, the size, and nothing else.
+ * No image, so the admin card, the dispatch email and the customer's own
+ * order history all drew an empty grey box for the one order most likely to
+ * worry them; and only the size, so a black dress exchanged for a smaller
+ * black dress came back reading "XS" where the original read "S / Black".
+ *
+ * Takes the variant and product if the caller already has them — the size
+ * exchange path has just fetched both — and looks them up otherwise, which
+ * is the admin-names-a-variant path.
+ *
+ * Best-effort throughout: returns null rather than throwing, because none of
+ * this is worth failing an exchange the customer has already been promised.
+ */
+export async function lineDetailsForVariant(variantId, known = {}) {
+    try {
+        const variant = known.variant || await getVariant(variantId);
+        if (!variant?.product_id) return null;
+        const product = known.product || await getProduct(variant.product_id);
+        if (!product) return null;
+
+        // option1..3 are positional; the product names them. Zipped here so
+        // the stored options read the way the storefront does.
+        const selectedOptions = (product.options || [])
+            .map((o, i) => ({ name: o?.name, value: variant[`option${i + 1}`] }))
+            .filter((o) => o.name && o.value);
+
+        // A variant may carry its own image — the black colourway's own shot.
+        // Falling back to the product's primary image is better than none.
+        const image = (product.images || []).find((img) => img.id === variant.image_id)?.src
+            || product.image?.src
+            || null;
+
+        return { title: product.title, image, selectedOptions };
+    } catch (err) {
+        console.error(`Line details failed for variant ${variantId}:`, err.message);
+        return null;
+    }
+}
+
 export async function findSiblingVariant(originalVariantId, wantedSize) {
     const original = await getVariant(originalVariantId);
     if (!original?.product_id) return { error: 'Could not find the original product.' };
