@@ -140,6 +140,12 @@ const AdminReturns = ({ token }) => {
                         {(r.returnCarrier || r.returnAwb) && (
                             <div><dt>COMING BACK</dt><dd>{[r.returnCarrier, r.returnAwb].filter(Boolean).join(' · ')}</dd></div>
                         )}
+                        {r.refundedPaise && (
+                            <div><dt>REFUNDED</dt><dd>{rs(r.refundedPaise)}{r.refundId ? ` · ${r.refundId}` : ''}</dd></div>
+                        )}
+                        {r.status === 'refunded' && (
+                            <div><dt>IN SHOPIFY</dt><dd>{r.restockedAt ? 'RECORDED' : 'NOT RECORDED'}</dd></div>
+                        )}
                         {r.receivedAt && (
                             <div><dt>RECEIVED</dt><dd>{new Date(r.receivedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</dd></div>
                         )}
@@ -158,7 +164,7 @@ const AdminReturns = ({ token }) => {
 
                     {r.adminNote && <p className="ret-text ret-text--dim">NOTE: {r.adminNote}</p>}
 
-                    {['requested', 'approved', 'in_transit', 'received'].includes(r.status) && (
+                    {['requested', 'approved', 'in_transit', 'received', 'refunded'].includes(r.status) && (
                         <div className="ret-actions">
                             <input
                                 className="ret-note"
@@ -227,6 +233,24 @@ const AdminReturns = ({ token }) => {
                                     FAILED INSPECTION
                                 </button>
                             )}
+                            {/* The Shopify half of a refund can fail on its own —
+                                it is a separate call, kept non-fatal so the money
+                                still goes back. Offer the retry rather than leaving
+                                it as hand-work in two systems. */}
+                            {r.status === 'refunded' && !r.restockedAt && (
+                                <button
+                                    className="ret-btn ret-btn--ghost"
+                                    disabled={busyId === r.id}
+                                    onClick={() => act(r.id, 'sync_shopify', {
+                                        restockOnRefund: window.confirm(
+                                            'Put this piece back on sale in Shopify?\n\nOK = restock.  Cancel = record the return only.'
+                                        ),
+                                    })}
+                                >
+                                    RECORD IN SHOPIFY
+                                </button>
+                            )}
+
                             {r.status === 'received' && r.resolution?.startsWith('exchange') && (
                                 <>
                                     {r.resolution === 'exchange_product' && (

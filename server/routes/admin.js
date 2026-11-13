@@ -331,6 +331,11 @@ router.get('/returns', async (req, res) => {
                 // than a mistake.
                 lineValuePaise: r.order_id ? lineValuePaise(r.order_items, r.variant_id) : null,
                 refundedPaise: r.refund_amount_paise ? Number(r.refund_amount_paise) : null,
+                refundId: r.refund_id,
+                // Null means Shopify was never told — the refund and the
+                // Shopify record are separate calls and the second can fail
+                // alone, so the retry button keys off this.
+                restockedAt: r.restocked_at,
                 refundable: Boolean(r.razorpay_payment_id),
             })),
             counts: Object.fromEntries(
@@ -465,6 +470,41 @@ router.post('/returns/:id', async (req, res) => {
                 returnAwb: typeof awb === 'string' ? awb.trim() : '',
             }).catch((err) => console.error('inspection_failed email failed:', err.message));
             return res.json({ id, status: 'inspection_failed' });
+        }
+
+        // Tell Shopify about a refund that already happened.
+        //
+        // The Razorpay refund and the Shopify record are two calls, and the
+        // second is deliberately non-fatal: the customer's money must go back
+        // even if Shopify is unreachable. That left the only recovery as
+        // "do it by hand", which is how the first real refund ended up
+        // half-recorded when the variant lookup failed. This retries it.
+        if (action === 'sync_shopify') {
+            if (row.status !== 'refunded') {
+                return res.status(409).json({ error: 'Only a refunded return needs recording in Shopify.' });
+            }
+            const order = await get('SELECT * FROM orders WHERE id = $1', [row.order_id]);
+            if (!order?.shopify_order_id) {
+                return res.status(400).json({ error: 'No Shopify order on this one.' });
+            }
+            const restock = restockOnRefund !== false;
+            try {
+                await refundOrderLine(order.shopify_order_id, row.variant_id, {
+                    restock,
+                    note: `Return ${row.id} — refunded via Razorpay`,
+                });
+                if (restock) {
+                    await run('UPDATE returns SET restocked_at = now() WHERE id = $1', [id]);
+                }
+                return res.json({ id, syncedToShopify: true, restocked: restock });
+            } catch (err) {
+                console.error(`Shopify sync retry failed for return ${id}:`, err.message);
+                return res.status(502).json({
+                    error: err.message === 'LINE_NOT_FOUND'
+                        ? 'Could not find that item on the Shopify order. Record it there by hand.'
+                        : 'Shopify refused it. Nothing was changed there.',
+                });
+            }
         }
 
         if (action === 'refund') {

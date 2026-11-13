@@ -117,9 +117,16 @@ export async function cancelOrder(orderId, { restock = true, reason = 'customer'
  */
 export async function refundOrderLine(orderId, variantId, { restock = true, note } = {}) {
     const data = await adminFetch(`orders/${orderId}.json?fields=id,line_items`);
-    const wanted = String(variantId);
+
+    // Orders store the variant as a Storefront GID, because that is what the
+    // cart deals in; REST line items carry a plain numeric id. Comparing the
+    // two as strings never matched, which is why the first real refund
+    // reported LINE_NOT_FOUND after the money had already gone back.
+    // gidToNumeric is the same conversion fulfillment.js does when it builds
+    // the draft order in the first place.
+    const numeric = gidToNumeric(variantId) || Number(variantId);
     const line = (data.order?.line_items || []).find(
-        (li) => String(li.variant_id) === wanted || String(li.id) === wanted
+        (li) => Number(li.variant_id) === numeric || Number(li.id) === numeric
     );
     if (!line) throw new Error('LINE_NOT_FOUND');
 
