@@ -344,10 +344,19 @@ const ReturnRequest = () => {
                                 </ul>
                             )}
                         </>
-                    ) : (
+                    ) : order ? (
                         <p className="rr-note rr-note--warn">
                             Uploads are not configured yet. Submit the request and our team will ask
                             for photographs by email.
+                        </p>
+                    ) : (
+                        // Whether uploads are available is the server's answer, and it
+                        // arrives with the order lookup — so before one has been done
+                        // there is nothing to report. This used to fall through to the
+                        // warning above and tell every visitor that uploads were broken
+                        // when they simply had not been asked about yet.
+                        <p className="rr-help">
+                            Find your order above to attach photos or a video.
                         </p>
                     )}
                     {uploadError && <p className="rr-error">{uploadError}</p>}
