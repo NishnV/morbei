@@ -219,6 +219,70 @@ export async function listOrders(email) {
  * The local `newsletter` table stays as the durable log of who signed up,
  * when, and from where.
  */
+/**
+ * Create a customer account from the server, without Shopify's welcome email.
+ *
+ * Signup used to run in the browser against the Storefront API's
+ * customerCreate, which always triggers Shopify's own "customer account
+ * welcome" — its default template, linking to the myshopify domain, as the
+ * first thing a new customer ever received from the shop. There is no switch
+ * for that notification on a non-Plus plan. Creating the customer from the
+ * Admin API instead takes send_email_welcome, so ours is the only one sent.
+ *
+ * Doing it here also makes the email check real. While signup ran in the
+ * browser, the verification step was advisory — anyone could call Shopify's
+ * mutation from a console and skip it. Now the only route to an account runs
+ * through our server, which refuses an unverified address.
+ *
+ * REST rather than GraphQL because password and send_email_welcome exist only
+ * on the REST customer resource. REST is legacy as of October 2024 and has no
+ * announced sunset; if it is withdrawn this is the call to revisit, and the
+ * version pin in shopify-version.js will start warning before that happens.
+ */
+export async function createCustomer({ email, password, firstName, lastName, phone, acceptsMarketing }) {
+    const body = (withPhone) => ({
+        customer: {
+            email,
+            first_name: firstName || '',
+            last_name: lastName || '',
+            password,
+            password_confirmation: password,
+            // The whole point.
+            send_email_welcome: false,
+            // Without this the account is created but cannot be signed into,
+            // which would be a worse failure than not creating it.
+            verified_email: true,
+            ...(withPhone && phone ? { phone } : {}),
+            ...(acceptsMarketing
+                ? { email_marketing_consent: { state: 'subscribed', opt_in_level: 'single_opt_in' } }
+                : {}),
+        },
+    });
+
+    try {
+        const data = await adminFetch('customers.json', {
+            method: 'POST',
+            body: JSON.stringify(body(true)),
+        });
+        return data.customer;
+    } catch (err) {
+        // Shopify requires a phone number to be globally unique across the
+        // shop's customers. A household sharing one, or someone re-using a
+        // number from a deleted account, would otherwise be unable to
+        // register at all — so drop it and keep the account, which is the
+        // thing they actually asked for.
+        if (/phone/i.test(err.message)) {
+            console.warn(`Customer ${email} created without a phone number: ${err.message}`);
+            const data = await adminFetch('customers.json', {
+                method: 'POST',
+                body: JSON.stringify(body(false)),
+            });
+            return data.customer;
+        }
+        throw err;
+    }
+}
+
 export async function subscribeToMarketing(email) {
     const existing = await adminFetch(`customers/search.json?query=${encodeURIComponent(`email:${email}`)}`);
     const found = existing.customers?.[0];

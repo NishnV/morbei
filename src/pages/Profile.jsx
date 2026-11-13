@@ -112,7 +112,7 @@ const Profile = () => {
             // form in again.
             if (pendingSignUp.current) await signUp(pendingSignUp.current);
         } catch (err) {
-            setMessage(err.message || 'That code is not right.');
+            setMessage(err?.status ? signUpMessage(err) : (err?.message || 'That code is not right.'));
         } finally {
             setVerifyBusy(false);
         }
@@ -125,6 +125,25 @@ const Profile = () => {
         setSuggestion(null);
         setMessage('');
         await startVerification(fixed);
+    };
+
+    /**
+     * What a failed signup should say.
+     *
+     * The server enforces the email check now, so 428 can reach here even
+     * though the form asked for a code first — an expired verification, or a
+     * tab left open. It is not an error to report; it is the code box again.
+     */
+    const signUpMessage = (err) => {
+        if (err?.status === 428) {
+            setVerifyFor(pendingSignUp.current?.email || form.email);
+            return 'Please confirm your email to finish creating your account.';
+        }
+        if (err?.status === 409 || err?.message === 'accountExists') {
+            return 'An account already exists with this email. Please sign in instead.';
+        }
+        if (err?.data?.suggestion) setSuggestion(err.data.suggestion);
+        return err?.message || 'Sign up failed';
     };
 
     const handleSignUp = async (e) => {
@@ -158,7 +177,7 @@ const Profile = () => {
                 acceptsMarketing: form.notify
             });
         } catch (err) {
-            setMessage(err.message || 'Sign up failed');
+            setMessage(signUpMessage(err));
         }
     };
 

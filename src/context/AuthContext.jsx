@@ -11,7 +11,6 @@ import React, { createContext, useState, useEffect, useCallback, useRef } from '
 import { shopifyFetch } from '../lib/shopify';
 import { authAPI, setToken as setBackendToken, clearToken as clearBackendToken } from '../lib/api';
 import {
-  CUSTOMER_CREATE_MUTATION,
   CUSTOMER_ACCESS_TOKEN_CREATE_MUTATION,
   CUSTOMER_ACCESS_TOKEN_DELETE_MUTATION,
   CUSTOMER_ACCESS_TOKEN_RENEW_MUTATION,
@@ -237,6 +236,16 @@ export function AuthProvider({ children }) {
   /**
    * Create a new customer account.
    *
+   * Goes through our own server rather than Shopify's customerCreate, which
+   * it used to call directly. Two reasons, both documented at the endpoint:
+   * Shopify sends its own welcome email on every storefront account creation
+   * and there is no way to turn that off on this plan, and a mutation the
+   * browser can call is a mutation that can be called without verifying the
+   * email first.
+   *
+   * Signing in is unchanged — Shopify still issues the customer token, and
+   * that sign-in is what triggers our welcome.
+   *
    * @param {Object} input - { firstName, lastName, email, password }
    */
   const signUp = useCallback(
@@ -244,19 +253,11 @@ export function AuthProvider({ children }) {
       try {
         setError(null);
 
-        const input = { firstName, lastName, email, password, acceptsMarketing: acceptsMarketing || false };
-        if (phone) input.phone = phone;
-
-        const data = await shopifyFetch({
-          query: CUSTOMER_CREATE_MUTATION,
-          variables: { input },
+        await authAPI.signup({
+          firstName, lastName, email, password,
+          phone: phone || undefined,
+          acceptsMarketing: acceptsMarketing || false,
         });
-
-        const errors = data.customerCreate.customerUserErrors;
-        if (errors && errors.length > 0) {
-          const msg = errors.map((e) => e.message).join('; ');
-          throw new Error(msg);
-        }
 
         // Auto-login after successful sign up
         await login(email, password);

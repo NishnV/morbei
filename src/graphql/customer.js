@@ -127,26 +127,19 @@ const CUSTOMER_FRAGMENT = `
 
 // ─── Authentication Mutations ─────────────────────────────────────────
 
-/**
- * Create a new customer account.
+/*
+ * CUSTOMER_CREATE_MUTATION used to live here.
+ *
+ * It was removed rather than left unused, because leaving it is an invitation
+ * to wire it back up — and calling it from the browser is precisely what this
+ * change undoes. Shopify sends its own welcome email on every storefront
+ * account creation, with no way to suppress it on this plan, and a mutation
+ * the browser can reach is one that can be reached without verifying the
+ * email first.
+ *
+ * Accounts are created by POST /api/auth/signup, which uses the Admin API's
+ * send_email_welcome and refuses an unverified address.
  */
-export const CUSTOMER_CREATE_MUTATION = `
-  mutation CustomerCreate($input: CustomerCreateInput!) {
-    customerCreate(input: $input) {
-      customer {
-        id
-        firstName
-        lastName
-        email
-      }
-      customerUserErrors {
-        field
-        message
-        code
-      }
-    }
-  }
-`;
 
 /**
  * Log in a customer and receive an access token.

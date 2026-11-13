@@ -156,6 +156,12 @@ export const authAPI = {
         apiFetch('/auth/email/code', { method: 'POST', body: JSON.stringify({ email }) }),
     verifyEmail: (email, code) =>
         apiFetch('/auth/email/verify', { method: 'POST', body: JSON.stringify({ email, code }) }),
+    // Create the Shopify customer account. Server-side so Shopify's own
+    // welcome email can be suppressed and the verification above actually
+    // enforced. Throws 428 when the address has not been verified, 409 when
+    // an account already exists. Does NOT sign anyone in — the caller logs in
+    // through Shopify afterwards, as it always did.
+    signup: (body) => apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // Payment

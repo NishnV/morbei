@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { get, run } from '../db/pg.js';
 import { signToken, authenticate } from '../middleware/auth.js';
-import { getCustomerByToken } from '../services/shopify-storefront.js';
+import { getCustomerByToken, createCustomerViaStorefront } from '../services/shopify-storefront.js';
+import { createCustomer } from '../services/shopify-admin.js';
 import { notifySlackError } from '../services/slack.js';
 import { domainAcceptsMail, suggestDomain } from '../services/email-domain.js';
 import { sendVerificationCode, sendAccountWelcome } from '../services/email.js';
@@ -217,6 +218,112 @@ router.post('/email/verify', async (req, res) => {
     } catch (err) {
         console.error('verification error:', err);
         return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    }
+});
+
+/**
+ * POST /api/auth/signup — create the customer account.
+ *
+ * Moved off the browser, where it called Shopify's Storefront customerCreate
+ * directly, for two reasons.
+ *
+ * Shopify sends its own "customer account welcome" on every storefront
+ * account creation and there is no switch for it on a non-Plus plan, so a new
+ * customer's first email from the shop was Shopify's default template
+ * pointing at the myshopify domain. The Admin API takes send_email_welcome,
+ * so creating the account here means ours is the only welcome sent — it goes
+ * out from /shopify-login the moment the new account signs in.
+ *
+ * And the email check was not a check. While the mutation ran in the browser,
+ * the verification step in front of it was decoration: anyone could call
+ * Shopify from a console and register an address they had never proved. The
+ * only route to an account now runs through here, and here it is refused.
+ *
+ * The password is relayed to Shopify and never stored by us. Our users table
+ * holds '!shopify' in that column precisely so there is nothing to leak.
+ */
+router.post('/signup', async (req, res) => {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        const password = String(req.body?.password || '');
+        const firstName = String(req.body?.firstName || '').trim().slice(0, 80);
+        const lastName = String(req.body?.lastName || '').trim().slice(0, 80);
+        const phone = String(req.body?.phone || '').trim().slice(0, 40);
+
+        if (!EMAIL_RE.test(email) || email.length > 254) {
+            return res.status(400).json({ error: 'Please enter a valid email address.' });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Please choose a password of at least 8 characters.' });
+        }
+        if (!firstName || !lastName) {
+            return res.status(400).json({ error: 'Please enter your full name (first and last).' });
+        }
+        if (!(await domainAcceptsMail(email))) {
+            return res.status(400).json({
+                error: 'We could not find a mail server for that address — please check the spelling.',
+            });
+        }
+        const suggestion = suggestDomain(email);
+        if (suggestion) {
+            const local = email.slice(0, email.lastIndexOf('@'));
+            return res.status(400).json({
+                error: `Did you mean ${local}@${suggestion}?`,
+                suggestion: `${local}@${suggestion}`,
+            });
+        }
+        // The enforcement, not a hint. 428 so the client shows the code box
+        // rather than an error, the same answer /guest gives.
+        if (!(await isVerified(email))) {
+            return res.status(428).json({ error: 'emailNotVerified' });
+        }
+
+        const details = {
+            email, password, firstName, lastName,
+            phone: phone || null,
+            acceptsMarketing: req.body?.acceptsMarketing === true,
+        };
+
+        try {
+            try {
+                await createCustomer(details);
+            } catch (err) {
+                // 403 means the write_customers scope is not granted — never
+                // added, or dropped by a reinstall, which has happened on this
+                // store before. Falling back keeps people able to register;
+                // the only thing lost is the suppression, so they get
+                // Shopify's welcome as well as ours until it is restored.
+                //
+                // Refusing instead would turn a missing scope into "nobody can
+                // open an account", which is a far worse outcome than a
+                // duplicate email.
+                if (err.status !== 403) throw err;
+                console.error('write_customers missing — falling back to the Storefront API:', err.message);
+                notifySlackError(
+                    'Signups are falling back to the Storefront API: the Shopify app is missing '
+                    + 'write_customers, so new customers are getting Shopify\'s welcome email too',
+                    err
+                ).catch(() => {});
+                await createCustomerViaStorefront(details);
+            }
+        } catch (err) {
+            // Shopify's own wording is not written for customers, so the case
+            // worth distinguishing is mapped and the rest stay generic.
+            if (/has already been taken|already exists|TAKEN/i.test(err.message)
+                || err.shopifyCodes?.includes('TAKEN')) {
+                return res.status(409).json({ error: 'accountExists' });
+            }
+            throw err;
+        }
+
+        // No session is issued here. The browser signs in through Shopify
+        // exactly as it always has, which keeps one path to a customer token
+        // instead of two, and that sign-in is what sends our welcome.
+        return res.status(201).json({ created: true });
+    } catch (err) {
+        console.error('signup error:', err);
+        notifySlackError('customer signup failed', err).catch(() => {});
+        return res.status(500).json({ error: 'Could not create your account. Please try again.' });
     }
 });
 
