@@ -119,6 +119,13 @@ router.get('/orders', authenticate, async (req, res) => {
                 deliveredAt: o.delivered_at,
                 ...eligibility(o),
                 items: await itemsFor(o),
+                // Carried on each order, redundantly, because the form reads
+                // it off whichever order is selected — and a signed-in
+                // customer's order comes from this list rather than from the
+                // lookup below. Omitting it here meant the upload control was
+                // hidden for everyone with an account, with the form claiming
+                // uploads were unconfigured when they were working.
+                uploadsEnabled: uploadsConfigured,
             }))),
         });
     } catch (err) {
