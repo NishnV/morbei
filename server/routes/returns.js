@@ -236,6 +236,18 @@ router.post('/', optionalAuthenticate, async (req, res) => {
             return res.status(400).json({ error: 'Please choose the size you would like instead.' });
         }
 
+        // Swapping a size for the same size is not an exchange: it would raise
+        // a free replacement of the identical garment. The form hides the
+        // purchased size, but the form is a hint and this is the rule.
+        const purchasedSize = (item.selectedOptions || [])
+            .find((o) => String(o?.name).toLowerCase() === 'size')?.value;
+        if (resolution === 'exchange_size' && purchasedSize
+            && String(exchangeSize).trim().toUpperCase() === String(purchasedSize).trim().toUpperCase()) {
+            return res.status(400).json({
+                error: `You ordered size ${purchasedSize}. Choose a different size, or ask for a refund instead.`,
+            });
+        }
+
         const media = cleanMedia(b.media);
         // Photographs are what make a damage claim reviewable without posting
         // the item back first, so they are required for exactly those reasons.

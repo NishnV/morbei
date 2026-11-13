@@ -130,6 +130,20 @@ const ReturnRequest = () => {
         return () => clearTimeout(t);
     }, [typedOrder, typedEmail, myOrders, lookup]);
 
+    // The size already on the customer's wrist is not an exchange option —
+    // swapping S for S would raise a free replacement of the same garment.
+    // Derived rather than held in state so changing the product cannot leave
+    // a stale size selected behind it.
+    const selectedItem = (order?.items || []).find((i) => i.variantId === form.variantId);
+    const purchasedSize = (selectedItem?.options || [])
+        .find((o) => String(o?.name).toLowerCase() === 'size')?.value;
+    const sizeOptions = SIZES.filter(
+        (sz) => !purchasedSize || sz.toUpperCase() !== String(purchasedSize).trim().toUpperCase()
+    );
+    // If the chosen size is no longer offered — because the product changed —
+    // fall back to unselected rather than submitting something invisible.
+    const effectiveExchangeSize = sizeOptions.includes(exchangeSize) ? exchangeSize : '';
+
     const chooseOrder = (orderNumber) => {
         const found = (myOrders || []).find((o) => String(o.orderNumber) === String(orderNumber));
         setOrder(found || null);
@@ -169,7 +183,7 @@ const ReturnRequest = () => {
         if (!form.variantId) return setError('Please choose the product you are returning.');
         if (!reasons.length) return setError('Please choose a reason for the return.');
         if (!resolution) return setError('Please choose a refund or an exchange.');
-        if (resolution === 'exchange_size' && !exchangeSize) {
+        if (resolution === 'exchange_size' && !effectiveExchangeSize) {
             return setError('Please choose the size you would like instead.');
         }
         if (mediaRequired && media.length === 0) {
@@ -188,7 +202,7 @@ const ReturnRequest = () => {
                 reasons,
                 details: form.details,
                 resolution,
-                exchangeSize,
+                exchangeSize: effectiveExchangeSize,
                 comments: form.comments,
                 media,
                 declaration: true,
@@ -375,10 +389,13 @@ const ReturnRequest = () => {
                 {resolution === 'exchange_size' && (
                     <label className="rr-field">
                         <span>WHICH SIZE WOULD YOU LIKE?*</span>
-                        <select value={exchangeSize} onChange={(e) => setExchangeSize(e.target.value)} required>
+                        <select value={effectiveExchangeSize} onChange={(e) => setExchangeSize(e.target.value)} required>
                             <option value="">SELECT A SIZE</option>
-                            {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            {sizeOptions.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
+                        {purchasedSize && (
+                            <span className="rr-help">You ordered size {purchasedSize}.</span>
+                        )}
                     </label>
                 )}
 
