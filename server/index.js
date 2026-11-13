@@ -15,6 +15,7 @@ import adminRoutes from './routes/admin.js';
 import wishlistRoutes from './routes/wishlist.js';
 import { notifySlackError } from './services/slack.js';
 import { startReconciler } from './services/reconcile.js';
+import { checkWelcomeOffer } from './services/discount.js';
 import { verifyMail, mailTarget } from './services/mailer.js';
 
 const app = express();
@@ -222,6 +223,15 @@ initDB()
       console.error(`Mail unusable (${mailTarget}): ${err.message}`);
       notifySlackError(`Mail unusable at boot (${mailTarget})`, err).catch(() => {});
     });
+    // Say what the welcome email is actually going to promise. The first
+    // draft of it offered a discount code that did not exist in the shop,
+    // and nothing anywhere would have said so — an email template is always
+    // confident. Non-blocking, and the send path re-checks anyway; this is
+    // so a misconfiguration is visible at deploy rather than discovered by
+    // a customer typing a dead code at checkout.
+    checkWelcomeOffer().catch((err) =>
+      console.error('Welcome discount check failed:', err.message));
+
     // Safety net below the webhook: recovers orders where money was captured
     // but fulfilment never completed. Runs shortly after boot, then hourly.
     startReconciler();

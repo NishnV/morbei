@@ -1,5 +1,6 @@
 import { deliver } from './mailer.js';
 import { emailImage } from './site-image.js';
+import { welcomeOffer } from './discount.js';
 
 // Which transport carries these, and why it is an HTTPS API rather than
 // SMTP, is explained in mailer.js. Templates below never need to know.
@@ -614,15 +615,18 @@ export async function sendVerificationCode(email, code, minutes) {
  * the first email a new customer ever gets from this shop, and it did not
  * look like the shop.
  *
- * Note the discount code is read from the environment and the line is simply
- * left out when it is not set. Promising a code in an email is a promise the
- * shop has to keep at checkout, and nothing here can check that the code
- * exists in Shopify — so it is made easy to change or withdraw without a
- * deploy, rather than baked in.
+ * The discount line appears only when WELCOME_DISCOUNT_CODE names a code
+ * that Shopify confirms is real and active — see welcomeOffer. The first
+ * draft of this email promised "WELCOMEMB10 for 10% off" and that code did
+ * not exist; the shop had no discount codes at all. A promise in an email is
+ * a promise the shop has to keep at the till, so it is checked rather than
+ * typed.
  */
 export async function sendAccountWelcome({ email, firstName }) {
-    const code = process.env.WELCOME_DISCOUNT_CODE?.trim();
-    const percent = process.env.WELCOME_DISCOUNT_PERCENT?.trim() || '10';
+    // Null unless Shopify confirms the code exists and is active, and the
+    // wording comes from the discount itself — a code worth 5% and an email
+    // claiming 10% is the same broken promise as a code that does not exist.
+    const offer = await welcomeOffer();
     const photo = await emailImage(['email-welcome', 'account-side']);
     const name = String(firstName || '').trim();
 
@@ -654,8 +658,8 @@ export async function sendAccountWelcome({ email, firstName }) {
         + 'together and feel like yourself.')}
     ${para("Now that you're here, you're all set to explore our collections, discover new "
         + 'arrivals, save your favourite pieces to your wishlist and keep track of your orders.')}
-    ${code ? para(`<strong class="c-w" style="color:#ffffff;">Use code ${esc(code)} for `
-        + `${esc(percent)}% off your first order.</strong>`) : ''}
+    ${offer ? para(`<strong class="c-w" style="color:#ffffff;">Use code ${esc(offer.code)} for `
+        + `${esc(offer.label)}.</strong>`) : ''}
 </table>`,
             cta: { label: 'SHOP NOW', href: `${SITE_URL}/shop/all` },
             // Below the button on purpose. Gmail clips a long message and
