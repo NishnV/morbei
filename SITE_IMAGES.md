@@ -112,6 +112,12 @@ would have made those impossible to change independently.
 | Slot | Where it appears | Current fallback |
 |---|---|---|
 | `account-side` | Side panel on the sign-in / account screen | `login-side.webp` |
+| `email-welcome` | The photograph in the welcome email a new account receives | falls back to `account-side` |
+
+`email-welcome` is read by the server, not the browser, so it has no file in
+`public/` behind it — an unset slot simply borrows `account-side`, and if
+Shopify cannot be reached the email goes out without a photograph rather than
+not going out.
 
 ### Not managed here
 

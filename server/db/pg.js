@@ -254,6 +254,32 @@ export async function initDB() {
         -- order's mail goes is a fact about the order, not about the account.
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS email TEXT;
 
+        -- When our own welcome email went out, and the claim that stops it
+        -- going twice.
+        --
+        -- Backfilled below for everyone who already has a real account,
+        -- because they have already had Shopify's version and a second
+        -- welcome months later reads as a mistake. Guest rows are left NULL
+        -- on purpose: a guest has never had an account, so when they make
+        -- one, that is a genuine first welcome.
+        -- Guarded on the column not existing, so the backfill runs exactly
+        -- once. Written as ADD COLUMN IF NOT EXISTS plus a plain UPDATE, it
+        -- would re-run on every boot — and a customer who signed up minutes
+        -- before a deploy would be marked welcomed by the next restart and
+        -- never receive the email at all.
+        DO $do$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                 WHERE table_schema = current_schema()
+                   AND table_name = 'users' AND column_name = 'welcomed_at'
+            ) THEN
+                ALTER TABLE users ADD COLUMN welcomed_at TIMESTAMPTZ;
+                UPDATE users SET welcomed_at = created_at WHERE password <> '!guest';
+            END IF;
+        END
+        $do$;
+
         -- One live verification code per address.
         --
         -- The code is stored hashed. A six-digit code is guessable in a

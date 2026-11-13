@@ -4,7 +4,7 @@ import { signToken, authenticate } from '../middleware/auth.js';
 import { getCustomerByToken } from '../services/shopify-storefront.js';
 import { notifySlackError } from '../services/slack.js';
 import { domainAcceptsMail, suggestDomain } from '../services/email-domain.js';
-import { sendVerificationCode } from '../services/email.js';
+import { sendVerificationCode, sendAccountWelcome } from '../services/email.js';
 import crypto from 'node:crypto';
 
 const router = Router();
@@ -320,6 +320,28 @@ router.post('/shopify-login', async (req, res) => {
              RETURNING *`,
             [customer.email, '!shopify', customer.firstName || '', customer.lastName || '', customer.phone || '']
         );
+
+        // Our own welcome, for an account we have not welcomed before.
+        //
+        // Here rather than on the client because this endpoint has already
+        // validated a real Shopify customer token: the browser cannot ask for
+        // a welcome email to an address it does not own, which an endpoint
+        // the client called directly would allow.
+        //
+        // The UPDATE is the claim. Two tabs finishing signup together both
+        // reach this line, and only the one that flips the column sends —
+        // the same shape as every other send-once in this codebase.
+        const claimed = await run(
+            `UPDATE users SET welcomed_at = now() WHERE id = $1 AND welcomed_at IS NULL`,
+            [user.id]
+        );
+        if (claimed.rowCount > 0) {
+            // Not awaited: a mail failure must not turn a successful login
+            // into an error. The column stays set either way — a welcome is
+            // not worth retrying into a possible duplicate.
+            sendAccountWelcome({ email: user.email, firstName: customer.firstName })
+                .catch((err) => console.error(`Welcome email to ${user.email} failed:`, err.message));
+        }
 
         const token = signToken(user.id, user.email, user.token_version);
         res.json({

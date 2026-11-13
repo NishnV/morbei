@@ -1,4 +1,5 @@
 import { deliver } from './mailer.js';
+import { emailImage } from './site-image.js';
 
 // Which transport carries these, and why it is an HTTPS API rather than
 // SMTP, is explained in mailer.js. Templates below never need to know.
@@ -133,7 +134,8 @@ function itemRowsHtml(cartLines, { showPrice = false } = {}) {
  * strips inline SVG, and it carries styled alt text so a blocked image still
  * reads as MORBEI rather than a broken-image icon.
  */
-function shell({ title, eyebrow, heading, intro = '', body = '', cta, footerNote = '', isTest = false }) {
+function shell({ title, eyebrow, heading, intro = '', body = '', cta, media = '',
+    footerNote = '', isTest = false }) {
     const headingSize = String(heading).length <= 12 ? 34 : 24;
     return `<!DOCTYPE html>
 <html lang="en"><head>
@@ -202,6 +204,11 @@ ${cta ? `
             <a href="${esc(cta.href)}" class="c-k" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.26em;color:#0a0a0a;text-decoration:none;">${esc(cta.label)}</a>
           </td></tr>
         </table>
+      </td></tr>` : ''}
+
+${media ? `
+      <tr><td align="center" style="padding:44px 0 0 0;">
+        ${media}
       </td></tr>` : ''}
 
       <tr><td align="center" class="c-f" style="padding:44px 24px 12px 24px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:20px;color:#6a6a6a;">
@@ -595,6 +602,72 @@ export async function sendVerificationCode(email, code, minutes) {
                     ${minutes} minutes.`,
             footerNote: 'If you did not ask for this, ignore it. Nobody from MORBEI '
                 + 'will ever ask you for this code.',
+        }),
+    });
+}
+
+/**
+ * Welcome to a new account — ours, not Shopify's.
+ *
+ * Shopify sends its own "customer account welcome" the moment an account is
+ * created, in its default template, linking to the myshopify domain. That is
+ * the first email a new customer ever gets from this shop, and it did not
+ * look like the shop.
+ *
+ * Note the discount code is read from the environment and the line is simply
+ * left out when it is not set. Promising a code in an email is a promise the
+ * shop has to keep at checkout, and nothing here can check that the code
+ * exists in Shopify — so it is made easy to change or withdraw without a
+ * deploy, rather than baked in.
+ */
+export async function sendAccountWelcome({ email, firstName }) {
+    const code = process.env.WELCOME_DISCOUNT_CODE?.trim();
+    const percent = process.env.WELCOME_DISCOUNT_PERCENT?.trim() || '10';
+    const photo = await emailImage(['email-welcome', 'account-side']);
+    const name = String(firstName || '').trim();
+
+    // 28px between paragraphs, and a spacer row above the first — Outlook's
+    // Word engine ignores margins on a table, so the gap has to be a row.
+    const para = (text) => `<tr><td style="padding:0 8px 28px;">
+        <p class="c-m" style="margin:0;color:#8a8a8a;font-family:Helvetica,Arial,sans-serif;
+                  font-size:13px;line-height:22px;letter-spacing:0.5px;text-align:center;
+                  font-style:italic;">${text}</p></td></tr>`;
+
+    await deliver({
+        from: STORE_FROM,
+        to: email,
+        subject: 'Welcome to MORBEI',
+        html: shell({
+            title: 'Welcome to MORBEI',
+            eyebrow: 'WELCOME',
+            heading: 'WELCOME TO MORBEI',
+            intro: name ? `We're glad you've joined us, ${esc(name)}.` : "We're glad you've joined us.",
+            body: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                  style="margin-top:34px;">
+    <tr><td style="height:34px;line-height:34px;font-size:0;">&nbsp;</td></tr>
+    ${para('Some clothes simply complete an outfit. Others change the way you carry '
+        + 'yourself. <strong class="c-w" style="color:#ffffff;">We believe in the latter.</strong>')}
+    ${para("There's something about a great outfit that changes everything. The way you "
+        + 'walk into a room, the way you feel in your own skin, the way you see yourself. '
+        + 'At MORBEI, we bring that feeling into everyday dressing with pieces that strike '
+        + 'the perfect balance between statement and simplicity, making it easy to look put '
+        + 'together and feel like yourself.')}
+    ${para("Now that you're here, you're all set to explore our collections, discover new "
+        + 'arrivals, save your favourite pieces to your wishlist and keep track of your orders.')}
+    ${code ? para(`<strong class="c-w" style="color:#ffffff;">Use code ${esc(code)} for `
+        + `${esc(percent)}% off your first order.</strong>`) : ''}
+</table>`,
+            cta: { label: 'SHOP NOW', href: `${SITE_URL}/shop/all` },
+            // Below the button on purpose. Gmail clips a long message and
+            // hides the rest behind "View entire message", and a photograph
+            // this size is what pushes it over — so the words and the link
+            // come first and the picture is what gets cut, not the offer.
+            media: photo
+                ? `<a href="${SITE_URL}/shop/all" style="text-decoration:none;">
+                       <img src="${esc(photo.url)}" width="560" alt="${esc(photo.alt || 'MORBEI')}"
+                            style="display:block;width:100%;max-width:560px;height:auto;border:0;margin:0 auto;">
+                   </a>`
+                : '',
         }),
     });
 }
