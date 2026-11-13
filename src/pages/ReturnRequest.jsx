@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useCustomer } from '../hooks/useCustomer';
 import { returnsAPI, ensureBackendSession } from '../lib/api';
-import { uploadFile, uploadsConfigured, MAX_FILES } from '../lib/cloudinary';
+import { uploadFile, MAX_FILES } from '../lib/cloudinary';
 import Seo from '../components/Seo';
 import './ReturnRequest.css';
 
@@ -148,7 +148,10 @@ const ReturnRequest = () => {
         setUploadError('');
         try {
             const urls = [];
-            for (const f of files) urls.push(await uploadFile(f));
+            // The same pair the lookup used. The server re-checks it before
+            // signing, so this is a claim rather than a credential.
+            const proof = { orderNumber: typedOrder.trim(), email: typedEmail.trim() };
+            for (const f of files) urls.push(await uploadFile(f, proof));
             setMedia((p) => [...p, ...urls]);
         } catch (err) {
             setUploadError(err.message || 'Upload failed.');
@@ -324,7 +327,7 @@ const ReturnRequest = () => {
                         If your return is related to a damaged, defective, stained or incorrect
                         product, please upload clear photos or a short video showing the issue.
                     </p>
-                    {uploadsConfigured ? (
+                    {order?.uploadsEnabled ? (
                         <>
                             <label className="rr-upload">
                                 <input type="file" accept="image/*,video/*" multiple onChange={onFiles} disabled={uploading || media.length >= MAX_FILES} />

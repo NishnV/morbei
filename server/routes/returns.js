@@ -3,6 +3,7 @@ import { get, all, run } from '../db/pg.js';
 import { notifySlackError, notifySlackReturn } from '../services/slack.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.js';
 import { sendReturnUpdate } from '../services/email.js';
+import { signUpload, uploadsConfigured } from '../services/cloudinary.js';
 
 const router = Router();
 
@@ -142,6 +143,10 @@ router.post('/lookup', async (req, res) => {
             deliveredAt: order.delivered_at,
             ...eligibility(order),
             items: await itemsFor(order),
+            // Decided by the server now. The browser used to work this out
+            // from its own build-time variables, which meant the upload UI
+            // could appear while the backend had no idea what Cloudinary was.
+            uploadsEnabled: uploadsConfigured,
         });
     } catch (err) {
         console.error('return lookup failed:', err.message);
@@ -150,6 +155,36 @@ router.post('/lookup', async (req, res) => {
 });
 
 // POST /api/returns — submit a request.
+/**
+ * POST /api/returns/upload-signature — permission to upload one file.
+ *
+ * The same order number and email the lookup asks for, checked the same way,
+ * because the alternative is what this replaces: an unsigned preset that
+ * anyone could find in the page source and post to directly.
+ *
+ * A signature is short-lived and says nothing about which file follows, so
+ * this is not a perfect bound — someone with a real order can still upload
+ * more than they should. It does mean an uploader must hold a genuine order
+ * number and the address on it, which is the difference between a gate and
+ * an open door, and it puts every attempt through the returns rate limit.
+ */
+router.post('/upload-signature', async (req, res) => {
+    try {
+        if (!uploadsConfigured) {
+            return res.status(503).json({ error: 'Uploads are not configured.' });
+        }
+        const order = await findOrder(req.body?.orderNumber, req.body?.email);
+        if (!order) {
+            // Same answer the lookup gives, for the same reason.
+            return res.status(404).json({ error: 'We could not find an order with those details.' });
+        }
+        return res.json(signUpload());
+    } catch (err) {
+        console.error('upload signature failed:', err.message);
+        return res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
 router.post('/', optionalAuthenticate, async (req, res) => {
     try {
         const b = req.body || {};

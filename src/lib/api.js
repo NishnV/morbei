@@ -195,6 +195,10 @@ export const returnsAPI = {
     myOrders: () => apiFetch('/returns/orders'),
     lookup: (body) => apiFetch('/returns/lookup', { method: 'POST', body: JSON.stringify(body) }),
     submit: (body) => apiFetch('/returns', { method: 'POST', body: JSON.stringify(body) }),
+    // Permission to upload one file. The server signs only for a caller who
+    // can already name a real order and the address on it.
+    uploadSignature: (orderNumber, email) =>
+        apiFetch('/returns/upload-signature', { method: 'POST', body: JSON.stringify({ orderNumber, email }) }),
 };
 
 // Orders
