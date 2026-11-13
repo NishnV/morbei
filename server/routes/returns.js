@@ -4,6 +4,7 @@ import { notifySlackError, notifySlackReturn } from '../services/slack.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.js';
 import { sendReturnUpdate } from '../services/email.js';
 import { signUpload, uploadsConfigured } from '../services/cloudinary.js';
+import { sizeOptionsForVariant } from '../services/shopify-admin.js';
 
 const router = Router();
 
@@ -192,6 +193,62 @@ router.post('/upload-signature', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/returns/sizes — the size run a garment actually comes in.
+ *
+ * POST rather than GET for the same reason the guest order lookup is a
+ * POST: the proof is an order number and an email, and neither belongs in
+ * browser history or a referrer header.
+ *
+ * The form used to offer a fixed XXS–XL list written into the bundle. That
+ * is a guess about the catalogue, and it is wrong in both directions: it
+ * offers sizes a piece was never cut in, and it hides any size outside the
+ * list, so a customer could not ask to exchange into it at all.
+ *
+ * Shopify knows the real answer, so ask Shopify — the variants of the same
+ * product that differ from theirs only in size, with stock on each. Asked
+ * lazily, for one item, at the moment the customer chooses an exchange,
+ * rather than for every line of every order at lookup time: that would be
+ * dozens of Admin API calls against a two-per-second budget to answer a
+ * question almost nobody gets to.
+ *
+ * Gated like the upload signature, by a session or by an order number and
+ * the email on it. The sizes themselves are public — they are on the product
+ * page — so this guards the Shopify call, not the answer. Best-effort by
+ * design: if Shopify is unreachable the caller falls back to the plain list
+ * rather than losing the exchange option.
+ */
+router.post('/sizes', optionalAuthenticate, async (req, res) => {
+    try {
+        const b = req.body || {};
+        const variantId = String(b.variantId || '').split('/').pop();
+        if (!/^[0-9]+$/.test(variantId)) {
+            return res.status(400).json({ error: 'Bad request' });
+        }
+
+        const order = req.user
+            ? await get(
+                `SELECT o.id FROM orders o
+                  WHERE o.shopify_order_number = $1
+                    AND o.user_id = $2
+                    AND o.razorpay_payment_id IS NOT NULL`,
+                [parseInt(String(b.orderNumber).replace(/[^0-9]/g, ''), 10) || 0, req.user.id]
+            )
+            : await findOrder(b.orderNumber, b.email);
+        if (!order) {
+            return res.status(404).json({ error: 'We could not find an order with those details.' });
+        }
+
+        const sizes = await sizeOptionsForVariant(variantId);
+        return res.json({ sizes: sizes || null });
+    } catch (err) {
+        // Not an error the customer should see. They get null and the form
+        // carries on with its own list.
+        console.error('size options failed:', err.message);
+        return res.json({ sizes: null });
+    }
+});
+
 router.post('/', optionalAuthenticate, async (req, res) => {
     try {
         const b = req.body || {};
@@ -246,6 +303,37 @@ router.post('/', optionalAuthenticate, async (req, res) => {
             return res.status(400).json({
                 error: `You ordered size ${purchasedSize}. Choose a different size, or ask for a refund instead.`,
             });
+        }
+
+        // And a size the garment is not cut in is not an exchange either.
+        // Without this the request is accepted, sits in the queue, and fails
+        // days later when approval cannot find a variant to send — by which
+        // point the customer has been told their exchange is in hand. Asking
+        // Shopify now turns that into an answer while they are still on the
+        // form.
+        //
+        // Advisory, not load-bearing: if Shopify cannot be reached we take
+        // the request rather than turn away a real customer over our own
+        // outage, and approval surfaces the problem as it did before.
+        if (resolution === 'exchange_size') {
+            let run = null;
+            try {
+                run = await sizeOptionsForVariant(String(item.variantId).split('/').pop());
+            } catch { /* leave it to approval */ }
+            if (run?.length) {
+                const wanted = String(exchangeSize).trim().toUpperCase();
+                const match = run.find((s) => s.size.trim().toUpperCase() === wanted);
+                if (!match) {
+                    return res.status(400).json({
+                        error: `That size is not available for this piece. It comes in ${run.map((s) => s.size).join(', ')}.`,
+                    });
+                }
+                if (!match.available) {
+                    return res.status(400).json({
+                        error: `Size ${match.size} is out of stock. Choose another size, or ask for a refund instead.`,
+                    });
+                }
+            }
         }
 
         const media = cleanMedia(b.media);

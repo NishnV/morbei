@@ -36,12 +36,13 @@ const NEEDS_MEDIA = ['damaged', 'wrong_product', 'quality'];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// The size run the shop sells. Offered as a plain list rather than the
-// product's live variants: the order stores variant ids and no handle, so the
-// other sizes of that garment cannot be looked up from the browser. The
-// server resolves this to a real variant — and checks stock — when the
-// replacement is raised.
-const SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL'];
+// Only a fallback now, for when Shopify cannot be reached. The real run
+// comes from the product: the order stores a variant id, and the server
+// resolves it to that garment's other sizes with stock on each. A fixed list
+// was wrong in both directions — it offered sizes a piece was never cut in,
+// and it hid any size outside the list, so a customer could not ask for one
+// at all. Keeping it means a Shopify outage costs accuracy, not the exchange.
+const FALLBACK_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL'];
 
 const itemLabel = (item) => {
     const opts = (item.options || []).map((o) => o.value).filter(Boolean).join(' / ');
@@ -58,6 +59,11 @@ const ReturnRequest = () => {
     const [reasons, setReasons] = useState([]);
     const [resolution, setResolution] = useState('');
     const [exchangeSize, setExchangeSize] = useState('');
+    // variantId -> [{size, available}] | null, where null means "asked, and
+    // Shopify could not say". Cached across selections so flipping between
+    // two items does not spend the returns rate limit twice on the same
+    // answer.
+    const [sizeRuns, setSizeRuns] = useState({});
     const [declared, setDeclared] = useState(false);
 
     const [myOrders, setMyOrders] = useState(null);   // null until we know
@@ -137,12 +143,65 @@ const ReturnRequest = () => {
     const selectedItem = (order?.items || []).find((i) => i.variantId === form.variantId);
     const purchasedSize = (selectedItem?.options || [])
         .find((o) => String(o?.name).toLowerCase() === 'size')?.value;
-    const sizeOptions = SIZES.filter(
-        (sz) => !purchasedSize || sz.toUpperCase() !== String(purchasedSize).trim().toUpperCase()
-    );
-    // If the chosen size is no longer offered — because the product changed —
-    // fall back to unselected rather than submitting something invisible.
-    const effectiveExchangeSize = sizeOptions.includes(exchangeSize) ? exchangeSize : '';
+
+    // The garment's own run once we have it, the plain list until then. Both
+    // shapes become [{size, available}] so the dropdown has one thing to
+    // render; the fallback claims nothing about stock, because it knows
+    // nothing about stock.
+    const run = sizeRuns[form.variantId];
+    const sizeOptions = (run || FALLBACK_SIZES.map((size) => ({ size, available: true })))
+        .filter((o) => !purchasedSize
+            || o.size.toUpperCase() !== String(purchasedSize).trim().toUpperCase());
+
+    // If the chosen size is no longer offered — because the product changed,
+    // or because the real run turned out not to include it — fall back to
+    // unselected rather than submitting something invisible. Out of stock
+    // counts as not offered: it is selectable nowhere and the server refuses
+    // it anyway.
+    const effectiveExchangeSize = sizeOptions
+        .some((o) => o.size === exchangeSize && o.available) ? exchangeSize : '';
+
+    // Asked lazily — only once this customer actually wants a size exchange,
+    // and only for the one item they picked. Resolving every line of every
+    // order at lookup time would be dozens of Admin API calls against a
+    // two-per-second budget to answer a question almost nobody reaches.
+    //
+    // The order number comes off the matched order rather than the box, so
+    // this works on both paths: signed in, the server checks the session owns
+    // that order and ignores the email entirely.
+    const sizeProof = order
+        ? { orderNumber: String(order.orderNumber), email: typedEmail.trim() }
+        : null;
+    const needSizes = resolution === 'exchange_size' && form.variantId
+        && !(form.variantId in sizeRuns);
+    // Shown as a disabled, explicit wait rather than offering the fallback
+    // list for the half-second before the real one lands. Otherwise a quick
+    // customer picks a size that turns out not to exist, and watches their
+    // choice silently clear itself.
+    const loadingSizes = Boolean(needSizes && sizeProof);
+    useEffect(() => {
+        if (!needSizes || !sizeProof) return undefined;
+        let alive = true;
+        const variantId = form.variantId;
+        (async () => {
+            let sizes = null;
+            try {
+                ({ sizes } = await returnsAPI.sizesFor(
+                    variantId, sizeProof.orderNumber, sizeProof.email
+                ));
+            } catch {
+                // Deliberately silent: recording null below drops the form
+                // back to the fallback list, which is the behaviour this
+                // page had before. There is nothing the customer could do
+                // about our outage and so nothing to tell them about it.
+            }
+            // Recorded either way, null included: that is what stops a failure
+            // from re-asking on every render.
+            if (alive) setSizeRuns((p) => ({ ...p, [variantId]: sizes }));
+        })();
+        return () => { alive = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [needSizes, form.variantId]);
 
     const chooseOrder = (orderNumber) => {
         const found = (myOrders || []).find((o) => String(o.orderNumber) === String(orderNumber));
@@ -389,9 +448,18 @@ const ReturnRequest = () => {
                 {resolution === 'exchange_size' && (
                     <label className="rr-field">
                         <span>WHICH SIZE WOULD YOU LIKE?*</span>
-                        <select value={effectiveExchangeSize} onChange={(e) => setExchangeSize(e.target.value)} required>
-                            <option value="">SELECT A SIZE</option>
-                            {sizeOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                        <select
+                            value={effectiveExchangeSize}
+                            onChange={(e) => setExchangeSize(e.target.value)}
+                            disabled={loadingSizes}
+                            required
+                        >
+                            <option value="">{loadingSizes ? 'CHECKING SIZES…' : 'SELECT A SIZE'}</option>
+                            {!loadingSizes && sizeOptions.map((o) => (
+                                <option key={o.size} value={o.size} disabled={!o.available}>
+                                    {o.available ? o.size : `${o.size} — OUT OF STOCK`}
+                                </option>
+                            ))}
                         </select>
                         {purchasedSize && (
                             <span className="rr-help">You ordered size {purchasedSize}.</span>

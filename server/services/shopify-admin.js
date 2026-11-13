@@ -474,6 +474,65 @@ export async function getProduct(productId) {
  * size does not exist or is out of stock, which the caller reports instead of
  * creating an order that cannot be fulfilled.
  */
+// Size runs change when a product is edited, which is rare, and this sits
+// behind a public endpoint — so cache it rather than asking Shopify on every
+// page load of the returns form.
+const sizeRunCache = new Map();
+const SIZE_RUN_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * The sizes this exact garment is actually sold in, and whether each is in
+ * stock.
+ *
+ * The returns form used to offer a hardcoded XXS–XL run, because an order
+ * stores variant ids and no product handle, so the browser cannot look the
+ * product up. The server can: a variant knows its product, and the product
+ * knows its variants.
+ *
+ * Constrained to the original variant's other options, so a customer
+ * exchanging a black dress is offered the sizes that dress comes in rather
+ * than every size across every colour.
+ *
+ * Returns null when the answer is not knowable — no size option on the
+ * product, or Shopify unreachable — and callers fall back to the plain list
+ * rather than showing an empty dropdown.
+ */
+export async function sizeOptionsForVariant(variantId) {
+    const key = String(variantId);
+    const hit = sizeRunCache.get(key);
+    if (hit && Date.now() - hit.at < SIZE_RUN_TTL_MS) return hit.sizes;
+
+    const original = await getVariant(variantId);
+    if (!original?.product_id) return null;
+    const product = await getProduct(original.product_id);
+
+    const options = product?.options || [];
+    const sizeIndex = options.findIndex((o) => String(o?.name).trim().toLowerCase() === 'size');
+    if (sizeIndex < 0) return null;
+
+    const sizeKey = `option${sizeIndex + 1}`;
+    const otherKeys = ['option1', 'option2', 'option3'].filter((k) => k !== sizeKey);
+
+    const sizes = [];
+    for (const v of product.variants || []) {
+        // Same garment, different size: every other option must match.
+        const sameGarment = otherKeys.every((k) => (original[k] ?? null) === (v[k] ?? null));
+        if (!sameGarment) continue;
+        const value = v[sizeKey];
+        if (!value || sizes.some((x) => x.size === value)) continue;
+        sizes.push({
+            size: String(value),
+            // Same rule findSiblingVariant applies when the replacement is
+            // actually raised, so the form cannot offer what that would refuse.
+            available: v.inventory_policy === 'continue' || Number(v.inventory_quantity) > 0,
+        });
+    }
+
+    const result = sizes.length ? sizes : null;
+    sizeRunCache.set(key, { sizes: result, at: Date.now() });
+    return result;
+}
+
 export async function findSiblingVariant(originalVariantId, wantedSize) {
     const original = await getVariant(originalVariantId);
     if (!original?.product_id) return { error: 'Could not find the original product.' };

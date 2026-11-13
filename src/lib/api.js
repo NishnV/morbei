@@ -204,6 +204,12 @@ export const returnsAPI = {
     // can already name a real order and the address on it.
     uploadSignature: (orderNumber, email) =>
         apiFetch('/returns/upload-signature', { method: 'POST', body: JSON.stringify({ orderNumber, email }) }),
+    // The sizes this particular garment is cut in, from Shopify, with stock.
+    // POST for the same reason as the lookup: the proof is an order number
+    // and an email. Answers { sizes: null } when Shopify cannot say, which
+    // the form reads as "use the plain list".
+    sizesFor: (variantId, orderNumber, email) =>
+        apiFetch('/returns/sizes', { method: 'POST', body: JSON.stringify({ variantId, orderNumber, email }) }),
 };
 
 // Orders
