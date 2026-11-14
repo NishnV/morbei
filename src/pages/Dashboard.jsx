@@ -89,6 +89,18 @@ const Dashboard = () => {
         { label: 'Added to bag', value: data.addToCartSessions, rate: data.stepConversion.productToCart, note: 'of those who viewed' },
         { label: 'Started checkout', value: data.initiateCheckoutSessions, rate: data.stepConversion.cartToCheckout, note: 'of those who added' },
         { label: 'Purchased', value: data.purchases, rate: data.stepConversion.checkoutToPurchase, note: 'of those who started' },
+        // The same track() call feeds Meta and our own events table, so this
+        // is the ceiling on what Meta can have been told. Below the real
+        // order count it is a reporting problem, not a sales one — and it is
+        // the number to reach for before concluding that ads are not working.
+        {
+            label: 'Purchase events sent',
+            value: data.purchaseEvents,
+            note: data.purchaseEvents < data.purchases
+                ? `${data.purchases - data.purchaseEvents} order(s) never reported to Meta`
+                : 'matches the orders above',
+            warn: data.purchaseEvents < data.purchases,
+        },
     ] : [];
 
     return (
@@ -142,7 +154,7 @@ const Dashboard = () => {
                     <table className="dash-table">
                         <tbody>
                             {steps.map((s) => (
-                                <tr key={s.label}>
+                                <tr key={s.label} className={s.warn ? 'dash-row--warn' : undefined}>
                                     <td className="dash-step">{s.label}</td>
                                     <td className="dash-count">{s.value.toLocaleString('en-IN')}</td>
                                     <td className="dash-rate">
@@ -168,7 +180,10 @@ const Dashboard = () => {
                     <p className="dash-note">
                         Purchases and revenue come from the orders table, so they are exact.
                         The steps above them are browser events and will read low wherever a
-                        tracker was blocked.
+                        tracker was blocked. The last row is the exception worth watching:
+                        it counts Purchase events our own server received, which is the most
+                        Meta can have been told, since one call feeds both. Below the order
+                        count means sales happened that the ad algorithm never learned from.
                     </p>
 
                     {data.products?.length > 0 && (

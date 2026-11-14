@@ -420,3 +420,9 @@
     border: 0.5px solid rgba(255, 107, 107, 0.5);
     padding: 3px 8px;
 }
+
+/* Sales the ad algorithm was never told about. Red because the instinct on
+   seeing a low conversion number is to blame the ads, and this row is the
+   one that says the number itself is wrong. */
+.dash-row--warn .dash-count,
+.dash-row--warn .dash-rate-note { color: #ff6b6b; }

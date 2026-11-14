@@ -123,6 +123,15 @@ export async function funnelSummary(days = 7) {
         initiateCheckout: by.InitiateCheckout?.events || 0,
         initiateCheckoutSessions: by.InitiateCheckout?.sessions || 0,
         purchases,
+        // How many Purchase beacons actually fired, as opposed to how many
+        // orders were really placed. The two should match; where they do not,
+        // the shortfall is what Meta was never told about, because the same
+        // track() call feeds both. Worth surfacing because Purchase is the
+        // event campaigns optimise on, and it was the one number this summary
+        // computed and then threw away — so a guest checkout that silently
+        // never reached the confirmation page cost Meta every sale it made
+        // without anything here reading differently.
+        purchaseEvents: by.Purchase?.events || 0,
         revenueRupees: Math.round((orders[0]?.revenue_paise || 0) / 100),
         // Sessions, not visitors: the usual e-commerce convention, and the one
         // the step-to-step rates below are consistent with.
