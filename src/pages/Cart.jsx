@@ -37,6 +37,12 @@ const Cart = () => {
     const goLeft = () => gridRef.current?.scrollBy({ left: -300, behavior: 'smooth' });
     const goRight = () => gridRef.current?.scrollBy({ left: 300, behavior: 'smooth' });
 
+    // Still fetching the bag. Saying "empty" here told a shopper with items
+    // that they had none, for as long as the request took.
+    if (cartLoading && !cart) {
+        return <div className="cart-page-dark" aria-busy="true" />;
+    }
+
     if (!cart || lines.length === 0) {
         return (
             <div className="cart-page-dark">

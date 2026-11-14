@@ -4,7 +4,10 @@ import { useCart } from '../hooks/useCart';
 import { track } from '../lib/analytics';
 import { useCustomer } from '../hooks/useCustomer';
 import { formatPrice } from '../utils/formatPrice';
-import { paymentAPI, ordersAPI, ensureBackendSession, authAPI, setToken } from '../lib/api';
+import {
+    paymentAPI, ordersAPI, ensureBackendSession, authAPI, setToken,
+    clearToken, backendSession, hasShopifySession,
+} from '../lib/api';
 import { rememberPendingOrder } from '../lib/pendingOrder';
 import { SHIPPABLE_COUNTRIES, getStatesForCountry } from '../data/countries';
 import { DELIVERY_OPTIONS, getDeliveryOption, deliveryWindow } from '../data/delivery';
@@ -43,21 +46,37 @@ function formFromCustomer(customer) {
     };
 }
 
+// Who a saved form belongs to when nobody is signed in. Guests are most of
+// the people who check out, and they had no owner at all — so nothing they
+// typed was ever saved, and a failed payment sent them back to an empty form
+// under a page that told them their details were kept.
+const GUEST_OWNER = 'guest';
+
 /**
- * An in-progress checkout, but only if it belongs to this customer.
+ * An in-progress checkout, but only if it belongs to whoever is here now.
  *
  * A failed payment shouldn't cost someone their typed address, which is why
  * this is kept at all — but it must never be handed to a different account.
  * Anything without a matching owner is ignored (and includes the unscoped
  * blobs written before this was fixed).
+ *
+ * One hand-over is allowed: a form typed as a guest goes to the account whose
+ * email is the one typed into it. That is the shopper who was told at the pay
+ * button that their address has an account, signed in, and came back — the
+ * same person, who should not have to type it all again.
  */
-function readSavedCheckout(customerId) {
-    if (!customerId) return null;
+function readSavedCheckout(owner, customerEmail) {
+    if (!owner) return null;
     try {
         const saved = JSON.parse(sessionStorage.getItem(CHECKOUT_KEY) || 'null');
-        if (!saved || saved.owner !== customerId) return null;
-        if (!saved.form?.address) return null;
-        return saved;
+        if (!saved?.form?.address) return null;
+        if (saved.owner === owner) return saved;
+        const typedEmail = String(saved.form.email || '').trim().toLowerCase();
+        if (saved.owner === GUEST_OWNER && customerEmail
+            && typedEmail === String(customerEmail).trim().toLowerCase()) {
+            return saved;
+        }
+        return null;
     } catch {
         return null; // corrupted — treat as absent
     }
@@ -117,7 +136,7 @@ const Checkout = () => {
     const [searchParams] = useSearchParams();
     const wantsTestOrder = searchParams.get('test') === '1';
     const { cart, loading: cartLoading } = useCart();
-    const { customer } = useCustomer();
+    const { customer, loading: authLoading } = useCustomer();
     const navigate = useNavigate();
 
     // Checkout no longer requires an account. A shopper who arrives signed out
@@ -185,13 +204,19 @@ const Checkout = () => {
     //
     // Re-seeding keys on the customer id, so it happens on mount and on an
     // account switch, but never mid-typing for the same person.
+    //
+    // A guest is an owner too. Nothing is decided until the account check has
+    // finished, though: on a direct load a signed-in customer looks exactly
+    // like a guest for a moment, and seeding then would save an empty guest
+    // form over the one they had in progress.
     const customerId = customer?.id || null;
+    const owner = authLoading ? null : (customerId || GUEST_OWNER);
     const [seededFor, setSeededFor] = useState(null);
 
-    if (customerId && seededFor !== customerId) {
-        const saved = readSavedCheckout(customerId);
+    if (owner && seededFor !== owner) {
+        const saved = readSavedCheckout(owner, customer?.email);
         const nextForm = saved ? saved.form : formFromCustomer(customer);
-        setSeededFor(customerId);
+        setSeededFor(owner);
         setForm(nextForm);
         setDeliveryMethod(saved?.delivery === 'priority' ? 'priority' : 'standard');
         // /checkout/payment (the payment-failed page's TRY AGAIN) may jump
@@ -203,14 +228,14 @@ const Checkout = () => {
     useEffect(() => {
         // Only persist once seeded, and always stamped with the owner — an
         // unowned blob is what leaked between accounts.
-        if (!customerId || seededFor !== customerId) return;
+        if (!owner || seededFor !== owner) return;
         try {
             sessionStorage.setItem(
                 CHECKOUT_KEY,
-                JSON.stringify({ owner: customerId, form, delivery: deliveryMethod })
+                JSON.stringify({ owner, form, delivery: deliveryMethod })
             );
         } catch { /* storage full/blocked — non-critical */ }
-    }, [customerId, seededFor, form, deliveryMethod]);
+    }, [owner, seededFor, form, deliveryMethod]);
 
     const handleForm = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -343,6 +368,66 @@ const Checkout = () => {
         }
     };
 
+    // Set when the address typed belongs to an account, so the message can
+    // offer the way in instead of only the way back to the bag.
+    const [needsSignIn, setNeedsSignIn] = useState(false);
+
+    /**
+     * Get a backend session that may place this order.
+     *
+     * Returns false when it could not, having already put the reason on
+     * screen — a code to enter, a prompt to sign in, or an error.
+     *
+     * For a signed-in shopper ensureBackendSession re-exchanges the Shopify
+     * token, which also covers a session that lapsed while the form was open.
+     * For a guest there is nothing to exchange, so one is created from the
+     * email they typed.
+     */
+    const startSession = async () => {
+        // A guest session left behind by an earlier checkout was reused as
+        // found, whatever had been typed since. Expired, it failed the first
+        // press of PAY with "Invalid or expired token". Issued for a different
+        // address, it put the order — and every email about it — on the old
+        // one. And once someone has an account session to use, a guest's is
+        // never the right one.
+        const current = backendSession();
+        const typedEmail = form.email.trim().toLowerCase();
+        if (current?.guest && (hasShopifySession() || current.expired || current.email !== typedEmail)) {
+            clearToken();
+        }
+
+        if (await ensureBackendSession()) return true;
+
+        try {
+            const { token } = await authAPI.guest({
+                email: form.email,
+                firstName: form.firstName,
+                lastName: form.lastName,
+                phone: form.phone,
+            });
+            setToken(token);
+            return true;
+        } catch (err) {
+            if (err.status === 428) {
+                // Not an error: a step is missing. The address has never
+                // proved it can receive mail, and an order nobody can be told
+                // about is how #1016 happened.
+                await requestCode(form.email);
+                return false;
+            }
+            if (err.status === 409) {
+                // The address belongs to a real account. Saying so is better
+                // than letting them pay into a stranger's order history, and
+                // better than a generic failure.
+                setNeedsSignIn(true);
+                setPaymentError('An account already exists with this email. Please sign in to continue — your details here are kept.');
+                return false;
+            }
+            setPaymentError(err.message || 'Could not start checkout. Please try again.');
+            return false;
+        }
+    };
+
     const handlePayment = async () => {
         // Last line of defense — the payment step can be deep-linked, so never
         // take money against a form that was never actually filled in.
@@ -353,40 +438,11 @@ const Checkout = () => {
         }
         setPaying(true);
         setPaymentError('');
+        setNeedsSignIn(false);
         try {
-            // A backend session is needed to take the payment. For a signed-in
-            // shopper ensureBackendSession re-exchanges the Shopify token,
-            // which also covers a session that lapsed while the form was open.
-            // For a guest there is nothing to exchange, so one is created from
-            // the email they just typed.
-            if (!(await ensureBackendSession())) {
-                try {
-                    const { token } = await authAPI.guest({
-                        email: form.email,
-                        firstName: form.firstName,
-                        lastName: form.lastName,
-                        phone: form.phone,
-                    });
-                    setToken(token);
-                } catch (err) {
-                    setPaying(false);
-                    if (err.status === 428) {
-                        // Not an error: a step is missing. The address has
-                        // never proved it can receive mail, and an order
-                        // nobody can be told about is how #1016 happened.
-                        await requestCode(form.email);
-                        return;
-                    }
-                    if (err.status === 409) {
-                        // The address belongs to a real account. Saying so is
-                        // better than letting them pay into a stranger's
-                        // order history, and better than a generic failure.
-                        setPaymentError('An account already exists with this email. Please sign in to continue.');
-                        return;
-                    }
-                    setPaymentError(err.message || 'Could not start checkout. Please try again.');
-                    return;
-                }
+            if (!(await startSession())) {
+                setPaying(false);
+                return;
             }
 
             const loaded = await loadRazorpayScript();
@@ -403,7 +459,7 @@ const Checkout = () => {
             }));
 
             // 1. Create order on backend
-            const orderData = await paymentAPI.createOrder({
+            const orderBody = {
                 cartLines,
                 shippingAddress: form,
                 shippingMethod: deliveryMethod,
@@ -411,7 +467,25 @@ const Checkout = () => {
                 // this only for an allowlisted account and reports back what it
                 // decided; nothing here can make an order cheap on its own.
                 testOrder: wantsTestOrder,
-            });
+            };
+            let orderData;
+            try {
+                orderData = await paymentAPI.createOrder(orderBody);
+            } catch (err) {
+                // The server refused the session itself — revoked, or expired
+                // in a way the token's own clock did not show. An account
+                // session has already been renewed and retried by apiFetch;
+                // a guest has nothing to renew from, so the stale token (now
+                // cleared) is replaced by a new guest session and the order
+                // tried once more, rather than showing a guest an error about
+                // tokens.
+                if (err.status !== 401 || hasShopifySession()) throw err;
+                if (!(await startSession())) {
+                    setPaying(false);
+                    return;
+                }
+                orderData = await paymentAPI.createOrder(orderBody);
+            }
 
             if (wantsTestOrder && !orderData.isTest) {
                 throw new Error('This account cannot place test orders.');
@@ -637,7 +711,9 @@ const Checkout = () => {
                                         <span>PERSONAL INFORMATION</span>
                                         {!customer && (
                                             <span className="login-hint">
-                                                Already have an account? <Link to="/profile"><span>Login</span></Link>
+                                                {/* `from` is what brings them back here once signed in;
+                                                    without it they were left on the account page. */}
+                                                Already have an account? <Link to="/profile" state={{ from: '/checkout' }}><span>Login</span></Link>
                                             </span>
                                         )}
                                     </div>
@@ -899,9 +975,17 @@ const Checkout = () => {
                                                             <p style={{ color: '#ff4444', fontSize: '0.7rem', letterSpacing: '0.1em', margin: 0, textTransform: 'uppercase', lineHeight: 1.6 }}>
                                                                 {paymentError}
                                                             </p>
-                                                            <Link to="/cart" style={{ display: 'inline-block', marginTop: '0.75rem', textDecoration: 'underline', fontSize: '0.7rem', letterSpacing: '0.15em' }}>
-                                                                GO TO SHOPPING BAG
-                                                            </Link>
+                                                            {needsSignIn ? (
+                                                                // Back to this step once signed in. The form typed
+                                                                // here is saved and handed to that account.
+                                                                <Link to="/profile" state={{ from: '/checkout/payment' }} style={{ display: 'inline-block', marginTop: '0.75rem', textDecoration: 'underline', fontSize: '0.7rem', letterSpacing: '0.15em' }}>
+                                                                    SIGN IN
+                                                                </Link>
+                                                            ) : (
+                                                                <Link to="/cart" style={{ display: 'inline-block', marginTop: '0.75rem', textDecoration: 'underline', fontSize: '0.7rem', letterSpacing: '0.15em' }}>
+                                                                    GO TO SHOPPING BAG
+                                                                </Link>
+                                                            )}
                                                         </div>
                                                     )}
                                                     <p className="razorpay-note">YOU WILL BE REDIRECTED TO RAZORPAY'S SECURE PAYMENT GATEWAY</p>

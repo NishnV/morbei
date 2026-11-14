@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../hooks/useCustomer';
-import { ordersAPI, authAPI } from '../lib/api';
+import { ordersAPI, authAPI, emailProofFor } from '../lib/api';
 import { getStatusLabel } from '../utils/orderStatus';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './Profile.css';
@@ -85,8 +85,13 @@ const Profile = () => {
         setVerifyBusy(true);
         setSuggestion(null);
         try {
-            const r = await authAPI.sendCode(email);
-            if (r.verified) return true;      // already proved; nothing sent
+            // This browser already entered a code for this address — at
+            // checkout a moment ago, say. Nothing more to ask.
+            if (emailProofFor(email)) return true;
+            // 'signup' always sends one. An address that verified once is
+            // not proof that the person here now is its owner.
+            const r = await authAPI.sendCode(email, 'signup');
+            if (r.verified) return true;      // an older server; nothing sent
             setVerifyFor(email);
             setMessage(`We sent a six-digit code to ${email}.`);
             return false;
@@ -104,7 +109,7 @@ const Profile = () => {
         if (!/^[0-9]{6}$/.test(code)) { setMessage('Enter the six digits from the email.'); return; }
         setVerifyBusy(true);
         try {
-            await authAPI.verifyEmail(verifyFor, code);
+            await authAPI.verifyEmail(verifyFor, code, 'signup');
             setVerifyFor(null);
             setVerifyCode('');
             setMessage('');
@@ -136,7 +141,9 @@ const Profile = () => {
      */
     const signUpMessage = (err) => {
         if (err?.status === 428) {
-            setVerifyFor(pendingSignUp.current?.email || form.email);
+            // Send the code as well as asking for it. This used to put the
+            // code box on screen without one having gone out.
+            startVerification(pendingSignUp.current?.email || form.email);
             return 'Please confirm your email to finish creating your account.';
         }
         if (err?.status === 409 || err?.message === 'accountExists') {
@@ -154,6 +161,13 @@ const Profile = () => {
         const lastName = nameParts.slice(1).join(' ') || '';
         if (!firstName || !lastName) {
             setMessage('Please enter your full name (first and last).');
+            return;
+        }
+        // The server's rule. Checked here, before a code is sent: the field
+        // used to allow five, so a six-character password went through the
+        // whole email step and was only then turned down.
+        if (form.password.length < 8) {
+            setMessage('Please choose a password of at least 8 characters.');
             return;
         }
         // Before Shopify is asked to make anything. An account created
@@ -474,7 +488,7 @@ const Profile = () => {
                                 value={form.password}
                                 onChange={handleChange}
                                 autoComplete="new-password"
-                                minLength={5}
+                                minLength={8}
                             />
                             <div className="profile-auth-phone-row">
                                 <span className="profile-auth-country-code">

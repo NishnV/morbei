@@ -7,6 +7,7 @@ import { notifySlackError } from '../services/slack.js';
 import { domainAcceptsMail, suggestDomain } from '../services/email-domain.js';
 import { sendVerificationCode, sendAccountWelcome } from '../services/email.js';
 import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
 
 const router = Router();
 
@@ -78,6 +79,41 @@ async function isVerified(email) {
 }
 
 /**
+ * Proof that whoever is asking typed back a code sent to this address.
+ *
+ * verified_emails cannot be that proof. It is a deliverability record — it
+ * says mail sent here arrives — and it is permanent and shared: once the
+ * owner of an address has verified it at checkout, every later caller is
+ * "verified" too. /signup used to accept it, which meant anyone who knew a
+ * guest customer's email could register that address with a password of
+ * their own choosing, sign in, and be handed the guest's orders, address and
+ * phone number, with the ability to cancel what had not shipped.
+ *
+ * So an accepted code now comes back with a short-lived signed token naming
+ * the address, and creating an account requires it. It is held by the
+ * browser that entered the code and by nobody else.
+ *
+ * Signed with a key derived from JWT_SECRET rather than JWT_SECRET itself,
+ * so a proof can never be presented as a session token or the reverse.
+ */
+const EMAIL_PROOF_TTL = '2h';
+const emailProofSecret = () => `${process.env.JWT_SECRET}:email-proof`;
+
+function signEmailProof(email) {
+    return jwt.sign({ email, typ: 'email-proof' }, emailProofSecret(), { expiresIn: EMAIL_PROOF_TTL });
+}
+
+function emailProofValid(proof, email) {
+    if (typeof proof !== 'string' || !proof) return false;
+    try {
+        const payload = jwt.verify(proof, emailProofSecret());
+        return payload.typ === 'email-proof' && payload.email === email;
+    } catch {
+        return false; // expired, tampered with, or not a proof at all
+    }
+}
+
+/**
  * POST /api/auth/email/code — send a code, or explain why not.
  *
  * Answers identically whether or not the address is already known to us. It
@@ -93,7 +129,13 @@ router.post('/email/code', async (req, res) => {
 
         // Already proved — the caller can go straight on. No mail is sent,
         // which is both the point of remembering and one fewer thing to abuse.
-        if (await isVerified(email)) return res.json({ verified: true });
+        //
+        // Not for signup. Remembering is fine for a guest checkout, whose
+        // session can only reach what it buys; an account is the whole
+        // address, so it needs a code from whoever is asking now. The
+        // per-address limits below apply to these sends like any other.
+        const forSignup = req.body?.purpose === 'signup';
+        if (!forSignup && (await isVerified(email))) return res.json({ verified: true });
 
         if (!(await domainAcceptsMail(email))) {
             return res.status(400).json({
@@ -177,7 +219,11 @@ router.post('/email/verify', async (req, res) => {
             return res.status(400).json({ error: 'Enter the six-digit code from your email.' });
         }
 
-        if (await isVerified(email)) return res.json({ verified: true });
+        // For signup the code is always checked, even for an address already
+        // on record: the answer wanted is "did this caller receive the code",
+        // not "has anyone ever". No proof is issued on this shortcut.
+        const forSignup = req.body?.purpose === 'signup';
+        if (!forSignup && (await isVerified(email))) return res.json({ verified: true });
 
         const row = await get('SELECT * FROM email_codes WHERE email = $1', [email]);
         if (!row || new Date(row.expires_at) < new Date()) {
@@ -214,7 +260,9 @@ router.post('/email/verify', async (req, res) => {
             [email]
         );
         await run('DELETE FROM email_codes WHERE email = $1', [email]);
-        return res.json({ verified: true });
+        // The proof is issued here and only here — on a code that was
+        // actually checked and matched.
+        return res.json({ verified: true, proof: signEmailProof(email) });
     } catch (err) {
         console.error('verification error:', err);
         return res.status(500).json({ error: 'Something went wrong. Please try again.' });
@@ -274,7 +322,10 @@ router.post('/signup', async (req, res) => {
         }
         // The enforcement, not a hint. 428 so the client shows the code box
         // rather than an error, the same answer /guest gives.
-        if (!(await isVerified(email))) {
+        //
+        // A proof from this caller, not the shared verified_emails record —
+        // see signEmailProof for why that record was never enough here.
+        if (!emailProofValid(req.body?.emailProof, email)) {
             return res.status(428).json({ error: 'emailNotVerified' });
         }
 

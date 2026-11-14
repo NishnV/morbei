@@ -162,7 +162,11 @@ const TrackOrder = () => {
                         </div>
 
                         <div className="track-address">
-                            {addr.firstName && (
+                            {/* A signed-in customer gets the whole address. A lookup by
+                                order number and email gets the city and PIN only —
+                                the server does not send the rest to someone who has
+                                proved nothing but those two fields. */}
+                            {addr.firstName ? (
                                 <>
                                     <strong>{addr.firstName} {addr.lastName}</strong>
                                     <p>{addr.address}</p>
@@ -170,7 +174,13 @@ const TrackOrder = () => {
                                     <p>{addr.country}</p>
                                     {addr.phone && <p>{addr.phone}</p>}
                                 </>
-                            )}
+                            ) : (addr.city || addr.zip) ? (
+                                <>
+                                    <strong>DELIVERING TO</strong>
+                                    <p>{[addr.city, addr.state].filter(Boolean).join(', ')} {addr.zip}</p>
+                                    {addr.country && <p>{addr.country}</p>}
+                                </>
+                            ) : null}
                         </div>
 
                         <div className="track-timeline-col">

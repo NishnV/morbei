@@ -15,6 +15,61 @@ export function clearToken() {
     localStorage.removeItem(BACKEND_TOKEN_KEY);
 }
 
+/** Whether a Shopify customer session is stored — i.e. this is an account, not a guest. */
+export function hasShopifySession() {
+    return Boolean(localStorage.getItem(SHOPIFY_TOKEN_KEY));
+}
+
+/**
+ * What the stored backend token says about itself: whose it is, whether it is
+ * a guest session, whether it has lapsed.
+ *
+ * Read without verifying, which is fine for what it is used for — deciding
+ * whether to ask the server for a different session. The server verifies
+ * every token on every request; nothing here grants anything.
+ */
+export function backendSession() {
+    const token = getToken();
+    if (!token) return null;
+    try {
+        const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(b64));
+        return {
+            email: String(payload.email || '').trim().toLowerCase(),
+            guest: Boolean(payload.gsid),
+            expired: typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now(),
+        };
+    } catch {
+        return null; // not a token we understand — the server will say so
+    }
+}
+
+/**
+ * Proof that this browser confirmed an email by code, handed back by the
+ * server when a code is accepted and required by it to create an account.
+ *
+ * Kept per tab and never in localStorage: it is short-lived by design, and
+ * it is what stands between knowing someone's address and registering it.
+ */
+const EMAIL_PROOF_KEY = 'morbei_email_proof';
+
+function rememberEmailProof(email, proof) {
+    try {
+        sessionStorage.setItem(
+            EMAIL_PROOF_KEY,
+            JSON.stringify({ email: String(email).trim().toLowerCase(), proof })
+        );
+    } catch { /* blocked storage — signup will simply ask for a code */ }
+}
+
+export function emailProofFor(email) {
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(EMAIL_PROOF_KEY) || 'null');
+        if (saved?.proof && saved.email === String(email || '').trim().toLowerCase()) return saved.proof;
+    } catch { /* treat as absent */ }
+    return null;
+}
+
 /**
  * Trade the Shopify customer session for a fresh backend JWT.
  *
@@ -152,16 +207,43 @@ export const authAPI = {
     // already proved itself, so a returning customer never sees this.
     // Throws with status 400 and a `suggestion` when the domain looks like a
     // typo of a common one, and 429 when a code was asked for too recently.
-    sendCode: (email) =>
-        apiFetch('/auth/email/code', { method: 'POST', body: JSON.stringify({ email }) }),
-    verifyEmail: (email, code) =>
-        apiFetch('/auth/email/verify', { method: 'POST', body: JSON.stringify({ email, code }) }),
+    //
+    // `purpose: 'signup'` always sends a code, even to an address that has
+    // proved itself before. Creating an account needs proof from whoever is
+    // asking now, not from whoever verified the address once.
+    sendCode: (email, purpose) =>
+        apiFetch('/auth/email/code', { method: 'POST', body: JSON.stringify({ email, purpose }) }),
+    // An accepted code comes back with a short-lived proof, kept for signup.
+    verifyEmail: async (email, code, purpose) => {
+        const result = await apiFetch('/auth/email/verify', {
+            method: 'POST',
+            body: JSON.stringify({ email, code, purpose }),
+        });
+        if (result?.proof) rememberEmailProof(email, result.proof);
+        return result;
+    },
     // Create the Shopify customer account. Server-side so Shopify's own
     // welcome email can be suppressed and the verification above actually
-    // enforced. Throws 428 when the address has not been verified, 409 when
-    // an account already exists. Does NOT sign anyone in — the caller logs in
+    // enforced. Throws 428 when this browser holds no proof for the address
+    // (the caller then asks for a code with purpose 'signup'), 409 when an
+    // account already exists. Does NOT sign anyone in — the caller logs in
     // through Shopify afterwards, as it always did.
-    signup: (body) => apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
+    signup: async (body) => {
+        try {
+            return await apiFetch('/auth/signup', {
+                method: 'POST',
+                body: JSON.stringify({ ...body, emailProof: emailProofFor(body?.email) }),
+            });
+        } catch (err) {
+            // The proof we hold was refused — expired, most likely. Drop it,
+            // so the caller's next step is a fresh code and not the same
+            // refusal again.
+            if (err.status === 428) {
+                try { sessionStorage.removeItem(EMAIL_PROOF_KEY); } catch { /* nothing to drop */ }
+            }
+            throw err;
+        }
+    },
 };
 
 // Payment

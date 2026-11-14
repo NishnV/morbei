@@ -97,6 +97,10 @@ const ProductDetail = () => {
     useEffect(() => {
         if (loading) startLoading();
         else stopLoading();
+        // Leaving mid-load must take the overlay with it. Without this, going
+        // Back to a page that never calls stopLoading left the screen black
+        // until a reload.
+        return () => stopLoading();
     }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Title/meta are now owned by <Seo> below — one source, and it carries the
@@ -104,6 +108,10 @@ const ProductDetail = () => {
 
     const [selectedSize, setSelectedSize] = useState(searchParams.get('size') || '');
     const [sizeError, setSizeError] = useState(false);
+    // An add to bag that did not happen. Shown in a dialog rather than beside
+    // the button, because on the mobile design the size is picked on the
+    // image at the top of the page and the button is below the fold.
+    const [addFailed, setAddFailed] = useState(false);
     const [showSizeGuide, setShowSizeGuide] = useState(false);
     const [notifyOpen, setNotifyOpen] = useState(false);
     // { ok, message } — the title has to follow the outcome; a "THANK YOU"
@@ -337,10 +345,13 @@ const ProductDetail = () => {
         );
     }
 
+    // The first variant stands in only while no size is chosen, where it
+    // supplies the price on display. Once a size is chosen, no match has to
+    // mean no variant: falling back here is how choosing M once added XXS.
     const selectedVariant = product.variants?.find(v =>
         (!selectedSize || v.size === selectedSize) &&
         (!selectedColor || v.color === selectedColor)
-    ) || product.variants?.[0];
+    ) || (selectedSize ? null : product.variants?.[0]);
 
     const toggleAccordion = (section) => {
         setActiveAccordion(activeAccordion === section ? null : section);
@@ -367,28 +378,38 @@ const ProductDetail = () => {
             setNotifyOpen(true);
             return;
         }
+        // A size with no variant behind it. Say so rather than do nothing.
+        if (!selectedVariant?.id) {
+            setAddFailed(true);
+            return;
+        }
         setIsAnimating(true);
         try {
-            if (selectedVariant?.id) {
-                await shopifyAddToCart(selectedVariant.id, 1);
-                track('AddToCart', {
-                    content_ids: [product.handle],
-                    content_name: product.name,
-                    content_type: 'product',
-                    value: selectedVariant.priceNum ?? product.priceNum,
-                    currency: product.currency || 'INR',
-                });
-                setIsCartOpen(true);
-            }
+            await shopifyAddToCart(selectedVariant.id, 1);
+            track('AddToCart', {
+                content_ids: [product.handle],
+                content_name: product.name,
+                content_type: 'product',
+                value: selectedVariant.priceNum ?? product.priceNum,
+                currency: product.currency || 'INR',
+            });
+            setIsCartOpen(true);
         } catch (err) {
+            // This was logged and nothing else: the button animated, no item
+            // arrived, and the shopper had no way to tell it had failed.
             console.error('Failed to add to cart:', err);
+            setAddFailed(true);
         }
         setTimeout(() => setIsAnimating(false), 600);
     };
 
     const handleAddToCartFromSize = async (size) => {
         const variant = product.variants?.find(v => v.size === size && (!selectedColor || v.color === selectedColor));
-        if (!variant?.id || !variant.available) return;
+        if (!variant?.id) {
+            setAddFailed(true);
+            return;
+        }
+        if (!variant.available) return;
         setIsAnimating(true);
         try {
             await shopifyAddToCart(variant.id, 1);
@@ -403,6 +424,7 @@ const ProductDetail = () => {
             setIsCartOpen(true);
         } catch (err) {
             console.error('Failed to add to cart:', err);
+            setAddFailed(true);
         }
         setTimeout(() => setIsAnimating(false), 600);
     };
@@ -414,7 +436,10 @@ const ProductDetail = () => {
             name: product.name,
             price: product.price,
             img: product.images[0],
-            variantId: selectedVariant?.id,
+            // Only a size the shopper chose. With none chosen selectedVariant
+            // is the first variant, and saving that made the wishlist add the
+            // smallest size to the bag without asking.
+            variantId: selectedSize ? selectedVariant?.id : undefined,
             variants: product.variants   // stored so wishlist size picker works without allProducts lookup
         });
     };
@@ -1030,6 +1055,15 @@ const ProductDetail = () => {
                     onClose={() => setNotifyResult(null)}
                 />
             )}
+
+            <Modal
+                open={addFailed}
+                title="NOT ADDED TO YOUR BAG"
+                message="WE COULDN'T ADD THIS TO YOUR BAG. PLEASE CHECK YOUR CONNECTION AND TRY AGAIN."
+                confirmLabel="OK"
+                onConfirm={() => setAddFailed(false)}
+                onClose={() => setAddFailed(false)}
+            />
 
             {/* Lightbox Modal */}
             {lightboxOpen && (

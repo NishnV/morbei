@@ -61,8 +61,13 @@ export function CartProvider({ children }) {
   /**
    * Update local cart state and persist the cart ID.
    */
+  // Whether any cart response has landed yet. The background retry below must
+  // not overwrite a cart that an add-to-bag has refreshed in the meantime.
+  const cartLoadedRef = useRef(false);
+
   const updateCart = useCallback((rawCart) => {
     const normalized = normalizeCart(rawCart);
+    cartLoadedRef.current = true;
     setCart(normalized);
     if (normalized?.id) {
       localStorage.setItem(CART_ID_KEY, normalized.id);
@@ -74,7 +79,10 @@ export function CartProvider({ children }) {
    * Fetch the existing cart on mount (if cart ID exists in localStorage).
    */
   useEffect(() => {
-    async function loadCart() {
+    let cancelled = false;
+    let retryTimer = null;
+
+    async function loadCart(isRetry = false) {
       const storedId = localStorage.getItem(CART_ID_KEY);
       if (!storedId) {
         setLoading(false);
@@ -86,24 +94,33 @@ export function CartProvider({ children }) {
           query: CART_QUERY,
           variables: { cartId: storedId },
         });
+        if (cancelled) return;
 
         if (data.cart) {
-          updateCart(data.cart);
+          if (!isRetry || !cartLoadedRef.current) updateCart(data.cart);
         } else {
-          // Cart expired or was completed — clear reference
+          // Shopify answered, and the cart is gone: expired or completed.
           localStorage.removeItem(CART_ID_KEY);
           cartIdRef.current = null;
         }
       } catch {
-        // If fetching fails, cart might be expired
-        localStorage.removeItem(CART_ID_KEY);
-        cartIdRef.current = null;
+        // A failed request says nothing about the cart. This used to delete
+        // the cart id here, so one dropped request on mobile data emptied a
+        // returning shopper's bag for good. Keep the id and look once more;
+        // if that fails too the bag is still there on the next page load.
+        if (!cancelled && !isRetry) {
+          retryTimer = setTimeout(() => loadCart(true), 3000);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     loadCart();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [updateCart]);
 
   /**
@@ -150,8 +167,23 @@ export function CartProvider({ children }) {
           },
         });
 
-        handleUserErrors(data.cartLinesAdd.userErrors);
-        updateCart(data.cartLinesAdd.cart);
+        // The stored cart no longer exists in Shopify (they expire). Start a
+        // new one with this item rather than failing every add until the
+        // shopper clears their browser. Only on Shopify's own "no such cart"
+        // answer: a network failure must not replace a bag that has items.
+        const result = data.cartLinesAdd;
+        const cartGone = !result.cart && (result.userErrors || []).some(
+          (e) => (e.field || []).includes('cartId') || /cart/i.test(e.message || '')
+        );
+        if (cartGone) {
+          localStorage.removeItem(CART_ID_KEY);
+          cartIdRef.current = null;
+          await createCart([lineInput]);
+          return;
+        }
+
+        handleUserErrors(result.userErrors);
+        updateCart(result.cart);
       } catch (err) {
         setError(err);
         throw err;

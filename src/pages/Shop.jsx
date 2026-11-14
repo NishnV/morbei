@@ -214,6 +214,9 @@ const Shop = ({ category = "ALL" }) => {
     useEffect(() => {
         if (isLoading) startLoading();
         else stopLoading();
+        // Leaving mid-load must take the overlay with it, or it stays up on
+        // whichever page comes next.
+        return () => stopLoading();
     }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Colour and size are filtered here, on every path, because Shopify cannot

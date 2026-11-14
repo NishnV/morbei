@@ -16,7 +16,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ordersAPI } from '../lib/api';
+import { ordersAPI, hasRecoverableSession } from '../lib/api';
 import { readPendingOrder, forgetPendingOrder } from '../lib/pendingOrder';
 import { useCart } from './useCart';
 import { useCustomer } from './useCustomer';
@@ -47,9 +47,17 @@ export function useOrderRecovery() {
     useEffect(() => {
         // Reading the order needs a session, so wait for one. Nothing is lost
         // by waiting: the marker persists until it is acted on.
-        if (loading || !customer?.id) return;
-        if (ranFor.current === customer.id) return;
-        ranFor.current = customer.id;
+        //
+        // Any session, not only an account. This used to require a Shopify
+        // customer, which a guest never is — so the people most likely to
+        // need it, having paid and closed the tab, came back to a full bag
+        // and no confirmation, and their Purchase event never fired. A
+        // guest's backend token reads their own order perfectly well.
+        if (loading) return;
+        if (!customer?.id && !hasRecoverableSession()) return;
+        const who = customer?.id || 'guest';
+        if (ranFor.current === who) return;
+        ranFor.current = who;
 
         const pending = readPendingOrder();
         if (!pending) return;

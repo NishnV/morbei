@@ -93,6 +93,20 @@ const ShopWrapper = () => {
 };
 
 /**
+ * One ProductDetail per product, not one for the route.
+ *
+ * React Router keeps the same element mounted when only the :id changes, so
+ * the colour, size and gallery position chosen on one product carried over to
+ * the next. A colour the new product does not come in matched no variant, and
+ * the page then fell back to the first one — picking M added XXS. Keying on
+ * the id gives each product its own state.
+ */
+const ProductRoute = () => {
+  const { id } = useParams();
+  return <ProductDetail key={id} />;
+};
+
+/**
  * A session of any kind — a Shopify account, or a guest's backend token.
  *
  * This used to require a Shopify customer, which predates guest checkout and
@@ -208,7 +222,7 @@ const AppContent = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/checkout" element={<RequireCart><Checkout /></RequireCart>} />
           <Route path="/checkout/:step" element={<RequireCart><Checkout /></RequireCart>} />
-          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/product/:id" element={<ProductRoute />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/faqs" element={<FAQ />} />
           <Route path="/contact" element={<Contact />} />

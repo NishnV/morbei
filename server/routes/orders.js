@@ -95,12 +95,46 @@ router.post('/lookup', async (req, res) => {
 
         const full = await withTracking(serializeOrder(order));
 
-        // Least privilege for an unauthenticated caller. Knowing an order
-        // number and an email is enough to see where the parcel is; it is not
-        // a reason to hand over the Razorpay and Shopify identifiers behind
-        // it, which this page never renders anyway.
-        const { razorpayOrderId: _ro, shopifyOrderId: _so, shiprocketOrderId: _sro, refundId: _rf, ...safe } = full;
-        res.json(safe);
+        // Least privilege for an unauthenticated caller, as a list of what
+        // may go out rather than of what may not.
+        //
+        // This used to strip four internal ids and return everything else —
+        // which included the customer's name, street address and phone
+        // number. An email address is not a secret and order numbers are
+        // sequential, so for a shop with a few dozen orders the thirty tries
+        // this endpoint allows were enough to walk the whole range: knowing
+        // someone's email was knowing where they live.
+        //
+        // Where the parcel is, and what is in it, is what the page is for.
+        // The destination is given as far as the city, which is enough for
+        // the customer to recognise their own order and no use to anyone
+        // else. The full address is on the signed-in order page.
+        const addr = full.shippingAddress || {};
+        res.json({
+            id: full.id,
+            orderNumber: full.orderNumber,
+            status: full.status,
+            shippingMethod: full.shippingMethod,
+            createdAt: full.createdAt,
+            deliveredAt: full.deliveredAt,
+            fulfillmentStatus: full.fulfillmentStatus || null,
+            shipmentStatus: full.shipmentStatus || null,
+            trackingNumber: full.trackingNumber || null,
+            trackingCompany: full.trackingCompany || null,
+            trackingUrl: full.trackingUrl || null,
+            items: (full.items || []).map((i) => ({
+                title: i.title,
+                quantity: i.quantity,
+                image: i.image || null,
+                selectedOptions: i.selectedOptions || [],
+            })),
+            shippingAddress: {
+                city: addr.city || null,
+                state: addr.state || null,
+                zip: addr.zip || null,
+                country: addr.country || null,
+            },
+        });
     } catch (err) {
         console.error('order lookup failed:', err.message);
         res.status(500).json({ error: 'Something went wrong' });

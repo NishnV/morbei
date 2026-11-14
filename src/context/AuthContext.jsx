@@ -9,7 +9,7 @@
 
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import { shopifyFetch } from '../lib/shopify';
-import { authAPI, setToken as setBackendToken, clearToken as clearBackendToken } from '../lib/api';
+import { authAPI, setToken as setBackendToken, clearToken as clearBackendToken, backendSession } from '../lib/api';
 import {
   CUSTOMER_ACCESS_TOKEN_CREATE_MUTATION,
   CUSTOMER_ACCESS_TOKEN_DELETE_MUTATION,
@@ -32,7 +32,22 @@ const TOKEN_EXPIRY_KEY = 'morbei_customer_token_expiry';
 
 // Checkout state to drop on sign-out. Includes the key an older build used, so
 // a blob written before the ownership fix cannot outlive this deploy.
-const CHECKOUT_SESSION_KEYS = ['morbei_checkout_form', 'morbei_checkout_delivery'];
+// The email proof (see lib/api.js) goes with it: it belongs to whoever was
+// using this tab, and that person has just left.
+const CHECKOUT_SESSION_KEYS = ['morbei_checkout_form', 'morbei_checkout_delivery', 'morbei_email_proof'];
+
+/**
+ * Whether the stored backend token needs replacing by an account session.
+ *
+ * Absent, obviously. But also when it is a guest token: a guest who then
+ * signed in kept their guest session, because every exchange was guarded on
+ * the token being absent — so their order history showed only what that one
+ * guest checkout had placed, not the account's.
+ */
+function needsAccountSession() {
+  const current = backendSession();
+  return !current || current.guest || current.expired;
+}
 
 // Renew a Shopify customer session only inside this window before it lapses.
 const RENEW_BEFORE_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
@@ -105,7 +120,10 @@ export function AuthProvider({ children }) {
     // orders and wishlist APIs). Non-blocking — Shopify auth is the source of truth.
     // Skip when one already exists: logout clears it, so a fresh login always
     // re-exchanges, but routine token renewals on page load don't spam the API.
-    if (!localStorage.getItem('morbei_token')) {
+    if (needsAccountSession()) {
+      // Drop a guest token now rather than when the exchange lands, so no
+      // request in between is answered with the guest's narrower view.
+      clearBackendToken();
       authAPI
         .shopifyLogin(accessToken)
         .then((data) => setBackendToken(data.token))
@@ -125,7 +143,7 @@ export function AuthProvider({ children }) {
    * from /order-details on a reload, and they lost the ability to cancel it,
    * while the server-side copy stayed valid for a week regardless.
    */
-  const clearAuth = useCallback(({ keepBackend = false } = {}) => {
+  const clearAuth = useCallback(({ keepBackend = false, keepCheckout = false } = {}) => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     tokenRef.current = null;
@@ -135,9 +153,15 @@ export function AuthProvider({ children }) {
     // outlives a sign-out — so on a shared device the next person to sign in
     // was shown the previous one's details. Checkout also scopes the saved
     // form to its owner, but the data should not linger here at all.
-    CHECKOUT_SESSION_KEYS.forEach((key) => {
-      try { sessionStorage.removeItem(key); } catch { /* blocked — non-critical */ }
-    });
+    //
+    // `keepCheckout` is for the one caller that is not a sign-out: a page
+    // load by someone who was never signed in. Clearing there wiped a guest's
+    // typed address on every refresh.
+    if (!keepCheckout) {
+      CHECKOUT_SESSION_KEYS.forEach((key) => {
+        try { sessionStorage.removeItem(key); } catch { /* blocked — non-critical */ }
+      });
+    }
     setCustomer(null);
   }, []);
 
@@ -185,7 +209,7 @@ export function AuthProvider({ children }) {
       if (!token) {
         // No Shopify token has nothing to say about a guest session, which is
         // issued separately at checkout and is all a guest has.
-        clearAuth({ keepBackend: true });
+        clearAuth({ keepBackend: true, keepCheckout: true });
         setLoading(false);
         return;
       }
@@ -213,8 +237,10 @@ export function AuthProvider({ children }) {
 
         if (renewed) {
           saveToken(renewed.accessToken, renewed.expiresAt);
-        } else if (!localStorage.getItem('morbei_token')) {
-          // Session still valid but not renewed — make sure the backend JWT exists
+        } else if (needsAccountSession()) {
+          // Session still valid but not renewed — make sure the backend JWT
+          // exists, and that it is the account's rather than a guest's.
+          clearBackendToken();
           authAPI
             .shopifyLogin(token)
             .then((data) => setBackendToken(data.token))

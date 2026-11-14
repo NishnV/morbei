@@ -6,6 +6,7 @@ import { track } from '../lib/analytics';
 import './Checkout.css';
 import '../styles/verify.css';
 import { forgetPendingOrder } from '../lib/pendingOrder';
+import { authAPI } from '../lib/api';
 
 const rs = (n) => `RS. ${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -27,15 +28,20 @@ const OrderConfirmed = () => {
      *
      * So this takes a password and nothing else.
      *
-     * It needs no verification code either. Checking out as a guest already
-     * required proving the address by code, and the server remembers that, so
-     * /auth/signup's email gate is satisfied without asking twice.
+     * Usually it needs no verification code either. A guest who entered a
+     * code at checkout holds the proof of it in this tab, and signup sends
+     * that along. A returning guest was not asked for a code this time — the
+     * server remembers their address can receive mail — so they hold no
+     * proof, and are asked for one here: an account is the whole address,
+     * and has to be opened by whoever can read its inbox.
      */
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
     const [busy, setBusy] = useState(false);
     const [accountError, setAccountError] = useState('');
     const [created, setCreated] = useState(false);
+    const [codeFor, setCodeFor] = useState(null);   // the address awaiting a code
+    const [code, setCode] = useState('');
 
     // The cart is cleared here rather than in Checkout: clearing it while still
     // on /checkout trips RequireCart, which redirects to /cart before the
@@ -92,29 +98,71 @@ const OrderConfirmed = () => {
         }
         setBusy(true);
         try {
-            // Everything but the password comes off the order they are
-            // looking at. signUp creates the Shopify customer through our
-            // server — which is what keeps Shopify's own welcome email from
-            // going out — and then signs them in, which is what sends ours.
-            await signUp({
-                email: addr.email,
-                password,
-                firstName: addr.firstName,
-                lastName: addr.lastName,
-                phone: addr.phone || undefined,
-            });
-            setCreated(true);
+            await register();
         } catch (err) {
-            if (err?.status === 409 || err?.message === 'accountExists') {
-                setAccountError('An account already exists with this email — sign in instead.');
-            } else if (err?.status === 428) {
-                // Should not happen: checking out as a guest verified this
-                // address. If it ever does, the full signup page can send a
-                // fresh code, so point there rather than dead-ending.
-                setAccountError('We need to confirm your email again — please use the sign-up page.');
+            if (err?.status === 428) {
+                // No proof held for this address in this tab. Send a code
+                // and ask for it here, rather than sending them away to the
+                // sign-up page to type everything again.
+                await sendSignupCode();
             } else {
-                setAccountError(err?.message || 'Could not create your account.');
+                setAccountError(registerError(err));
             }
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    // Everything but the password comes off the order they are looking at.
+    // signUp creates the Shopify customer through our server — which is what
+    // keeps Shopify's own welcome email from going out — and then signs them
+    // in, which is what sends ours.
+    const register = async () => {
+        await signUp({
+            email: addr.email,
+            password,
+            firstName: addr.firstName,
+            lastName: addr.lastName,
+            phone: addr.phone || undefined,
+        });
+        setCreated(true);
+    };
+
+    const registerError = (err) => {
+        if (err?.status === 409 || err?.message === 'accountExists') {
+            return 'An account already exists with this email — sign in instead.';
+        }
+        if (err?.status === 428) return 'Please confirm your email to finish creating your account.';
+        return err?.message || 'Could not create your account.';
+    };
+
+    const sendSignupCode = async () => {
+        setAccountError('');
+        try {
+            await authAPI.sendCode(addr.email, 'signup');
+            setCodeFor(addr.email);
+        } catch (err) {
+            setAccountError(err?.message || 'Could not send the code. Please try again.');
+        }
+    };
+
+    const confirmCode = async (e) => {
+        e.preventDefault();
+        setAccountError('');
+        if (!/^[0-9]{6}$/.test(code.trim())) {
+            setAccountError('Enter the six digits from the email.');
+            return;
+        }
+        setBusy(true);
+        try {
+            await authAPI.verifyEmail(codeFor, code.trim(), 'signup');
+            setCodeFor(null);
+            setCode('');
+            await register();
+        } catch (err) {
+            setAccountError(err?.status === 428 || err?.status === 409
+                ? registerError(err)
+                : (err?.message || 'That code is not right.'));
         } finally {
             setBusy(false);
         }
@@ -221,6 +269,35 @@ const OrderConfirmed = () => {
                                     we have sent a welcome email to{' '}
                                     <span className="oc-account-email">{addr.email}</span>.
                                 </p>
+                            </>
+                        ) : codeFor ? (
+                            <>
+                                <h2 className="order-confirmed-heading">CONFIRM YOUR EMAIL</h2>
+                                <p className="oc-account-note">
+                                    We sent a six-digit code to{' '}
+                                    <span className="oc-account-email">{codeFor}</span>. Enter it
+                                    to finish creating your account.
+                                </p>
+                                <form className="oc-account-form" onSubmit={confirmCode}>
+                                    <label className="visually-hidden" htmlFor="oc-code">Six-digit code</label>
+                                    <input
+                                        id="oc-code"
+                                        className="checkout-input-v3 co-verify-input"
+                                        value={code}
+                                        onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                                        placeholder="6-DIGIT CODE"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        autoFocus
+                                    />
+                                    <button type="submit" className="co-verify-btn" disabled={busy}>
+                                        {busy ? 'CHECKING…' : 'CONFIRM'}
+                                    </button>
+                                    <button type="button" className="co-verify-link" disabled={busy} onClick={sendSignupCode}>
+                                        SEND IT AGAIN
+                                    </button>
+                                </form>
+                                {accountError && <p className="co-verify-err">{accountError}</p>}
                             </>
                         ) : (
                             <>
