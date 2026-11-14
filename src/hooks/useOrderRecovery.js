@@ -20,10 +20,12 @@ import { ordersAPI, hasRecoverableSession } from '../lib/api';
 import { readPendingOrder, forgetPendingOrder } from '../lib/pendingOrder';
 import { useCart } from './useCart';
 import { useCustomer } from './useCustomer';
+import { getDeliveryOption } from '../data/delivery';
 
 /** Rebuild what the confirmation page expects from a stored order. */
 export function confirmationFromOrder(order) {
-    const shippingCost = order.shippingMethod === 'priority' ? 200 : 0;
+    // The price list, not a literal: this had its own copy of the ₹200.
+    const shippingCost = getDeliveryOption(order.shippingMethod).priceRupees || 0;
     return {
         orderId: order.id,
         orderNumber: order.orderNumber,

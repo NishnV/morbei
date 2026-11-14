@@ -283,10 +283,12 @@
     margin: 0;
 }
 
+/* Greys below were #333–#666 on black, 1.7:1 to 3.7:1 — unreadable on a
+   phone in daylight. --text-muted is 5.9:1 and still plainly secondary. */
 .login-hint {
     font-size: 0.75rem;
     letter-spacing: 0.05em;
-    color: #666;
+    color: var(--text-muted);
     text-transform: none;
 }
 
@@ -350,7 +352,8 @@
 }
 
 .checkout-input-v3::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    /* The placeholder is the only visible label these fields have. */
+    color: rgba(255, 255, 255, 0.6);
     font-weight: 400;
     text-transform: uppercase;
 }
@@ -390,7 +393,7 @@ select.checkout-input-v3 option {
 .delivery-info-header span {
     font-size: 0.75rem;
     letter-spacing: 0.12em;
-    color: #444;
+    color: var(--text-muted);
 }
 
 .edit-btn {
@@ -475,7 +478,7 @@ select.checkout-input-v3 option {
 
 .option-desc {
     font-size: 0.75rem;
-    color: #444;
+    color: var(--text-muted);
     letter-spacing: 0.05em;
     text-transform: none;
 }
@@ -491,7 +494,7 @@ select.checkout-input-v3 option {
     text-align: right;
     font-size: 0.65rem;
     letter-spacing: 0.08em;
-    color: #333;
+    color: var(--text-muted);
     text-transform: lowercase;
 }
 
@@ -770,7 +773,7 @@ select.checkout-input-v3 option {
 .order-item-sub {
     font-size: 0.7rem;
     letter-spacing: 0.12em;
-    color: #444;
+    color: var(--text-muted);
 }
 
 .cancel-order-btn {
@@ -875,7 +878,7 @@ select.checkout-input-v3 option {
     margin-top: 1.5rem;
     font-size: 0.55rem;
     letter-spacing: 0.12em;
-    color: #333;
+    color: var(--text-muted);
     text-align: center;
     width: 80px;
     line-height: 1.4;
@@ -961,7 +964,7 @@ select.checkout-input-v3 option {
 .order-confirmed-note {
     font-size: 0.7rem;
     letter-spacing: 0.12em;
-    color: #666;
+    color: var(--text-muted);
     line-height: 1.9;
     max-width: 460px;
 }
@@ -1726,4 +1729,46 @@ select.checkout-input-v3 option {
     .oc-account { padding: 1.25rem; }
     .oc-account-form .checkout-input-v3,
     .oc-account-form .co-verify-btn { flex: 1 1 100%; }
+}
+
+/* ============================================================
+   Phones — touch targets on the way to paying.
+   Last in the file so it wins over the tier blocks above. The buttons that
+   move a shopper through checkout were 26px tall with 7.7px labels; 44px is
+   the smallest target a thumb reliably hits. The page already leaves
+   120–150px under the content for the fixed footer, so the taller bar
+   covers nothing.
+   ============================================================ */
+@media (--phone) {
+    .checkout-next-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        font-size: 0.8rem;
+    }
+
+    .go-back-link,
+    .edit-btn,
+    .co-verify-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
+
+    .go-back-link {
+        font-size: 0.75rem;
+    }
+
+    .co-verify-btn {
+        min-height: 44px;
+    }
+
+    .razorpay-pay-btn {
+        min-height: 48px;
+    }
+
+    .delivery-option-item {
+        min-height: 44px;
+    }
 }

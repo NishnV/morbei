@@ -1111,3 +1111,48 @@
         border: none;
     }
 }
+
+/* ============================================================
+   Phones — touch targets in the bag.
+   Last in the file, and !important where the --phone-sm block above is,
+   because that block pins these to the Figma numbers with !important: a
+   54×15px stepper with 18px segments, and a 31px checkout button with a 9px
+   label. Those read well in a mockup and cannot be hit with a thumb — the
+   minus and plus sat 18px apart. This departs from the Figma sizes on
+   purpose; the proportions are kept.
+   ============================================================ */
+@media (--phone) {
+    .cart-card-qty {
+        height: 28px !important;
+    }
+
+    .cart-card-qty button {
+        position: relative;
+        width: 32px !important;
+        font-size: 13px !important;
+    }
+
+    /* The drawn segment stays 28px tall; the area that takes the tap is 44. */
+    .cart-card-qty button::after {
+        content: '';
+        position: absolute;
+        inset: -8px 0;
+    }
+
+    .cart-card-qty span {
+        width: 30px !important;
+        font-size: 12px !important;
+    }
+
+    .cart-checkout-btn {
+        height: 44px;
+        line-height: 44px;
+        font-size: 11px !important;
+    }
+
+    /* The fixed summary is 13px taller with that button; keep the last card
+       clear of it. */
+    .cart-main {
+        padding-bottom: 326px !important;
+    }
+}

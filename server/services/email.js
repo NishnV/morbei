@@ -81,9 +81,10 @@ function thumb(url, width = 160) {
 
 const rupees = (n) => `RS. ${Number(n || 0).toLocaleString('en-IN')}`;
 
-// Standard is free and slow, priority is paid and quick. The confirmation
-// page quotes 7–14 days whatever was chosen, which is wrong for priority.
-const DELIVERY_ESTIMATE = { standard: '7–14 DAYS', priority: '3–5 DAYS' };
+// Standard is free and slow, priority is paid and quick. Must match
+// DELIVERY_OPTIONS in src/data/delivery.js, which is what checkout, the
+// Shipping policy and the FAQ all read — business days, order to doorstep.
+const DELIVERY_ESTIMATE = { standard: '7–14 BUSINESS DAYS', priority: '3–5 BUSINESS DAYS' };
 
 /** Variant options as one line: "IVORY / M". */
 function lineOptions(l) {

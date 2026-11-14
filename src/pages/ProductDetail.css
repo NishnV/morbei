@@ -2305,3 +2305,30 @@
         background: none;
     }
 }
+
+/* ============================================================
+   Phones — touch targets for choosing a size and adding to bag.
+   Last in the file so it wins over the phone layout above.
+
+   The size overlay is the only way to buy on a phone, and each size was a
+   bare word about 13px tall with 25px of dead space between them. The same
+   spacing now belongs to the sizes themselves: rows 36px tall and most of
+   the overlay wide, with no gap, so the list looks as it did and a tap
+   anywhere on a row picks that size. 36 rather than 44 because six sizes
+   have to fit in the lower half of the image above the size-guide bar.
+   ============================================================ */
+@media (--phone) {
+    .pd-mobile-product-sizes {
+        gap: 0;
+    }
+
+    .pd-mobile-product-sizes .pd-size-item {
+        min-height: 36px;
+        min-width: 70%;
+    }
+
+    .pd-add-bag-btn {
+        min-height: 44px;
+        font-size: 0.75rem;
+    }
+}

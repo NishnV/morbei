@@ -1426,3 +1426,15 @@ heart, circle - done
 polygon - equilateral - centered - slider-arrow
 size weight reduction - .size-btn
 */
+
+/* Mobile design — the bar's icons are 28px tall in a bar 32–36px high, and
+   stay that way. What grows is the area that takes the tap, by a transparent
+   box around each icon: 44px tall, and wider by less than half the gap
+   between icons so neighbours cannot overlap. */
+@media (--mobile) {
+    .nav-icon-btn::after {
+        content: '';
+        position: absolute;
+        inset: -8px -7px;
+    }
+}

@@ -1,5 +1,12 @@
 import React from 'react';
 import './Shipping.css';
+import { DELIVERY_OPTIONS, deliveryWindow, deliveryPrice } from '../data/delivery';
+
+// Times and prices come from data/delivery.js, which is what checkout shows
+// and what the server charges. This page used to state its own, and they had
+// drifted: a ₹9,900 free-shipping threshold nobody was charged against, and
+// by-region times that did not match the options offered at checkout.
+const { standard, priority } = DELIVERY_OPTIONS;
 
 const Shipping = () => {
     return (
@@ -12,8 +19,10 @@ const Shipping = () => {
             <section className="sp-section">
                 <h2 className="sp-section-title">When will my order be processed?</h2>
                 <p className="sp-body">
-                    All orders are processed after successful payment confirmation. Orders are
-                    generally prepared and dispatched within 3–5 business days.
+                    All orders are processed after successful payment confirmation, and are
+                    prepared and dispatched as soon as possible. The delivery estimates below
+                    are counted from the day you place your order, and include this
+                    preparation time.
                 </p>
                 <p className="sp-body">
                     Orders placed on weekends, public holidays, or outside regular business hours
@@ -31,12 +40,14 @@ const Shipping = () => {
             <section className="sp-section">
                 <h2 className="sp-section-title">How long does shipping take?</h2>
                 <p className="sp-body">
-                    Delivery times vary depending on your shipping destination.
+                    Delivery time depends on the delivery option you choose at checkout.
                 </p>
                 <p className="sp-body">Within India</p>
-                <p className="sp-body">– Metro Cities: Approximately 3–5 business days</p>
-                <p className="sp-body">– Other Cities &amp; Towns: Approximately 4–8 business days</p>
-                <p className="sp-body">– Remote or Rural Locations: Approximately 5–10 business days</p>
+                <p className="sp-body">– Standard: Approximately {deliveryWindow(standard)}</p>
+                <p className="sp-body">– Priority: Approximately {deliveryWindow(priority)}</p>
+                <p className="sp-body">
+                    Both are counted from the day your order is placed to the day it reaches you.
+                </p>
                 <p className="sp-body">
                     These delivery timelines are estimates only and are not guaranteed. Actual
                     delivery may vary depending on courier operations, weather conditions,
@@ -58,12 +69,12 @@ const Shipping = () => {
             <section className="sp-section">
                 <h2 className="sp-section-title">How much does shipping cost?</h2>
                 <p className="sp-body">
-                    We offer complimentary standard shipping on all domestic orders with a
-                    purchase value of ₹9,900 or above.
+                    We offer complimentary standard shipping on all domestic orders, with no
+                    minimum purchase value.
                 </p>
                 <p className="sp-body">
-                    Orders below the free shipping threshold will incur a shipping charge, which
-                    will be calculated and displayed during checkout before payment is completed.
+                    Priority shipping is available at checkout for {deliveryPrice(priority)}. Any
+                    shipping charge is displayed during checkout before payment is completed.
                 </p>
             </section>
 
