@@ -109,14 +109,31 @@ jobs:
   audit:
     name: Dependency advisories
     runs-on: ubuntu-latest
-    # Reports rather than blocks: a new advisory on a transitive dependency
-    # should not stop a fix from shipping, but it should be visible.
-    continue-on-error: true
+    # Blocks on a high or critical advisory in anything that ships: the
+    # storefront bundle's dependencies and everything the server runs.
+    #
+    # This job used to report without blocking, on the reasoning that a new
+    # advisory should not stop a fix from shipping. In practice a job that is
+    # allowed to fail is a job nobody opens: nine advisories, two of them
+    # critical, sat here with fixes available and a green tick beside them.
+    #
+    # Build-only tooling (eslint, vite and what they pull in) still reports
+    # without blocking, in the last two steps. It never reaches a customer,
+    # and that is where an advisory with no fix yet is most likely to appear.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - run: npm audit --audit-level=high
-      - run: npm audit --audit-level=high
+      - name: Storefront — shipped dependencies (blocking)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Server — shipped dependencies (blocking)
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: server
+      - name: Storefront — build tooling (report only)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - name: Server — build tooling (report only)
+        run: npm audit --audit-level=high
+        continue-on-error: true
         working-directory: server
