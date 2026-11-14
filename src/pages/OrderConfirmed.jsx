@@ -1,8 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
+import { useCustomer } from '../hooks/useCustomer';
 import { track } from '../lib/analytics';
 import './Checkout.css';
+import '../styles/verify.css';
 import { forgetPendingOrder } from '../lib/pendingOrder';
 
 const rs = (n) => `RS. ${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
@@ -10,7 +12,30 @@ const rs = (n) => `RS. ${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 const OrderConfirmed = () => {
     const location = useLocation();
     const { clearCart } = useCart();
+    const { customer, signUp } = useCustomer();
     const order = location.state?.order;
+
+    /**
+     * Turning the guest who just paid into an account holder.
+     *
+     * The moment after an order is placed is the only one where an account is
+     * obviously worth having — it is where they will come back to look for
+     * tracking — and it is also the one moment where we already know
+     * everything a signup form would ask for. Their name, email and phone are
+     * on the order in front of them, so asking for them again is asking a
+     * customer to type what we are already showing them.
+     *
+     * So this takes a password and nothing else.
+     *
+     * It needs no verification code either. Checking out as a guest already
+     * required proving the address by code, and the server remembers that, so
+     * /auth/signup's email gate is satisfied without asking twice.
+     */
+    const [password, setPassword] = useState('');
+    const [confirm, setConfirm] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [accountError, setAccountError] = useState('');
+    const [created, setCreated] = useState(false);
 
     // The cart is cleared here rather than in Checkout: clearing it while still
     // on /checkout trips RequireCart, which redirects to /cart before the
@@ -52,8 +77,50 @@ const OrderConfirmed = () => {
         return <Navigate to="/order-details" replace />;
     }
 
-    const items = order.items || [];
     const addr = order.shippingAddress || {};
+
+    const createAccount = async (e) => {
+        e.preventDefault();
+        setAccountError('');
+        if (password.length < 8) {
+            setAccountError('Please choose a password of at least 8 characters.');
+            return;
+        }
+        if (password !== confirm) {
+            setAccountError('Those two passwords are not the same.');
+            return;
+        }
+        setBusy(true);
+        try {
+            // Everything but the password comes off the order they are
+            // looking at. signUp creates the Shopify customer through our
+            // server — which is what keeps Shopify's own welcome email from
+            // going out — and then signs them in, which is what sends ours.
+            await signUp({
+                email: addr.email,
+                password,
+                firstName: addr.firstName,
+                lastName: addr.lastName,
+                phone: addr.phone || undefined,
+            });
+            setCreated(true);
+        } catch (err) {
+            if (err?.status === 409 || err?.message === 'accountExists') {
+                setAccountError('An account already exists with this email — sign in instead.');
+            } else if (err?.status === 428) {
+                // Should not happen: checking out as a guest verified this
+                // address. If it ever does, the full signup page can send a
+                // fresh code, so point there rather than dead-ending.
+                setAccountError('We need to confirm your email again — please use the sign-up page.');
+            } else {
+                setAccountError(err?.message || 'Could not create your account.');
+            }
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const items = order.items || [];
     const deliveryLabel = order.deliveryMethod === 'priority' ? 'PRIORITY' : 'STANDARD';
 
     return (
@@ -140,6 +207,59 @@ const OrderConfirmed = () => {
                         </div>
                     </aside>
                 </div>
+
+                {/* Offered to a guest only. `|| created` keeps the panel on
+                    screen after signing in, which sets `customer` — without it
+                    the confirmation they just earned vanishes mid-sentence. */}
+                {(!customer || created) && (
+                    <section className="oc-account reveal reveal-up">
+                        {created ? (
+                            <>
+                                <h2 className="order-confirmed-heading">ACCOUNT CREATED</h2>
+                                <p className="oc-account-note">
+                                    You are signed in. This order is in your order history, and
+                                    we have sent a welcome email to{' '}
+                                    <span className="oc-account-email">{addr.email}</span>.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="order-confirmed-heading">SAVE YOUR DETAILS</h2>
+                                <p className="oc-account-note">
+                                    Choose a password and this order, your address and your
+                                    wishlist are kept for next time. We already have the rest
+                                    from this order{addr.email ? <> — <span className="oc-account-email">{addr.email}</span></> : null}.
+                                </p>
+                                <form className="oc-account-form" onSubmit={createAccount}>
+                                    <label className="visually-hidden" htmlFor="oc-pw">Password</label>
+                                    <input
+                                        id="oc-pw"
+                                        className="checkout-input-v3"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        placeholder="PASSWORD"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                    <label className="visually-hidden" htmlFor="oc-pw2">Confirm password</label>
+                                    <input
+                                        id="oc-pw2"
+                                        className="checkout-input-v3"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        placeholder="CONFIRM PASSWORD"
+                                        value={confirm}
+                                        onChange={(e) => setConfirm(e.target.value)}
+                                    />
+                                    <button type="submit" className="co-verify-btn" disabled={busy}>
+                                        {busy ? 'CREATING…' : 'CREATE ACCOUNT'}
+                                    </button>
+                                </form>
+                                {accountError && <p className="co-verify-err">{accountError}</p>}
+                            </>
+                        )}
+                    </section>
+                )}
 
                 {/* Actions */}
                 <div className="order-confirmed-actions reveal reveal-up">

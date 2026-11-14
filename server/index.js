@@ -15,7 +15,7 @@ import adminRoutes from './routes/admin.js';
 import wishlistRoutes from './routes/wishlist.js';
 import { notifySlackError } from './services/slack.js';
 import { startReconciler } from './services/reconcile.js';
-import { checkWelcomeOffer } from './services/discount.js';
+import { checkWelcomeOffer, welcomeOffer } from './services/discount.js';
 import { verifyMail, mailTarget } from './services/mailer.js';
 
 const app = express();
@@ -193,7 +193,15 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.get('/api/health/ready', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ status: 'ok', db: 'ok' });
+    // Whether the welcome email's discount line is going out, which is
+    // otherwise only visible in the boot log. Status, never the code itself:
+    // this endpoint is public, and a discount code published on it is a
+    // discount code anyone can find without ever opening an email.
+    let welcomeDiscount = 'off';
+    if (process.env.WELCOME_DISCOUNT_CODE?.trim()) {
+      welcomeDiscount = (await welcomeOffer()) ? 'active' : 'misconfigured';
+    }
+    res.json({ status: 'ok', db: 'ok', welcomeDiscount });
   } catch (err) {
     console.error('Readiness check failed:', err.message);
     res.status(503).json({ status: 'degraded', db: 'unreachable' });

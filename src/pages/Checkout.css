@@ -1691,3 +1691,39 @@ select.checkout-input-v3 option {
         padding-right: 1.2rem;
     }
 }
+
+/* Turning the guest who just paid into an account holder.
+   Sits after the order summary, not before it: the order is what they came
+   to see, and an offer above it reads as a gate in front of their receipt. */
+.oc-account {
+    margin: 2.5rem 0 0;
+    padding: 1.75rem;
+    border: 0.5px solid rgba(255, 255, 255, 0.18);
+}
+
+.oc-account-note {
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    line-height: 1.8;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0.75rem 0 1.25rem;
+    max-width: 48ch;
+}
+
+/* The address is shown back to them, so it must read exactly as they typed it. */
+.oc-account-email { text-transform: none; color: #fff; }
+
+.oc-account-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.oc-account-form .checkout-input-v3 { flex: 1 1 200px; min-width: 0; }
+
+@media (--mobile) {
+    .oc-account { padding: 1.25rem; }
+    .oc-account-form .checkout-input-v3,
+    .oc-account-form .co-verify-btn { flex: 1 1 100%; }
+}

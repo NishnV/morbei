@@ -50,6 +50,7 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 import ErrorBoundary from './components/ErrorBoundary';
 import ConsentBanner from './components/ConsentBanner';
 import { useCustomer } from './hooks/useCustomer';
+import { hasRecoverableSession } from './lib/api';
 import { useCart } from './hooks/useCart';
 import { useOrderRecovery } from './hooks/useOrderRecovery';
 import { track } from './lib/analytics';
@@ -91,10 +92,24 @@ const ShopWrapper = () => {
   return <Shop category={category?.toUpperCase()} />;
 };
 
+/**
+ * A session of any kind — a Shopify account, or a guest's backend token.
+ *
+ * This used to require a Shopify customer, which predates guest checkout and
+ * quietly broke it: a guest who had just paid had a backend session but no
+ * Shopify customer, so /order-confirmed bounced them to the sign-in page
+ * instead of their confirmation. They lost the order summary, the Purchase
+ * event never fired, and the cart was never cleared — all three happen on
+ * that page. Their order history did the same thing, despite the backend
+ * being built to serve exactly that case.
+ *
+ * hasRecoverableSession covers both: a backend JWT, or a Shopify token that
+ * can still be exchanged for one.
+ */
 const RequireAuth = ({ children }) => {
   const { customer, loading } = useCustomer();
   if (loading) return null;
-  if (!customer) return <Navigate to="/profile" replace />;
+  if (!customer && !hasRecoverableSession()) return <Navigate to="/profile" replace />;
   return children;
 };
 
