@@ -109,31 +109,38 @@ jobs:
   audit:
     name: Dependency advisories
     runs-on: ubuntu-latest
-    # Blocks on a high or critical advisory in anything that ships: the
-    # storefront bundle's dependencies and everything the server runs.
+    # Blocks on a high or critical advisory anywhere in either app's
+    # dependency tree.
     #
     # This job used to report without blocking, on the reasoning that a new
     # advisory should not stop a fix from shipping. In practice a job that is
     # allowed to fail is a job nobody opens: nine advisories, two of them
     # critical, sat here with fixes available and a green tick beside them.
     #
-    # Build-only tooling (eslint, vite and what they pull in) still reports
-    # without blocking, in the last two steps. It never reaches a customer,
-    # and that is where an advisory with no fix yet is most likely to appear.
+    # devDependencies are included, deliberately. A first version of this
+    # blocked only on --omit=dev and let build tooling report without
+    # failing, on the grounds that it "never reaches a customer". That holds
+    # for a server and is backwards for a storefront: vite, its React plugin
+    # and the postcss plugins are devDependencies, and they generate the
+    # bundle every visitor downloads. A compromised build plugin writes
+    # production JavaScript. For a frontend the build chain is, if anything,
+    # the more dangerous half.
+    #
+    # The cost is that an advisory with no fix yet in, say, eslint turns this
+    # red. That is the intended outcome: someone reads it and decides, rather
+    # than nobody reading it at all.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - name: Storefront — shipped dependencies (blocking)
-        run: npm audit --omit=dev --audit-level=high
-      - name: Server — shipped dependencies (blocking)
-        run: npm audit --omit=dev --audit-level=high
-        working-directory: server
-      - name: Storefront — build tooling (report only)
+      - name: Storefront — runtime and build dependencies
         run: npm audit --audit-level=high
-        continue-on-error: true
-      - name: Server — build tooling (report only)
+      # Runs whether or not the step above failed. By default a failed step
+      # skips everything after it, so a storefront advisory would have hidden
+      # the server's result on the very run where both needed reading.
+      # !cancelled() rather than always(), so a cancelled run still stops.
+      - name: Server — all dependencies
+        if: ${{ !cancelled() }}
         run: npm audit --audit-level=high
-        continue-on-error: true
         working-directory: server
