@@ -1,44 +1,38 @@
 import React, { useMemo, useState } from 'react';
 import './SupportPage.css';
+import { DELIVERY_OPTIONS, deliveryWindow, deliveryPrice, RETURN_WINDOW_DAYS } from '../data/delivery';
 
 /**
  * FAQ.
  *
- * Answers are the brand's own approved wording, used verbatim. They are not
- * derived from src/data/delivery.js, and two of them currently disagree with
- * it — deliberately, because this copy is the policy and the code is what has
- * drifted:
+ * The shipping and returns figures come from src/data/delivery.js, the same
+ * source checkout reads. For a while they did not: this page and the Shipping
+ * policy said shipping was free only above Rs. 9,900 and gave delivery times
+ * by region, while checkout charged nothing and offered 7-14 and 3-5 days.
+ * The owners settled it in checkout's favour, so there is now one statement
+ * of each number and these answers cannot drift from what is charged.
  *
- *   - Shipping time. This says 3-5 / 4-8 / 5-10 business days by region, which
- *     matches the Shipping policy page. delivery.js still offers STANDARD as
- *     7-14 business days, and that is what checkout shows.
- *   - Shipping cost. This says standard shipping is free at Rs. 9,900 and
- *     charged below it. delivery.js sets standard to priceRupees: 0 with no
- *     threshold, and SHIPPING_COST_RUPEES in server/routes/payment.js is what
- *     the customer is actually charged — so today nobody is charged.
- *
- * Fixing that means changing the money path, so it is not done here. Until it
- * is, this page states the intended policy and checkout does something else.
+ * Everything else is the brand's own approved wording, used verbatim.
  */
+const { standard, priority } = DELIVERY_OPTIONS;
 
 const FAQS = [
     {
         question: 'HOW LONG DOES SHIPPING TAKE?',
-        answer: 'Shipping typically takes 3\u20135 business days for metro cities, 4\u20138 business '
-            + 'days for other cities and towns, and 5\u201310 business days for remote or rural '
-            + 'areas. Delivery times are estimates and may vary due to courier operations, '
+        answer: `Standard delivery typically takes ${deliveryWindow(standard)} and priority `
+            + `delivery ${deliveryWindow(priority)}, counted from the day you place your order. `
+            + 'Delivery times are estimates and may vary due to courier operations, '
             + 'weather, public holidays, or unforeseen circumstances.',
     },
     {
         question: 'HOW MUCH DOES SHIPPING COST?',
-        answer: 'We offer complimentary standard shipping on all domestic orders with a purchase '
-            + 'value of \u20b99,900 or above. Orders below the free shipping threshold will incur a '
-            + 'shipping charge, which will be calculated and displayed during checkout before '
-            + 'payment is completed.',
+        answer: 'We offer complimentary standard shipping on all domestic orders, with no minimum '
+            + `purchase value. Priority shipping is available at checkout for ${deliveryPrice(priority)}. `
+            + 'Any shipping charge is displayed during checkout before payment is completed.',
     },
     {
         question: 'CAN I RETURN OR EXCHANGE MY ORDER?',
-        answer: 'Returns and exchanges can be requested within 7 days of receiving your order. '
+        answer: `Returns and exchanges can be requested within ${RETURN_WINDOW_DAYS} days of receiving your order. `
             + 'Items must be unused, unwashed, unworn, and in their original condition with all '
             + 'tags and packaging intact. Products damaged due to misuse, washing, or normal wear '
             + 'and tear are not eligible. Clearance, promotional, and Final Sale items are '
@@ -46,7 +40,7 @@ const FAQS = [
     },
     {
         question: 'HOW DO I REQUEST A RETURN OR EXCHANGE?',
-        answer: 'To request a return or exchange, contact us within 7 days of receiving your order '
+        answer: `To request a return or exchange, contact us within ${RETURN_WINDOW_DAYS} days of receiving your order `
             + 'at info@morbei.com with your order number and the reason for the request. Once your '
             + 'request is reviewed and approved, we\u2019ll share the next steps for returning your '
             + 'item.',

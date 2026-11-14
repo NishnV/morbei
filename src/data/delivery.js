@@ -7,7 +7,12 @@
 // different free-shipping thresholds that no code implemented, and a hardcoded
 // 7-14 day estimate shown even when the customer paid for 3-5 day priority.
 //
-// Anything customer-facing about delivery reads from here.
+// Anything customer-facing about delivery reads from here — including the
+// Shipping policy page and the FAQ, which for a while stated a different
+// policy (free only above ₹9,900, and dispatch-plus-transit times by region)
+// from the one checkout applied. The owners settled it on 14 Nov 2026:
+// standard is free on every order, and the windows below are the promise,
+// counted from the day of the order to the day it arrives.
 // `priceRupees` must match SHIPPING_COST_RUPEES in server/routes/payment.js —
 // that constant is what the customer is actually charged.
 
@@ -38,7 +43,20 @@ export function getDeliveryOption(method) {
     return DELIVERY_OPTIONS[method] || DELIVERY_OPTIONS.standard;
 }
 
-/** Human-readable window, e.g. "7-14 business days". */
+/** Human-readable window, e.g. "7–14 business days". Order to doorstep. */
 export function deliveryWindow(option) {
-    return `${option.minDays}-${option.maxDays} business days`;
+    return `${option.minDays}–${option.maxDays} business days`;
 }
+
+/** A delivery price as the policy pages write it: "₹200". */
+export function deliveryPrice(option) {
+    return `₹${option.priceRupees.toLocaleString('en-IN')}`;
+}
+
+// How long after delivery a return or exchange may be requested.
+//
+// The product page and the returns page's share preview both said 14 while
+// the policy, the FAQ, the delivery email and the server all said 7. The
+// server is what enforces it — RETURN_WINDOW_DAYS in server/routes/returns.js
+// — so this must match that, and anything customer-facing reads from here.
+export const RETURN_WINDOW_DAYS = 7;
