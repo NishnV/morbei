@@ -1641,3 +1641,15 @@
     background: #fff;
     color: #000;
 }
+
+/* Mobile design — the bookmark on a product card is drawn about 10×17px
+   inside a 16×22 button. The drawing is unchanged; the button takes taps
+   over a 44px box, reaching mostly inwards and to the left so it never
+   spills onto the next card. */
+@media (--mobile) {
+    .product-footer .wishlist-black::after {
+        content: '';
+        position: absolute;
+        inset: -11px -6px -11px -22px;
+    }
+}

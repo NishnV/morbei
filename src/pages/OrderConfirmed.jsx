@@ -7,6 +7,7 @@ import './Checkout.css';
 import '../styles/verify.css';
 import { forgetPendingOrder } from '../lib/pendingOrder';
 import { authAPI } from '../lib/api';
+import { getDeliveryOption, deliveryWindow } from '../data/delivery';
 
 const rs = (n) => `RS. ${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -250,7 +251,10 @@ const OrderConfirmed = () => {
                             <h2 className="order-confirmed-heading">DELIVERY</h2>
                             <div className="address-details">
                                 <strong>{deliveryLabel}</strong>
-                                <p>ESTIMATED 7–14 DAYS</p>
+                                {/* By the option they paid for. This said 7–14 days
+                                    whatever was chosen, including to a customer who
+                                    had just paid for 3–5. */}
+                                <p>ESTIMATED {deliveryWindow(getDeliveryOption(order.deliveryMethod)).toUpperCase()}</p>
                             </div>
                         </div>
                     </aside>

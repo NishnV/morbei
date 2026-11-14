@@ -94,7 +94,10 @@ const STATIC_ROUTES = [
     { path: '/contact', title: 'CONTACT | MORBEI', description: 'Get in touch with MORBEI.' },
     { path: '/faqs', title: 'FAQ | MORBEI', description: 'Answers to common questions about MORBEI orders, shipping and returns.' },
     { path: '/shipping', title: 'SHIPPING | MORBEI', description: 'Free standard shipping on all domestic orders within India.' },
-    { path: '/returns', title: 'RETURNS | MORBEI', description: 'MORBEI returns and exchanges — 14 days from delivery.' },
+    // Seven, as the policy says and the server enforces (RETURN_WINDOW_DAYS in
+    // src/data/delivery.js and server/routes/returns.js). This said 14, and it
+    // is the line a shared link to the returns page shows.
+    { path: '/returns', title: 'RETURNS | MORBEI', description: 'MORBEI returns and exchanges — 7 days from delivery.' },
 ];
 
 let written = 0;
