@@ -1,5 +1,6 @@
 import { SHOPIFY_API_VERSION } from './shopify-version.js';
 import { notifySlackError } from './slack.js';
+import { adminToken } from './shopify-token.js';
 
 /**
  * Is the welcome email's discount code real?
@@ -50,7 +51,7 @@ export async function welcomeOffer() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Shopify-Access-Token': process.env.SHOPIFY_ADMIN_TOKEN,
+                    'X-Shopify-Access-Token': await adminToken(),
                 },
                 body: JSON.stringify({
                     query: `query($code: String!) { codeDiscountNodeByCode(code: $code) { codeDiscount {

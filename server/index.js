@@ -16,6 +16,8 @@ import wishlistRoutes from './routes/wishlist.js';
 import { notifySlackError } from './services/slack.js';
 import { startReconciler } from './services/reconcile.js';
 import { checkWelcomeOffer, welcomeOffer } from './services/discount.js';
+import { adminToken, tokenStatus } from './services/shopify-token.js';
+import { SHOPIFY_API_VERSION } from './services/shopify-version.js';
 import { verifyMail, mailTarget } from './services/mailer.js';
 
 const app = express();
@@ -29,10 +31,23 @@ const REQUIRED_ENV = [
   'RAZORPAY_KEY_ID',
   'RAZORPAY_KEY_SECRET',
   'SHOPIFY_STORE_DOMAIN',
-  'SHOPIFY_ADMIN_TOKEN',
   'SHOPIFY_STOREFRONT_TOKEN',
 ];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+
+// Admin access comes either from client credentials, which the server
+// exchanges for a fresh token whenever it needs one, or from a token pasted
+// into SHOPIFY_ADMIN_TOKEN. The pasted kind expires after 24 hours on this
+// app and has taken checkout down once already, so it is accepted but
+// complained about rather than listed as the requirement.
+if (!(process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET)) {
+  if (!process.env.SHOPIFY_ADMIN_TOKEN) missing.push('SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET (or SHOPIFY_ADMIN_TOKEN)');
+  else console.warn(
+    'Using SHOPIFY_ADMIN_TOKEN. This app issues tokens that expire every 24 hours, so this '
+    + 'will stop working within a day and take checkout with it. Set SHOPIFY_CLIENT_ID and '
+    + 'SHOPIFY_CLIENT_SECRET instead and the server will keep its own token current.'
+  );
+}
 if (missing.length > 0) {
   console.error(`Missing required environment variables: ${missing.join(', ')}`);
   process.exit(1);
@@ -201,7 +216,22 @@ app.get('/api/health/ready', async (_req, res) => {
     if (process.env.WELCOME_DISCOUNT_CODE?.trim()) {
       welcomeDiscount = (await welcomeOffer()) ? 'active' : 'misconfigured';
     }
-    res.json({ status: 'ok', db: 'ok', welcomeDiscount });
+    // Shopify is as load-bearing as Postgres here — checkout prices every
+    // cart against the Admin API — and its credential expires daily on this
+    // app. A readiness check that says 'ok' while that is dead is the check
+    // that let a day-long checkout outage go unnoticed.
+    let shopify = 'ok';
+    try {
+      const r = await fetch(
+        `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/shop.json?fields=id`,
+        { headers: { 'X-Shopify-Access-Token': await adminToken() } }
+      );
+      if (!r.ok) shopify = r.status === 401 ? 'unauthorised' : `error ${r.status}`;
+    } catch {
+      shopify = 'unreachable';
+    }
+    const body = { status: shopify === 'ok' ? 'ok' : 'degraded', db: 'ok', shopify, auth: tokenStatus(), welcomeDiscount };
+    res.status(shopify === 'ok' ? 200 : 503).json(body);
   } catch (err) {
     console.error('Readiness check failed:', err.message);
     res.status(503).json({ status: 'degraded', db: 'unreachable' });

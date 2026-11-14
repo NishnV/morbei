@@ -1,20 +1,31 @@
 import { SHOPIFY_API_VERSION, warnOnVersionMismatch } from './shopify-version.js';
+import { adminToken, forgetAdminToken, canMintTokens } from './shopify-token.js';
 import { notifySlackError } from './slack.js';
 
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
-const ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
 
-async function adminFetch(endpoint, options = {}) {
+async function adminFetch(endpoint, options = {}, isRetry = false) {
     const url = `https://${SHOPIFY_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/${endpoint}`;
     const res = await fetch(url, {
         ...options,
         headers: {
             'Content-Type': 'application/json',
-            'X-Shopify-Access-Token': ADMIN_TOKEN,
+            'X-Shopify-Access-Token': await adminToken(),
             ...options.headers,
         },
     });
     warnOnVersionMismatch(res, endpoint);
+
+    // Shopify can reject a token before our own clock expects it to lapse —
+    // a rotated secret, a reinstall, a changed install. One retry with a
+    // freshly minted token turns what used to be a day-long outage into a
+    // extra round trip nobody notices.
+    if (res.status === 401 && !isRetry && canMintTokens) {
+        console.warn(`Shopify rejected the Admin token on ${endpoint}; minting a new one and retrying.`);
+        forgetAdminToken();
+        return adminFetch(endpoint, options, true);
+    }
+
     if (!res.ok) {
         const text = await res.text();
         // Carry the status on the error. Callers that need to tell "this is
