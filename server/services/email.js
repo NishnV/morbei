@@ -169,12 +169,23 @@ function shell({ title, eyebrow, heading, intro = '', body = '', cta, media = ''
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a0a0a" class="bg-d"
        background="${SITE_URL}/email-bg.png"
        style="background-color:#0a0a0a;background-image:url('${SITE_URL}/email-bg.png');background-repeat:repeat;margin:0;padding:0;">
-  <tr><td align="center" style="padding:0;">
+  <tr><td align="center" bgcolor="#0a0a0a" class="bg-d" style="padding:0;background-color:#0a0a0a;">
     <!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
     <!-- Fluid, capped at 600. A fixed 600 runs off the side of a phone and
          takes the price column with it, and these are read on phones.
-         Outlook ignores max-width, hence the conditional table above. -->
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+         Outlook ignores max-width, hence the conditional table above.
+    
+         It carries the dark ground itself rather than letting the outer
+         table show through. Transparent, it was readable only for as long
+         as something behind it stayed dark — and in Gmail's Android dark
+         mode nothing did: the pass painted this column light, the rules
+         above dutifully forced .c-w back to white, and white text landed on
+         a white card. Greys survived, so the mail looked merely faded while
+         every white element vanished. A verification code is a .c-w
+         heading, which made it invisible; it was still legible only because
+         it is also in the subject line. -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+           bgcolor="#0a0a0a" class="bg-d" style="width:100%;max-width:600px;background-color:#0a0a0a;">
 
       <tr><td align="center" style="padding:40px 24px 44px 24px;">
         <img src="${SITE_URL}/email-logo.png" width="200" alt="MORBEI" class="c-w"
@@ -188,9 +199,10 @@ ${eyebrow ? `
       <tr><td align="center" class="c-m" style="padding:0 24px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.3em;color:#8a8a8a;">
         ${esc(eyebrow)}
       </td></tr>` : ''}
+${heading ? `
       <tr><td align="center" class="c-w" style="padding:14px 24px 0 24px;font-family:Georgia,'Times New Roman',serif;font-size:${headingSize}px;letter-spacing:0.14em;color:#ffffff;">
         ${esc(heading)}
-      </td></tr>
+      </td></tr>` : ''}
 ${intro ? `
       <tr><td align="center" class="c-m" style="padding:20px 24px 0 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:22px;letter-spacing:0.08em;color:#8a8a8a;">
         ${intro}
@@ -598,7 +610,28 @@ export async function sendVerificationCode(email, code, minutes) {
         html: shell({
             title: 'Your verification code',
             eyebrow: 'VERIFY YOUR EMAIL',
-            heading: code,
+            // Deliberately not the heading. A heading is white text on the
+            // shell's dark ground, and in Gmail's Android dark mode that
+            // ground came out white while the restore rules held the text
+            // at white — so the code rendered invisible and the only reason
+            // anyone could still sign up was that it is in the subject line.
+            //
+            // A white box with near-black text survives either rendering:
+            // left alone it is dark-on-light, and inverted it becomes
+            // light-on-dark. Both are legible. What cannot survive is a
+            // colour that depends on something else staying the colour it
+            // was declared.
+            body: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td align="center" style="padding:30px 24px 0 24px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr><td bgcolor="#ffffff" class="bg-w" align="center"
+                style="background-color:#ffffff;padding:18px 36px;">
+          <span class="c-k" style="color:#0a0a0a;font-family:'Courier New',Courier,monospace;
+                       font-size:32px;font-weight:bold;letter-spacing:0.28em;">${esc(code)}</span>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>`,
             intro: `Enter this code to confirm this is your email address. It expires in
                     ${minutes} minutes.`,
             footerNote: 'If you did not ask for this, ignore it. Nobody from MORBEI '
