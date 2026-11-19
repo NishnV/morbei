@@ -1,5 +1,4 @@
 import { deliver } from './mailer.js';
-import { emailImage } from './site-image.js';
 import { welcomeOffer } from './discount.js';
 
 // Which transport carries these, and why it is an HTTPS API rather than
@@ -660,7 +659,6 @@ export async function sendAccountWelcome({ email, firstName }) {
     // wording comes from the discount itself — a code worth 5% and an email
     // claiming 10% is the same broken promise as a code that does not exist.
     const offer = await welcomeOffer();
-    const photo = await emailImage(['email-welcome', 'account-side']);
     const name = String(firstName || '').trim();
 
     // 28px between paragraphs, and a spacer row above the first — Outlook's
@@ -699,12 +697,18 @@ export async function sendAccountWelcome({ email, firstName }) {
             // hides the rest behind "View entire message", and a photograph
             // this size is what pushes it over — so the words and the link
             // come first and the picture is what gets cut, not the offer.
-            media: photo
-                ? `<a href="${SITE_URL}/shop/all" style="text-decoration:none;">
-                       <img src="${esc(photo.url)}" width="560" alt="${esc(photo.alt || 'MORBEI')}"
+            // Served from our own domain, like the logo and the background.
+            // It used to come from cdn.shopify.com, read live from the
+            // account-side image slot so the picture could be changed in the
+            // Shopify admin without a deploy. That convenience cost
+            // deliverability: an image hosted somewhere other than the
+            // sending domain is a spam signal, and Resend flags it. The
+            // picture is now a file in public/, so changing it is a commit
+            // rather than an admin edit — the trade that was chosen.
+            media: `<a href="${SITE_URL}/shop/all" style="text-decoration:none;">
+                       <img src="${SITE_URL}/email-welcome.jpg" width="560" alt="MORBEI"
                             style="display:block;width:100%;max-width:560px;height:auto;border:0;margin:0 auto;">
-                   </a>`
-                : '',
+                   </a>`,
         }),
     });
 }
