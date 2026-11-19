@@ -11,6 +11,7 @@ import Seo, { SITE_URL, breadcrumbJsonLd } from '../components/Seo';
 import SizeGuide from '../components/SizeGuide';
 import ProductVideo from '../components/ProductVideo';
 import Modal from '../components/ui/Modal';
+import { DELIVERY_OPTIONS, deliveryWindow, RETURN_WINDOW_DAYS } from '../data/delivery';
 import { shopifyImage, shopifySrcSet } from '../utils/shopifyImage';
 import { sortSizes } from '../utils/sizes';
 import { colorToSwatch } from '../utils/colors';
@@ -718,6 +719,20 @@ const ProductDetail = () => {
                                     <span
                                         key={size}
                                         className={`pd-size-item ${outOfStock ? 'out-of-stock' : ''}`}
+                                        // This is the only way to choose a size on the mobile
+                                        // design, and as a bare span it could not be reached by
+                                        // keyboard or announced by a screen reader. Kept a span,
+                                        // given a button's behaviour: a real <button> would pick
+                                        // up browser styling the overlay's tiers do not reset.
+                                        role="button"
+                                        tabIndex={showMobileSizeOverlay ? 0 : -1}
+                                        aria-label={outOfStock ? `Size ${size}, out of stock — get notified` : `Add size ${size} to bag`}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                e.currentTarget.click();
+                                            }
+                                        }}
                                         // In stock: tapping a size adds it straight to the bag.
                                         // Sold out: select it and offer the restock alert instead of
                                         // doing nothing, which is what used to happen.
@@ -966,7 +981,15 @@ const ProductDetail = () => {
                         <AccordionItem title="SHIPPING" isOpen={activeAccordion === 'ship'} onClick={() => toggleAccordion('ship')}>
                             {product.metafields?.shipping
                                 ? paragraphs(product.metafields.shipping).map((line, i) => <p key={i}>{line}</p>)
-                                : <p>Free standard shipping on all orders. Returns accepted within 14 days.</p>}
+                                : (
+                                    // From data/delivery.js, like every other statement of
+                                    // these. This line said 14 days while the policy said 7.
+                                    <p>
+                                        Free standard shipping on all orders, delivered in{' '}
+                                        {deliveryWindow(DELIVERY_OPTIONS.standard)}. Returns and exchanges
+                                        accepted within {RETURN_WINDOW_DAYS} days of delivery.
+                                    </p>
+                                )}
                         </AccordionItem>
                     </div>
                 </div>

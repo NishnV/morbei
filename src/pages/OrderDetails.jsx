@@ -5,11 +5,15 @@ import Modal from '../components/ui/Modal';
 import './Checkout.css';
 import { shopifyImage } from '../utils/shopifyImage';
 import { FULFILLMENT_STEPS, getStatusIndex, canReturn } from '../utils/orderStatus';
+import { getDeliveryOption } from '../data/delivery';
 
-function getEstDelivery(createdAt) {
+// The window for the delivery option the order was placed with. This was a
+// fixed 7 to 14 days, so a priority order showed the standard estimate.
+function getEstDelivery(createdAt, shippingMethod) {
+    const option = getDeliveryOption(shippingMethod);
     const base = createdAt ? new Date(createdAt) : new Date();
-    const start = new Date(base); start.setDate(start.getDate() + 7);
-    const end = new Date(base); end.setDate(end.getDate() + 14);
+    const start = new Date(base); start.setDate(start.getDate() + option.minDays);
+    const end = new Date(base); end.setDate(end.getDate() + option.maxDays);
     const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
     return `${fmt(start)}-${fmt(end)}`;
 }
@@ -215,7 +219,7 @@ const OrderDetails = () => {
                                         </div>
                                     ) : (
                                         <span className="est-delivery-badge">
-                                            ESTIMATED DELIVERY {getEstDelivery(order.createdAt)}
+                                            ESTIMATED DELIVERY {getEstDelivery(order.createdAt, order.shippingMethod)}
                                         </span>
                                     )}
                                 </div>
